@@ -13,7 +13,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ value, onChange }) => {
         placeholder="Search templates..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg"
+        className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
       />
       <svg
         className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400"

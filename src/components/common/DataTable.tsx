@@ -24,6 +24,7 @@ export interface DataTableProps<T = any> {
   zebra?: boolean;
   hover?: boolean;
   bordered?: boolean;
+  containerBordered?: boolean;
   compact?: boolean;
   stickyHeader?: boolean;
   minWidth?: string;
@@ -48,6 +49,7 @@ const DataTable = <T extends Record<string, any>>({
   zebra = false,
   hover = true,
   bordered = true,
+  containerBordered = true,
   compact = false,
   stickyHeader = false,
   minWidth = "800px",
@@ -108,11 +110,13 @@ const DataTable = <T extends Record<string, any>>({
   const cellPadding = compact ? "px-3 py-2" : "px-4 py-3";
   const headerCellPadding = compact ? "px-3 py-2" : "px-4 py-3";
 
-  const containerBorderClasses = bordered 
+  const containerBorderClasses = containerBordered 
     ? (darkMode 
         ? 'bg-neutral-800 rounded-lg shadow-sm border border-neutral-600 overflow-hidden' 
         : 'bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden')
-    : '';
+    : (darkMode 
+        ? 'bg-neutral-800 rounded-lg border border-neutral-600 overflow-hidden' 
+        : 'bg-white rounded-lg border border-neutral-200 overflow-hidden');
 
   const titleSectionClasses = darkMode
     ? "px-4 py-4 border-b border-neutral-600 bg-neutral-700 flex justify-between items-center"
@@ -235,12 +239,31 @@ export default DataTable;
 
 // Utility configurations for common table styles
 export const DataTablePresets = {
-  // Standard table with all features
+  // Standard table (no container borders - for use inside white containers)
   standard: {
     hover: true,
     bordered: true,
     zebra: false,
-    compact: false
+    compact: false,
+    containerBordered: false
+  },
+  
+  // Standalone table with container borders
+  standalone: {
+    hover: true,
+    bordered: true,
+    zebra: false,
+    compact: false,
+    containerBordered: true
+  },
+  
+  // Table inside a white container (no container borders) - DEPRECATED: use standard
+  inContainer: {
+    hover: true,
+    bordered: true,
+    zebra: false,
+    compact: false,
+    containerBordered: false
   },
   
   // Compact table for dense data

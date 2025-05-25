@@ -244,20 +244,20 @@ const ExportTemplatesPage: FC = () => {
   return (
     <div>
       <div id="header" className="mb-8">
-        <Breadcrumbs items={breadcrumbItems} onNavigate={handleBreadcrumbNavigate} />
         <PageHeader onNew={handleNew} />
       </div>
-      <div className="mb-6">
+      
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
         <SearchInput value={filter} onChange={setFilter} />
+        <TemplatesList 
+          templates={templates} 
+          filter={filter} 
+          onEdit={handleEditTemplate}
+          onDuplicate={handleDuplicateTemplate}
+          onDelete={handleDeleteTemplate}
+          onSetDefault={handleSetDefaultTemplate}
+        />
       </div>
-      <TemplatesList 
-        templates={templates} 
-        filter={filter} 
-        onEdit={handleEditTemplate}
-        onDuplicate={handleDuplicateTemplate}
-        onDelete={handleDeleteTemplate}
-        onSetDefault={handleSetDefaultTemplate}
-      />
     </div>
   );
 };
