@@ -56,6 +56,14 @@
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-neutral-100;
 }
 
+.defaultBadge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800;
+}
+
+.setDefaultBtn {
+    @apply text-xs text-blue-600 hover:text-blue-800 hover:underline bg-transparent border-none cursor-pointer;
+}
+
 .defaultBtn {
     @apply text-xs text-neutral-600 hover:text-neutral-900;
 }

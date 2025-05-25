@@ -7,9 +7,13 @@ import styles from './TemplatesList.module.css';
 interface TemplatesListProps {
   templates: Template[];
   filter: string;
+  onEdit: (template: Template) => void;
+  onDuplicate: (template: Template) => void;
+  onDelete: (templateId: string) => void;
+  onSetDefault: (templateId: string) => void;
 }
 
-const TemplatesList: React.FC<TemplatesListProps> = ({ templates, filter }) => {
+const TemplatesList: React.FC<TemplatesListProps> = ({ templates, filter, onEdit, onDuplicate, onDelete, onSetDefault }) => {
   // Filter templates based on the search input
   const filteredTemplates = templates.filter(template => 
     template.name.toLowerCase().includes(filter.toLowerCase()) ||
@@ -27,22 +31,19 @@ const TemplatesList: React.FC<TemplatesListProps> = ({ templates, filter }) => {
   };
 
   // Handle template editing
-  const handleEdit = (id: string) => {
-    console.log(`Editing template: ${id}`);
-    // TODO: Implement template editing functionality
+  const handleEdit = (template: Template) => {
+    onEdit(template);
   };
 
   // Handle template duplication
-  const handleDuplicate = (id: string) => {
-    console.log(`Duplicating template: ${id}`);
-    // TODO: Implement template duplication functionality
+  const handleDuplicate = (template: Template) => {
+    onDuplicate(template);
   };
 
   // Handle template deletion
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this template?')) {
-      console.log(`Deleting template: ${id}`);
-      // TODO: Implement template deletion functionality
+  const handleDelete = (template: Template) => {
+    if (window.confirm(`Are you sure you want to delete "${template.name}"? This action cannot be undone.`)) {
+      onDelete(template.id);
     }
   };
 
@@ -57,8 +58,8 @@ const TemplatesList: React.FC<TemplatesListProps> = ({ templates, filter }) => {
               <th className={styles.th}>Template Name</th>
               <th className={styles.th}>Description</th>
               <th className={styles.th}>Last Modified</th>
-              <th className={styles.th}>Type</th>
               <th className={styles.th}>Fields</th>
+              <th className={styles.th}>Status</th>
               <th className={styles.th + " text-center"}>Actions</th>
             </tr>
           </thead>
@@ -75,30 +76,39 @@ const TemplatesList: React.FC<TemplatesListProps> = ({ templates, filter }) => {
                   <td className={styles.td}>{template.name}</td>
                   <td className={styles.td}>{template.description}</td>
                   <td className={styles.td}>{formatDate(template.updatedAt)}</td>
-                  <td className={styles.td}>
-                    <span className={styles.statusBadge}>{template.fileType}</span>
-                  </td>
                   <td className={styles.td}>{template.fieldMappings.length}</td>
+                  <td className={styles.td}>
+                    {template.isDefault ? (
+                      <span className={styles.defaultBadge}>Default</span>
+                    ) : (
+                      <button 
+                        className={styles.setDefaultBtn}
+                        onClick={() => onSetDefault(template.id)}
+                      >
+                        Set as Default
+                      </button>
+                    )}
+                  </td>
                   <td className={styles.td}>
                     <div className={styles.actionGroup + " justify-center"}>
                       <button 
                         className={styles.actionBtn} 
                         title="Edit"
-                        onClick={() => handleEdit(template.id)}
+                        onClick={() => handleEdit(template)}
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
                       <button 
                         className={styles.actionBtn} 
                         title="Clone"
-                        onClick={() => handleDuplicate(template.id)}
+                        onClick={() => handleDuplicate(template)}
                       >
                         <FontAwesomeIcon icon={faClone} />
                       </button>
                       <button 
                         className={styles.actionBtn} 
                         title="Delete"
-                        onClick={() => handleDelete(template.id)}
+                        onClick={() => handleDelete(template)}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>

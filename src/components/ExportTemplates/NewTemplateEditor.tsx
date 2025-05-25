@@ -25,6 +25,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import styles from './NewTemplateEditor.module.css';
+import { Template } from '../../models/Template';
 
 interface FieldType {
   id: string;
@@ -36,10 +37,12 @@ interface FieldType {
 interface NewTemplateEditorProps {
   onSave: (templateData: any) => void;
   onCancel: () => void;
+  saveRef?: React.MutableRefObject<(() => void) | null>;
+  initialTemplate?: Template | null;
 }
 
-// SortableRow component
-const SortableRow = ({ field, index, fields, onChangeField, onDeleteField, onMoveField }: { 
+// SortableRow component - memoized to prevent unnecessary re-renders
+const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteField, onMoveField }: { 
   field: FieldType;
   index: number;
   fields: FieldType[];
@@ -77,7 +80,7 @@ const SortableRow = ({ field, index, fields, onChangeField, onDeleteField, onMov
       <td className="py-3 px-4">
         <input 
           type="text" 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput"
           value={field.name}
           onChange={(e) => onChangeField(field.id, 'name', e.target.value)}
           placeholder="Field name"
@@ -85,7 +88,7 @@ const SortableRow = ({ field, index, fields, onChangeField, onDeleteField, onMov
       </td>
       <td className="py-3 px-4">
         <select 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput"
           value={field.type}
           onChange={(e) => onChangeField(field.id, 'type', e.target.value as any)}
         >
@@ -98,7 +101,7 @@ const SortableRow = ({ field, index, fields, onChangeField, onDeleteField, onMov
       <td className="py-3 px-4">
         <input 
           type="text" 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput"
           placeholder="Format pattern"
           value={field.format}
           onChange={(e) => onChangeField(field.id, 'format', e.target.value)}
@@ -139,9 +142,9 @@ const SortableRow = ({ field, index, fields, onChangeField, onDeleteField, onMov
       </td>
     </tr>
   );
-};
+});
 
-const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel }) => {
+const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel, saveRef, initialTemplate }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
@@ -151,6 +154,35 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel 
     { id: '1', name: 'Customer ID', type: 'Text', format: '' },
     { id: '2', name: 'Transaction Date', type: 'Date', format: 'YYYY-MM-DD' }
   ]);
+
+  // Initialize form with template data when editing
+  React.useEffect(() => {
+    if (initialTemplate) {
+      setTemplateName(initialTemplate.name);
+      setDescription(initialTemplate.description);
+      
+      // Convert field mappings to FieldType format
+      const convertedFields: FieldType[] = initialTemplate.fieldMappings.map((mapping, index) => ({
+        id: `${Date.now()}_${index}`,
+        name: mapping.sourceField,
+        type: 'Text', // Default type, could be enhanced to store actual type
+        format: mapping.transform || ''
+      }));
+      
+      setFields(convertedFields.length > 0 ? convertedFields : [
+        { id: '1', name: 'Customer ID', type: 'Text', format: '' },
+        { id: '2', name: 'Transaction Date', type: 'Date', format: 'YYYY-MM-DD' }
+      ]);
+    } else {
+      // Reset form for new template
+      setTemplateName('');
+      setDescription('');
+      setFields([
+        { id: '1', name: 'Customer ID', type: 'Text', format: '' },
+        { id: '2', name: 'Transaction Date', type: 'Date', format: 'YYYY-MM-DD' }
+      ]);
+    }
+  }, [initialTemplate]);
   
   // Set up drag and drop sensors
   const sensors = useSensors(
@@ -171,30 +203,32 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel 
     setFields([...fields, newField]);
   };
   
-  // Update field properties
-  const handleFieldChange = (id: string, property: keyof FieldType, value: string) => {
-    setFields(fields.map(field => 
+  // Update field properties - optimized to prevent unnecessary re-renders
+  const handleFieldChange = React.useCallback((id: string, property: keyof FieldType, value: string) => {
+    setFields(prevFields => prevFields.map(field => 
       field.id === id ? { ...field, [property]: value } : field
     ));
-  };
+  }, []);
   
   // Delete a field
-  const handleDeleteField = (id: string) => {
-    setFields(fields.filter(field => field.id !== id));
-  };
+  const handleDeleteField = React.useCallback((id: string) => {
+    setFields(prevFields => prevFields.filter(field => field.id !== id));
+  }, []);
   
   // Move field up or down using buttons
-  const handleMoveField = (index: number, direction: 'up' | 'down') => {
-    if (
-      (direction === 'up' && index === 0) || 
-      (direction === 'down' && index === fields.length - 1)
-    ) {
-      return; // Can't move further
-    }
-    
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    setFields(items => arrayMove(items, index, newIndex));
-  };
+  const handleMoveField = React.useCallback((index: number, direction: 'up' | 'down') => {
+    setFields(prevFields => {
+      if (
+        (direction === 'up' && index === 0) || 
+        (direction === 'down' && index === prevFields.length - 1)
+      ) {
+        return prevFields; // Can't move further
+      }
+      
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      return arrayMove(prevFields, index, newIndex);
+    });
+  }, []);
   
   // Handle drag end - reorder fields
   const handleDragEnd = (event: DragEndEvent) => {
@@ -212,6 +246,24 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel 
   
   // Save template
   const handleSave = () => {
+    // Basic validation
+    if (!templateName.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+    
+    if (fields.length === 0) {
+      alert('Please add at least one field');
+      return;
+    }
+    
+    // Check if all fields have names
+    const emptyFields = fields.filter(field => !field.name.trim());
+    if (emptyFields.length > 0) {
+      alert('Please fill in all field names');
+      return;
+    }
+    
     const templateData = {
       name: templateName,
       description,
@@ -219,6 +271,13 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel 
     };
     onSave(templateData);
   };
+
+  // Expose handleSave to parent component via ref
+  React.useEffect(() => {
+    if (saveRef) {
+      saveRef.current = handleSave;
+    }
+  }, [templateName, description, fields, saveRef]);
   
   return (
     <div>
@@ -228,7 +287,7 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel 
             <label className="block text-sm text-neutral-600 mb-1">Template Name</label>
             <input 
               type="text" 
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg" 
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput" 
               placeholder="Enter template name"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
@@ -238,7 +297,7 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel 
             <label className="block text-sm text-neutral-600 mb-1">Description</label>
             <input 
               type="text" 
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg" 
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput" 
               placeholder="Enter description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}

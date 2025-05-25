@@ -13,13 +13,15 @@ interface BreadcrumbsProps {
   onBack?: () => void;
   showBackButton?: boolean;
   separator?: string;
+  onNavigate?: (path: string) => void;
 }
 
 const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ 
   items, 
   onBack, 
   showBackButton = false,
-  separator = ">"
+  separator = ">",
+  onNavigate
 }) => {
   return (
     <div className="flex items-center mb-2 text-sm">
@@ -41,13 +43,20 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
               {item.label}
             </span>
           ) : (
-            <span 
-              className="text-neutral-600 flex items-center cursor-pointer hover:text-neutral-900"
-              onClick={() => item.path && window.history.pushState({}, '', item.path)}
+            <button 
+              className="text-neutral-600 flex items-center cursor-pointer hover:text-neutral-900 bg-transparent border-none p-0"
+              onClick={() => {
+                if (item.path && onNavigate) {
+                  onNavigate(item.path);
+                } else if (item.path) {
+                  // Fallback for when onNavigate is not provided
+                  window.location.href = item.path;
+                }
+              }}
             >
               {item.icon && <FontAwesomeIcon icon={item.icon} className="mr-2" />}
               {item.label}
-            </span>
+            </button>
           )}
         </React.Fragment>
       ))}

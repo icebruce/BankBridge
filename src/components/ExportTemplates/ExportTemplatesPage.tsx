@@ -4,6 +4,7 @@ import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHome } from '@fortawesome/free-solid-svg-icons';
 import { Template } from '../../models/Template';
+import { fetchTemplates, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, setDefaultTemplate } from '../../services/templateService';
 import PageHeader from './PageHeader';
 import SearchInput from './SearchInput';
 import TemplatesList from './TemplatesList';
@@ -11,99 +12,186 @@ import NewTemplateEditor from './NewTemplateEditor';
 import Breadcrumbs from '../common/Breadcrumbs';
 import styles from './ExportTemplatesPage.module.css';
 
-// Mock data for templates
-const mockTemplates: Template[] = [
-  {
-    id: '1',
-    name: 'Bank Statement Export',
-    description: 'Template for exporting bank statements to CSV',
-    createdAt: '2023-07-15T10:30:00Z',
-    updatedAt: '2023-08-20T14:15:00Z',
-    fileType: 'CSV',
-    fieldMappings: [
-      { sourceField: 'date', targetField: 'Transaction Date' },
-      { sourceField: 'amount', targetField: 'Amount' },
-      { sourceField: 'description', targetField: 'Description' },
-    ],
-  },
-  {
-    id: '2',
-    name: 'Customer Data Export',
-    description: 'Export customer information for CRM',
-    createdAt: '2023-06-10T08:45:00Z',
-    updatedAt: '2023-06-10T08:45:00Z',
-    fileType: 'XML',
-    fieldMappings: [
-      { sourceField: 'customerId', targetField: 'ID' },
-      { sourceField: 'name', targetField: 'Full Name' },
-      { sourceField: 'email', targetField: 'Email Address' },
-    ],
-  },
-  {
-    id: '3',
-    name: 'Financial Report',
-    description: 'Monthly financial report template',
-    createdAt: '2023-05-05T16:20:00Z',
-    updatedAt: '2023-09-01T11:10:00Z',
-    fileType: 'XLSX',
-    fieldMappings: [
-      { sourceField: 'month', targetField: 'Reporting Period' },
-      { sourceField: 'revenue', targetField: 'Total Revenue' },
-      { sourceField: 'expenses', targetField: 'Total Expenses' },
-    ],
-  },
-];
+
 
 const ExportTemplatesPage: FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [filter, setFilter] = useState<string>('');
   const [showNewTemplateEditor, setShowNewTemplateEditor] = useState<boolean>(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const saveTemplateRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    // Simulate API call with timeout
-    const timer = setTimeout(() => {
-      setTemplates(mockTemplates);
-    }, 500);
-    
-    return () => clearTimeout(timer);
+    // Load templates from service
+    fetchTemplates()
+      .then(setTemplates)
+      .catch(error => {
+        console.error('Error loading templates:', error);
+        setTemplates([]);
+      });
   }, []);
 
   const handleNew = () => {
     setShowNewTemplateEditor(true);
   };
   
-  const handleSaveTemplate = useCallback((templateData: any) => {
-    // Create a new template with the form data
-    const newTemplate: Template = {
-      id: Date.now().toString(),
-      name: templateData.name,
-      description: templateData.description,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      fileType: 'CSV', // Default file type
-      fieldMappings: templateData.fields.map((field: any) => ({
+  const handleSaveTemplate = useCallback(async (templateData: any) => {
+    try {
+      console.log('🔄 Saving template with data:', templateData);
+      
+      // Validate input data
+      if (!templateData) {
+        throw new Error('No template data provided');
+      }
+      
+      if (!templateData.name || !templateData.name.trim()) {
+        throw new Error('Template name is required');
+      }
+      
+      if (!templateData.fields || templateData.fields.length === 0) {
+        throw new Error('At least one field is required');
+      }
+      
+      // Create field mappings from the form data
+      const fieldMappings = templateData.fields.map((field: any) => ({
         sourceField: field.name,
         targetField: field.name,
         transform: field.format
-      }))
-    };
-    
-    // Add the new template to the list
-    setTemplates(prev => [newTemplate, ...prev]);
-    
-    // Close the editor
-    setShowNewTemplateEditor(false);
-  }, []);
+      }));
+
+      console.log('📋 Field mappings created:', fieldMappings);
+
+      if (editingTemplate) {
+        // Update existing template
+        console.log('📝 Updating existing template:', editingTemplate.id);
+        
+        const updatedTemplate = await updateTemplate(editingTemplate.id, {
+          name: templateData.name,
+          description: templateData.description || '',
+          fieldMappings
+        });
+        
+        console.log('✅ Template updated successfully:', updatedTemplate);
+        
+        // Update the template in the list
+        setTemplates(prev => prev.map(t => 
+          t.id === editingTemplate.id ? updatedTemplate : t
+        ));
+      } else {
+        // Create new template
+        console.log('➕ Creating new template');
+        
+        const newTemplate = await createTemplate({
+          name: templateData.name,
+          description: templateData.description || '',
+          fieldMappings
+        });
+        
+        console.log('✅ Template created successfully:', newTemplate);
+        
+        // Add the new template to the list
+        setTemplates(prev => [newTemplate, ...prev]);
+      }
+      
+      // Close the editor and reset editing state
+      setShowNewTemplateEditor(false);
+      setEditingTemplate(null);
+      
+      console.log('🎉 Template saved and UI updated');
+    } catch (error) {
+      console.error('❌ Error saving template:', error);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      
+      // Show more specific error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to save template: ${errorMessage}`);
+    }
+  }, [editingTemplate]);
   
   const handleCancelTemplate = () => {
     setShowNewTemplateEditor(false);
+    setEditingTemplate(null);
+  };
+
+  // Handle editing an existing template
+  const handleEditTemplate = (template: Template) => {
+    setEditingTemplate(template);
+    setShowNewTemplateEditor(true);
+  };
+
+  // Handle duplicating a template
+  const handleDuplicateTemplate = useCallback(async (template: Template) => {
+    try {
+      console.log('🔄 Duplicating template:', template.name);
+      
+      const duplicatedTemplate = await duplicateTemplate(template.id);
+      
+      console.log('✅ Template duplicated successfully:', duplicatedTemplate);
+      
+      // Add the duplicated template to the list
+      setTemplates(prev => [duplicatedTemplate, ...prev]);
+      
+    } catch (error) {
+      console.error('❌ Error duplicating template:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to duplicate template: ${errorMessage}`);
+    }
+  }, []);
+
+  // Handle deleting a template
+  const handleDeleteTemplate = useCallback(async (templateId: string) => {
+    try {
+      console.log('🔄 Deleting template:', templateId);
+      
+      await deleteTemplate(templateId);
+      
+      console.log('✅ Template deleted successfully');
+      
+      // Remove the template from the list
+      setTemplates(prev => prev.filter(t => t.id !== templateId));
+      
+    } catch (error) {
+      console.error('❌ Error deleting template:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to delete template: ${errorMessage}`);
+    }
+  }, []);
+
+  // Handle setting a template as default
+  const handleSetDefaultTemplate = useCallback(async (templateId: string) => {
+    try {
+      console.log('🔄 Setting default template:', templateId);
+      
+      const updatedTemplate = await setDefaultTemplate(templateId);
+      
+      console.log('✅ Default template set successfully');
+      
+      // Update all templates in the list
+      setTemplates(prev => prev.map(t => ({
+        ...t,
+        isDefault: t.id === templateId
+      })));
+      
+    } catch (error) {
+      console.error('❌ Error setting default template:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to set default template: ${errorMessage}`);
+    }
+  }, []);
+
+  // Handle breadcrumb navigation
+  const handleBreadcrumbNavigate = (path: string) => {
+    if (path === '/export-templates') {
+      setShowNewTemplateEditor(false);
+      setEditingTemplate(null);
+    }
   };
 
   // Define breadcrumb items
   const breadcrumbItems = showNewTemplateEditor 
     ? [
         { label: 'Export Templates', path: '/export-templates' },
-        { label: 'New Export Template' }
+        { label: editingTemplate ? 'Edit Export Template' : 'New Export Template' }
       ]
     : [
         { label: 'Export Templates', path: '/export-templates' }
@@ -117,11 +205,16 @@ const ExportTemplatesPage: FC = () => {
             items={breadcrumbItems}
             showBackButton={true}
             onBack={handleCancelTemplate}
+            onNavigate={handleBreadcrumbNavigate}
           />
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-2xl">New Export Template</h2>
-              <p className="text-neutral-600">Define fields and their properties</p>
+              <h2 className="text-2xl">
+                {editingTemplate ? 'Edit Export Template' : 'New Export Template'}
+              </h2>
+              <p className="text-neutral-600">
+                {editingTemplate ? 'Modify fields and their properties' : 'Define fields and their properties'}
+              </p>
             </div>
             <div className="flex space-x-3">
               <button 
@@ -132,7 +225,7 @@ const ExportTemplatesPage: FC = () => {
               </button>
               <button 
                 className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
-                onClick={handleSaveTemplate}
+                onClick={() => saveTemplateRef.current?.()}
               >
                 Save Template
               </button>
@@ -142,6 +235,8 @@ const ExportTemplatesPage: FC = () => {
         <NewTemplateEditor 
           onSave={handleSaveTemplate}
           onCancel={handleCancelTemplate}
+          saveRef={saveTemplateRef}
+          initialTemplate={editingTemplate}
         />
       </div>
     );
@@ -150,13 +245,20 @@ const ExportTemplatesPage: FC = () => {
   return (
     <div className={styles.container}>
       <div id="header" className="mb-8">
-        <Breadcrumbs items={breadcrumbItems} />
+        <Breadcrumbs items={breadcrumbItems} onNavigate={handleBreadcrumbNavigate} />
         <PageHeader onNew={handleNew} />
       </div>
       <div className="mb-6">
         <SearchInput value={filter} onChange={setFilter} />
       </div>
-      <TemplatesList templates={templates} filter={filter} />
+      <TemplatesList 
+        templates={templates} 
+        filter={filter} 
+        onEdit={handleEditTemplate}
+        onDuplicate={handleDuplicateTemplate}
+        onDelete={handleDeleteTemplate}
+        onSetDefault={handleSetDefaultTemplate}
+      />
     </div>
   );
 };

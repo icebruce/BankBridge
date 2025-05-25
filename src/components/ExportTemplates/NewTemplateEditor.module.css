@@ -10,6 +10,13 @@
 
 .input {
   @apply w-full px-4 py-2 border border-neutral-200 rounded-lg;
+  /* Electron optimizations for input responsiveness */
+  -webkit-user-select: text;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  /* Prevent input lag in Electron */
+  will-change: contents;
+  transform: translateZ(0);
 }
 
 .formRow {
@@ -46,6 +53,9 @@
 
 .tableContainer {
   @apply overflow-x-auto;
+  /* Optimize scrolling performance in Electron */
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
 }
 
 .table {
@@ -70,6 +80,10 @@
 
 .dragHandle {
   @apply text-neutral-400 cursor-move;
+  /* Optimize drag performance */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .pageHeader {
@@ -94,4 +108,36 @@
 
 .buttonRow {
   @apply flex space-x-3;
+}
+
+/* Electron-specific input optimizations */
+.electronInput {
+  -webkit-user-select: text !important;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  /* Prevent input lag */
+  will-change: contents;
+  transform: translateZ(0);
+  /* Improve focus behavior */
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.electronInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Optimize table rows for better performance */
+.tableRow {
+  /* Prevent layout thrashing during drag operations */
+  contain: layout style;
+  will-change: transform;
+}
+
+.tableRow.dragging {
+  /* Optimize dragging performance */
+  transform: translateZ(0);
+  opacity: 0.5;
+  z-index: 1000;
 } 

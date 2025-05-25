@@ -4,8 +4,9 @@ export interface Template {
   description: string;
   createdAt: string;
   updatedAt: string;
-  fileType: string;
+  schemaVersion: string;
   fieldMappings: FieldMapping[];
+  isDefault?: boolean;
 }
 
 export interface FieldMapping {

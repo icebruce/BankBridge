@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import SidebarMenu from './components/Layout/SidebarMenu'
 import ProcessFilesPage from './components/Process files/ProcessFilesPage'
 import ImportTemplatesPage from './components/ImportTemplates/ImportTemplatesPage'
@@ -14,12 +14,21 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { faFileLines } from '@fortawesome/free-regular-svg-icons'
 import ExampleComponent from './components/ExampleComponent'
+import { attachDebugToWindow } from './services/templateDebugUtils'
+import TemplateDebugPanel from './components/Debug/TemplateDebugPanel'
 
 type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Master Data';
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SectionType>('Process Files')
   const [showCssTest, setShowCssTest] = useState(true)
+
+  // Initialize debug utilities in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      attachDebugToWindow();
+    }
+  }, []);
 
   // Handle sidebar navigation with type checking
   const handleSectionChange = (name: string) => {
@@ -93,6 +102,9 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Debug Panel - only in development */}
+      {process.env.NODE_ENV === 'development' && <TemplateDebugPanel />}
     </div>
   )
 }
