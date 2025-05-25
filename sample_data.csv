@@ -1,0 +1,6 @@
+first_name,last_name,email,phone,account_balance,signup_date,is_active
+John,Doe,john.doe@email.com,+1-555-0123,$1250.50,2023-01-15,true
+Jane,Smith,jane.smith@email.com,+1-555-0124,$2750.75,2023-02-20,true
+Bob,Johnson,bob.johnson@email.com,+1-555-0125,$500.00,2023-03-10,false
+Alice,Williams,alice.williams@email.com,+1-555-0126,$3200.25,2023-04-05,true
+Charlie,Brown,charlie.brown@email.com,+1-555-0127,$150.00,2023-05-12,false 

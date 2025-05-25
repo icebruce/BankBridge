@@ -26,7 +26,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({ template, onEdit, onDelete })
           <p className="text-neutral-600 text-sm">{template.description}</p>
         </div>
         <span className="px-2 py-1 bg-neutral-100 text-neutral-700 rounded text-xs">
-          {template.fileType}
+          JSON
         </span>
       </div>
       

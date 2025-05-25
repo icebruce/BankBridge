@@ -1,0 +1,58 @@
+/* NewImportTemplateEditor.module.css */
+.container {
+  @apply max-w-7xl mx-auto;
+}
+
+/* Electron-specific input optimizations */
+.electronInput {
+  -webkit-user-select: text;
+  -webkit-app-region: no-drag;
+  will-change: contents;
+  transform: translateZ(0);
+}
+
+.electronInput:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Drag and drop styles */
+.sortableRow {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.sortableRow.dragging {
+  opacity: 0.5;
+  z-index: 1;
+}
+
+/* Field configuration styles */
+.fieldTable {
+  @apply w-full border-collapse;
+}
+
+.fieldTable th,
+.fieldTable td {
+  @apply border-b border-neutral-200 py-3 px-4;
+}
+
+.fieldTable th {
+  @apply bg-neutral-50 text-left text-sm font-medium text-neutral-600;
+}
+
+.fieldTable td {
+  @apply text-sm;
+}
+
+/* Action button styles */
+.actionBtn {
+  @apply p-2 hover:bg-neutral-100 rounded-lg text-neutral-700 transition-colors;
+}
+
+.actionBtn:disabled {
+  @apply text-neutral-300 cursor-not-allowed;
+}
+
+.actionBtn:disabled:hover {
+  @apply bg-transparent;
+} 

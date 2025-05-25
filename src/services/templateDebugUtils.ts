@@ -17,7 +17,6 @@ export const logStoredTemplates = (): void => {
     console.group(`${index + 1}. ${template.name}`);
     console.log('ID:', template.id);
     console.log('Description:', template.description);
-    console.log('File Type:', template.fileType);
     console.log('Created:', template.createdAt);
     console.log('Updated:', template.updatedAt);
     console.log('Schema Version:', template.schemaVersion);

@@ -1,0 +1,29 @@
+[
+  {
+    "customer_id": "CUST001",
+    "full_name": "John Doe",
+    "email_address": "john.doe@email.com",
+    "phone_number": "+1-555-0123",
+    "account_balance": 1250.50,
+    "registration_date": "2023-01-15",
+    "status": "active"
+  },
+  {
+    "customer_id": "CUST002",
+    "full_name": "Jane Smith",
+    "email_address": "jane.smith@email.com",
+    "phone_number": "+1-555-0124",
+    "account_balance": 2750.75,
+    "registration_date": "2023-02-20",
+    "status": "active"
+  },
+  {
+    "customer_id": "CUST003",
+    "full_name": "Bob Johnson",
+    "email_address": "bob.johnson@email.com",
+    "phone_number": "+1-555-0125",
+    "account_balance": 500.00,
+    "registration_date": "2023-03-10",
+    "status": "inactive"
+  }
+] 

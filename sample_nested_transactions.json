@@ -1,0 +1,55 @@
+{
+  "transactionList": [
+    {
+      "id": "N2UxYzQxNDAtYzU4Yy00YzMyLTg2N2QtZjUxODAzMjQ3NTNi",
+      "transactionId": "00018550883202511520250426041148674257",
+      "description": ["PROVIGO MONKLAND"],
+      "bookingDate": "2025-04-24",
+      "amount": 55.63,
+      "currency": "CAD",
+      "creditDebitIndicator": "DEBIT",
+      "merchantName": "PROVIGO MONKLAND",
+      "merchantCity": "MONTREAL",
+      "merchantProvince": "QC",
+      "postedDate": "2025-04-25",
+      "originalTransactionAmount": 55.63,
+      "isDisputable": true
+    },
+    {
+      "id": "OWQ3ZWI3YTctYTQxNy00Mzc2LThkOTYtMDgxMjQ5NTU2Y2I4",
+      "transactionId": "00018550883202511320250424041104470427",
+      "description": ["CAFE OLIMPICO"],
+      "bookingDate": "2025-04-22",
+      "amount": 57.24,
+      "currency": "CAD",
+      "creditDebitIndicator": "DEBIT",
+      "merchantName": "CAFE OLIMPICO",
+      "merchantCity": "WESTMOUNT",
+      "merchantProvince": "QC",
+      "postedDate": "2025-04-23",
+      "originalTransactionAmount": 57.24,
+      "isDisputable": true
+    },
+    {
+      "id": "NjU0MmFhNDAtNjIyZC00OWYyLWEwMGEtNWRkNDE2ODFlOWY0",
+      "transactionId": "00018550883202511220250423041056371527",
+      "description": ["STM LOGE LONGUEUIL N10"],
+      "bookingDate": "2025-04-20",
+      "amount": 4.75,
+      "currency": "CAD",
+      "creditDebitIndicator": "DEBIT",
+      "merchantName": "STM LOGE LONGUEUIL N10",
+      "merchantCity": "LONGUEUIL",
+      "merchantProvince": "QC",
+      "postedDate": "2025-04-22",
+      "originalTransactionAmount": 4.75,
+      "isDisputable": true
+    }
+  ],
+  "asOfDate": null,
+  "totalMatches": 3,
+  "totalResultsReturned": 3,
+  "hasError": false,
+  "errorLevel": null,
+  "errorDescription": null
+} 

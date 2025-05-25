@@ -1,0 +1,5 @@
+user_id	username	email	balance	join_date	active
+001	johndoe	john@example.com	1500.00	2023-01-15	Y
+002	janesmith	jane@example.com	2200.50	2023-02-20	Y
+003	bobjohnson	bob@example.com	750.25	2023-03-10	N
+004	alicew	alice@example.com	3100.75	2023-04-05	Y 
