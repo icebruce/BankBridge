@@ -22,14 +22,14 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
   const fileTypes = ['All File Types', 'Sales Data', 'Customer Data'];
 
   return (
-    <div className="mb-6">
-      <div className="relative">
+    <div className="flex gap-4 items-center">
+      <div className="relative flex-1">
         <input
           type="text"
           placeholder="Search templates..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg"
+          className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
         />
         <svg
           className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400"
@@ -45,6 +45,26 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
           />
         </svg>
       </div>
+      
+      <select
+        value={selectedAccount}
+        onChange={(e) => onAccountChange(e.target.value)}
+        className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors min-w-[140px]"
+      >
+        {accounts.map(account => (
+          <option key={account} value={account}>{account}</option>
+        ))}
+      </select>
+      
+      <select
+        value={selectedFileType}
+        onChange={(e) => onFileTypeChange(e.target.value)}
+        className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors min-w-[140px]"
+      >
+        {fileTypes.map(fileType => (
+          <option key={fileType} value={fileType}>{fileType}</option>
+        ))}
+      </select>
     </div>
   );
 };

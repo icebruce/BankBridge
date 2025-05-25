@@ -123,8 +123,8 @@ const DataTable = <T extends Record<string, any>>({
   const emptyTextClasses = darkMode ? "text-neutral-400" : "text-neutral-500";
   const headerTextClasses = darkMode ? "text-neutral-300" : "text-neutral-600";
   const footerClasses = darkMode 
-    ? "p-4 border-t border-neutral-600 bg-neutral-700"
-    : "p-4 border-t border-neutral-200 bg-neutral-50";
+    ? "p-4 border-t border-neutral-600 bg-neutral-800"
+    : "p-4 border-t border-neutral-200 bg-white";
 
   if (loading) {
     return (

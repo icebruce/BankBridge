@@ -261,22 +261,24 @@ const ImportTemplatesPage: FC = () => {
             </div>
           </div>
 
-          <SearchAndFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            selectedAccount={selectedAccount}
-            onAccountChange={setSelectedAccount}
-            selectedFileType={selectedFileType}
-            onFileTypeChange={setSelectedFileType}
-          />
+          <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+            <SearchAndFilters
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              selectedAccount={selectedAccount}
+              onAccountChange={setSelectedAccount}
+              selectedFileType={selectedFileType}
+              onFileTypeChange={setSelectedFileType}
+            />
 
-          <ImportTemplatesList
-            templates={filteredTemplates}
-            loading={loading}
-            onEdit={handleEditTemplate}
-            onDuplicate={handleDuplicateTemplate}
-            onDelete={handleDeleteTemplate}
-          />
+            <ImportTemplatesList
+              templates={filteredTemplates}
+              loading={loading}
+              onEdit={handleEditTemplate}
+              onDuplicate={handleDuplicateTemplate}
+              onDelete={handleDeleteTemplate}
+            />
+          </div>
         </div>
       )}
     </div>
