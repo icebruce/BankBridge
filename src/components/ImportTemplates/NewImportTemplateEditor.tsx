@@ -87,17 +87,17 @@ const FieldRow = React.memo(({
               {isCombined && isFirstInCombinedGroup && (
                 <div className="flex gap-1 flex-shrink-0">
                   <button 
-                    className="p-1.5 hover:bg-neutral-100 rounded transition-colors"
+                    className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
                     title="Edit combination"
                   >
-                    <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+                    <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 hover:text-neutral-800 text-xs transition-colors" />
                   </button>
                   <button 
-                    className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
+                    className="p-1.5 hover:bg-red-50 hover:text-red-600 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
                     title="Delete combination"
                     onClick={() => onDeleteField(field.id)}
                   >
-                    <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+                    <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs transition-colors" />
                   </button>
                 </div>
               )}
@@ -119,17 +119,17 @@ const FieldRow = React.memo(({
         ) : (
           <div className="flex gap-1">
             <button 
-              className="p-1.5 hover:bg-neutral-100 rounded transition-colors"
+              className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
               title="Link field"
             >
-              <FontAwesomeIcon icon={faLink} className="text-neutral-400 text-xs" />
+              <FontAwesomeIcon icon={faLink} className="text-neutral-400 hover:text-neutral-600 text-xs transition-colors" />
             </button>
             <button 
-              className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
+              className="p-1.5 hover:bg-red-50 hover:text-red-600 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
               title="Delete field"
               onClick={() => onDeleteField(field.id)}
             >
-              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs transition-colors" />
             </button>
           </div>
         )}
@@ -427,7 +427,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         />
         <label
           htmlFor="file-upload"
-          className={`px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 cursor-pointer inline-block ${
+          className={`px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 hover:shadow-sm transition-all duration-200 cursor-pointer inline-block ${
             isParsingFile ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -476,7 +476,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         <div className="px-6 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-neutral-900">Field Mapping</h3>
           <button 
-            className="px-3 py-1.5 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-100 flex items-center gap-2 transition-colors"
+            className="px-3 py-1.5 text-sm text-neutral-900 bg-neutral-200 hover:bg-neutral-300 rounded-lg flex items-center gap-2 transition-all duration-200 hover:shadow-sm border border-neutral-300 hover:border-neutral-400"
             onClick={handleAddFieldCombination}
           >
             <FontAwesomeIcon icon={faPlus} className="text-xs" />

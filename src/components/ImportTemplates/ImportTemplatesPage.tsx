@@ -205,7 +205,12 @@ const ImportTemplatesPage: FC = () => {
                 </button>
                 <div>
                   <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">
-                    <span>Import Templates</span>
+                    <button 
+                      className="hover:text-neutral-700 transition-colors duration-200"
+                      onClick={handleCancelTemplate}
+                    >
+                      Import Templates
+                    </button>
                     <FontAwesomeIcon icon={faChevronRight} className="mx-2 text-xs" />
                     <span>{editingTemplate ? 'Edit Template' : 'New Template'}</span>
                   </div>
@@ -215,7 +220,7 @@ const ImportTemplatesPage: FC = () => {
               </div>
               <div className="flex gap-3">
                 <button 
-                  className="px-4 py-2 border border-neutral-200 rounded-lg hover:bg-neutral-50"
+                  className="px-4 py-2 border border-neutral-200 rounded-lg hover:bg-neutral-50 hover:border-neutral-300 transition-all duration-200"
                   onClick={handleCancelTemplate}
                 >
                   Cancel
