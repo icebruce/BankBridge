@@ -15,26 +15,30 @@ const ProcessFilesPage: React.FC = () => {
     <div>
       {/* Header Section */}
       <div id="header" className="mb-8">
-        <h2 className="text-2xl font-semibold">Process Files</h2>
-        <p className="text-neutral-600">Upload and process your CSV files</p>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold">Process Files</h2>
+            <p className="text-neutral-600">Upload and process your CSV files</p>
+          </div>
+        </div>
       </div>
 
       {/* Upload Section */}
-      <div id="upload-section" className="p-6 border border-neutral-200 rounded-lg mb-6">
+      <div id="upload-section" className="bg-white p-6 border border-neutral-200 rounded-lg shadow-sm mb-6">
         <div className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center">
           <FontAwesomeIcon
             icon={faCloudArrowUp}
             className="text-4xl text-neutral-400 mb-4"
           />
           <p className="mb-4">Drag and drop your CSV file here, or</p>
-          <button className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
+          <button className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 hover:shadow-sm transition-all duration-200">
             Browse Files
           </button>
         </div>
       </div>
 
       {/* File Processing Configuration */}
-      <div id="file-config" className="p-6 border border-neutral-200 rounded-lg mb-6">
+      <div id="file-config" className="bg-white p-6 border border-neutral-200 rounded-lg shadow-sm mb-6">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="text-lg font-semibold mb-2">Process Files (3 files ready)</h3>
@@ -43,19 +47,19 @@ const ProcessFilesPage: React.FC = () => {
               <p>Estimated processing time: 2 minutes</p>
             </div>
           </div>
-          <button className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
+          <button className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 hover:shadow-sm transition-all duration-200">
             Process Files
           </button>
         </div>
 
-        <div className="flex items-center text-sm text-neutral-600 mb-4">
-          <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
+        <div className="flex items-center text-sm text-amber-600 mb-4">
+          <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2 text-amber-500" />
           <span>Warning: 2 duplicate files detected</span>
         </div>
 
         <div className="max-h-[400px] overflow-y-auto space-y-6">
           {/* File 1 */}
-          <div className="border border-neutral-200 rounded-lg p-4">
+          <div className="bg-white border border-neutral-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <FontAwesomeIcon
@@ -70,16 +74,16 @@ const ProcessFilesPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm mb-2">Account</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg">
+                <label className="block text-sm font-semibold text-neutral-600 mb-1">Account</label>
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                   <option>Select Account</option>
                   <option>Account 1</option>
                   <option>Account 2</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm mb-2">File Type</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg">
+                <label className="block text-sm font-semibold text-neutral-600 mb-1">File Type</label>
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                   <option>Select Type</option>
                   <option>Sales Data</option>
                   <option>Customer Data</option>
@@ -96,10 +100,10 @@ const ProcessFilesPage: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center text-sm text-neutral-600">
-                <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
+              <div className="flex items-center text-sm text-amber-600">
+                <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2 text-amber-500" />
                 <span>3 parsing errors found</span>
-                <button className="ml-2 underline">View</button>
+                <button className="ml-2 underline hover:text-amber-700 transition-colors duration-200">View</button>
               </div>
               <div className="flex items-center text-sm text-neutral-600">
                 <FontAwesomeIcon icon={faCopy} className="mr-2" />
@@ -110,7 +114,7 @@ const ProcessFilesPage: React.FC = () => {
           </div>
 
           {/* File 2 */}
-          <div className="border border-neutral-200 rounded-lg p-4">
+          <div className="bg-white border border-neutral-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <FontAwesomeIcon
@@ -125,14 +129,14 @@ const ProcessFilesPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm mb-2">Account</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg">
+                <label className="block text-sm font-semibold text-neutral-600 mb-1">Account</label>
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                   <option>Account 2</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm mb-2">File Type</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg">
+                <label className="block text-sm font-semibold text-neutral-600 mb-1">File Type</label>
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                   <option>Sales Data</option>
                 </select>
               </div>
@@ -147,10 +151,10 @@ const ProcessFilesPage: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center text-sm text-neutral-600">
-                <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
+              <div className="flex items-center text-sm text-amber-600">
+                <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2 text-amber-500" />
                 <span>2 parsing errors found</span>
-                <button className="ml-2 underline">View</button>
+                <button className="ml-2 underline hover:text-amber-700 transition-colors duration-200">View</button>
               </div>
               <div className="flex items-center text-sm text-neutral-600">
                 <FontAwesomeIcon icon={faCopy} className="mr-2" />
@@ -161,7 +165,7 @@ const ProcessFilesPage: React.FC = () => {
           </div>
 
           {/* File 3 */}
-          <div className="border border-neutral-200 rounded-lg p-4">
+          <div className="bg-white border border-neutral-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <FontAwesomeIcon
@@ -176,14 +180,14 @@ const ProcessFilesPage: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm mb-2">Account</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg">
+                <label className="block text-sm font-semibold text-neutral-600 mb-1">Account</label>
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                   <option>Account 1</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm mb-2">File Type</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg">
+                <label className="block text-sm font-semibold text-neutral-600 mb-1">File Type</label>
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                   <option>Sales Data</option>
                 </select>
               </div>
@@ -198,10 +202,10 @@ const ProcessFilesPage: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center text-sm text-neutral-600">
-                <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
+              <div className="flex items-center text-sm text-amber-600">
+                <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2 text-amber-500" />
                 <span>1 parsing error found</span>
-                <button className="ml-2 underline">View</button>
+                <button className="ml-2 underline hover:text-amber-700 transition-colors duration-200">View</button>
               </div>
               <div className="flex items-center text-sm text-neutral-600">
                 <FontAwesomeIcon icon={faCopy} className="mr-2" />
@@ -214,11 +218,11 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* Processing Summary Section */}
-      <div id="processing-summary" className="p-6 border border-neutral-200 rounded-lg mb-6">
+      <div id="processing-summary" className="bg-white p-6 border border-neutral-200 rounded-lg shadow-sm mb-6">
         <h3 className="text-lg font-semibold mb-4">Processing Summary</h3>
         
         {/* Account 1 */}
-        <div className="border border-neutral-200 rounded-lg p-4 mb-4">
+        <div className="bg-white border border-neutral-200 rounded-lg p-4 mb-4">
           <h4 className="text-base font-medium mb-4">Account 1</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -260,7 +264,7 @@ const ProcessFilesPage: React.FC = () => {
         </div>
         
         {/* Account 2 */}
-        <div className="border border-neutral-200 rounded-lg p-4">
+        <div className="bg-white border border-neutral-200 rounded-lg p-4">
           <h4 className="text-base font-medium mb-4">Account 2</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -303,9 +307,9 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* Recent Files Section */}
-      <div id="recent-files" className="p-6 border border-neutral-200 rounded-lg mb-6">
+      <div id="recent-files" className="bg-white p-6 border border-neutral-200 rounded-lg shadow-sm mb-6">
         <h3 className="text-lg font-semibold mb-4">Recent Files</h3>
-        <div className="flex items-center justify-between border border-neutral-200 rounded-lg p-4 mb-2">
+        <div className="flex items-center justify-between bg-white border border-neutral-200 rounded-lg p-4 mb-2">
           <div>
             <div className="font-medium">march_sales.csv</div>
             <div className="text-sm text-neutral-600">Processed on Apr 26, 2025</div>
@@ -317,7 +321,7 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* Add padding at the bottom to prevent content from being hidden behind the sticky Export section */}
-      <div className="h-[120px]"></div>
+      <div className="h-[42px]"></div>
     </div>
   )
 }

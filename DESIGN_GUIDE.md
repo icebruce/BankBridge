@@ -188,6 +188,11 @@ className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-neu
 className="mr-3 text-neutral-600 hover:text-neutral-900 transition-colors duration-200"
 ```
 
+### Upload Box Buttons (File Browse)
+```tsx
+className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 hover:shadow-sm transition-all duration-200"
+```
+
 ## Form Styling
 
 ### Form Layout Patterns
@@ -422,7 +427,8 @@ className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-betw
 - `green-100` / `green-800` - Success states, default badges
 - `blue-600` / `blue-800` - Links, info states
 - `red-100` / `red-600` / `red-700` - Error states, danger actions
-- `yellow-100` / `yellow-800` - Warning states
+- `amber-500` / `amber-600` / `amber-700` - Warning states, warning icons and text
+- `yellow-100` / `yellow-800` - Alternative warning states
 
 ### Focus Colors
 - `primary-500` - Focus ring color for form inputs
