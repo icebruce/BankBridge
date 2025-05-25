@@ -3,30 +3,13 @@ import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPlus, 
-  faGripVertical, 
   faTrash,
-  faArrowUp,
-  faArrowDown,
-  faUpload,
-  faExclamationTriangle
+  faCloudArrowUp,
+  faExclamationTriangle,
+  faLink,
+  faPenToSquare,
+  faCode
 } from '@fortawesome/free-solid-svg-icons';
-import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
-  useSensors,
-  DragEndEvent
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { ImportTemplate } from '../../models/ImportTemplate';
 import { fileParserService } from '../../services/fileParserService';
 
@@ -46,127 +29,110 @@ interface NewImportTemplateEditorProps {
   initialTemplate?: ImportTemplate | null;
 }
 
-// SortableRow component for drag and drop field reordering
-const SortableRow = React.memo(({ 
+// FieldRow component for field mapping
+const FieldRow = React.memo(({ 
   field, 
   index, 
   fields, 
   onChangeField, 
-  onDeleteField, 
-  onMoveField 
+  onDeleteField
 }: { 
   field: ImportFieldType;
   index: number;
   fields: ImportFieldType[];
   onChangeField: (id: string, property: keyof ImportFieldType, value: string) => void;
   onDeleteField: (id: string) => void;
-  onMoveField: (index: number, direction: 'up' | 'down') => void;
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: field.id });
+  // Check if this field is part of a combined group
+  const isCombined = field.actions === 'Combined';
+  const isFirstInCombinedGroup = isCombined && (index === 0 || fields[index - 1].targetField !== field.targetField);
+  const isSecondInCombinedGroup = isCombined && index > 0 && fields[index - 1].targetField === field.targetField;
   
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 1 : 0,
-    position: 'relative' as 'relative'
-  };
+  // Calculate rowspan for combined fields
+  let rowSpan = 1;
+  if (isCombined && isFirstInCombinedGroup) {
+    // Count how many consecutive fields have the same target field
+    for (let i = index + 1; i < fields.length; i++) {
+      if (fields[i].targetField === field.targetField && fields[i].actions === 'Combined') {
+        rowSpan++;
+      } else {
+        break;
+      }
+    }
+  }
   
   return (
-    <tr ref={setNodeRef} style={style} className={isDragging ? "bg-neutral-50" : ""}>
-      <td className="py-3 px-4">
-        <div {...attributes} {...listeners} className="cursor-move">
-          <FontAwesomeIcon 
-            icon={faGripVertical} 
-            className="text-neutral-400"
-          />
-        </div>
-      </td>
-      <td className="py-3 px-4">
-        {field.id.startsWith('parsed_') ? (
-          <span className="text-sm">{field.sourceField}</span>
+    <tr className="bg-white hover:bg-neutral-50/30">
+      <td className="px-4 py-4 text-sm font-medium text-neutral-900">{field.sourceField}</td>
+      <td className="px-4 py-4 text-sm text-neutral-600">{field.dataType}</td>
+      <td className="px-4 py-4 text-sm text-neutral-600">{field.sampleData}</td>
+      {/* Target Field column - only render for first in group or non-combined fields */}
+      {(!isCombined || isFirstInCombinedGroup) && (
+        <td className="px-4 py-4 align-top" rowSpan={rowSpan}>
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <select 
+                className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                value={field.targetField}
+                onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
+              >
+                <option value="">Select target field</option>
+                <option value="Full Name">Full Name</option>
+                <option value="Email Address">Email Address</option>
+                <option value="Phone Number">Phone Number</option>
+                <option value="Customer ID">Customer ID</option>
+                <option value="Transaction Date">Transaction Date</option>
+                <option value="Amount">Amount</option>
+              </select>
+              {isCombined && isFirstInCombinedGroup && (
+                <div className="flex gap-1 flex-shrink-0">
+                  <button 
+                    className="p-1.5 hover:bg-neutral-100 rounded transition-colors"
+                    title="Edit combination"
+                  >
+                    <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+                  </button>
+                  <button 
+                    className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
+                    title="Delete combination"
+                    onClick={() => onDeleteField(field.id)}
+                  >
+                    <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+                  </button>
+                </div>
+              )}
+            </div>
+            {isCombined && isFirstInCombinedGroup && (
+              <div className="text-xs text-neutral-500 flex items-center">
+                <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-1.5" />
+                Concat with space
+              </div>
+            )}
+          </div>
+        </td>
+      )}
+      <td className="px-4 py-4">
+        {field.actions === 'Combined' ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+            Combined
+          </span>
         ) : (
-          <input
-            type="text"
-            className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput text-sm"
-            value={field.sourceField}
-            onChange={(e) => onChangeField(field.id, 'sourceField', e.target.value)}
-            placeholder="Enter source field name"
-          />
+          <div className="flex gap-1">
+            <button 
+              className="p-1.5 hover:bg-neutral-100 rounded transition-colors"
+              title="Link field"
+            >
+              <FontAwesomeIcon icon={faLink} className="text-neutral-400 text-xs" />
+            </button>
+            <button 
+              className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded transition-colors"
+              title="Delete field"
+              onClick={() => onDeleteField(field.id)}
+            >
+              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+            </button>
+          </div>
         )}
-      </td>
-      <td className="py-3 px-4">
-        <select 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput text-sm"
-          value={field.dataType}
-          onChange={(e) => onChangeField(field.id, 'dataType', e.target.value)}
-        >
-          <option value="Text">Text</option>
-          <option value="Number">Number</option>
-          <option value="Date">Date</option>
-          <option value="Currency">Currency</option>
-          <option value="Boolean">Boolean</option>
-        </select>
-      </td>
-      <td className="py-3 px-4">
-        <span className="text-sm text-neutral-600">{field.sampleData}</span>
-      </td>
-      <td className="py-3 px-4">
-        <select 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput text-sm"
-          value={field.targetField}
-          onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
-        >
-          <option value="">Select target field</option>
-          <option value="Full Name">Full Name</option>
-          <option value="Email Address">Email Address</option>
-          <option value="Phone Number">Phone Number</option>
-          <option value="Customer ID">Customer ID</option>
-          <option value="Transaction Date">Transaction Date</option>
-          <option value="Amount">Amount</option>
-        </select>
-      </td>
-      <td className="py-3 px-4">
-        <div className="flex justify-center space-x-1">
-          <button 
-            className="p-1 hover:bg-neutral-100 rounded text-neutral-600"
-            onClick={() => onMoveField(index, 'up')}
-            disabled={index === 0}
-            title="Move Up"
-          >
-            <FontAwesomeIcon 
-              icon={faArrowUp} 
-              className={index === 0 ? "text-neutral-300" : "text-neutral-600"} 
-              size="sm"
-            />
-          </button>
-          <button 
-            className="p-1 hover:bg-neutral-100 rounded text-neutral-600"
-            onClick={() => onMoveField(index, 'down')}
-            disabled={index === fields.length - 1}
-            title="Move Down"
-          >
-            <FontAwesomeIcon 
-              icon={faArrowDown} 
-              className={index === fields.length - 1 ? "text-neutral-300" : "text-neutral-600"} 
-              size="sm"
-            />
-          </button>
-          <button 
-            className="p-1 hover:bg-neutral-100 rounded text-red-600"
-            onClick={() => onDeleteField(field.id)}
-            title="Delete"
-          >
-            <FontAwesomeIcon icon={faTrash} size="sm" />
-          </button>
-        </div>
       </td>
     </tr>
   );
@@ -209,7 +175,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       dataType: 'Text', 
       sampleData: 'john@example.com',
       targetField: 'Email Address',
-      actions: 'Combined'
+      actions: ''
     },
     { 
       id: '4', 
@@ -217,7 +183,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       dataType: 'Text', 
       sampleData: '+1234567890',
       targetField: 'Phone Number',
-      actions: 'Combined'
+      actions: ''
     }
   ]);
 
@@ -280,7 +246,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           dataType: 'Text', 
           sampleData: 'john@example.com',
           targetField: 'Email Address',
-          actions: 'Combined'
+          actions: ''
         },
         { 
           id: '4', 
@@ -288,19 +254,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           dataType: 'Text', 
           sampleData: '+1234567890',
           targetField: 'Phone Number',
-          actions: 'Combined'
+          actions: ''
         }
       ]);
     }
   }, [initialTemplate]);
   
-  // Set up drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  // No drag and drop needed for this page
   
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -390,34 +350,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     setFields(prevFields => prevFields.filter(field => field.id !== id));
   }, []);
   
-  // Move field up or down using buttons
-  const handleMoveField = useCallback((index: number, direction: 'up' | 'down') => {
-    setFields(prevFields => {
-      if (
-        (direction === 'up' && index === 0) || 
-        (direction === 'down' && index === prevFields.length - 1)
-      ) {
-        return prevFields; // Can't move further
-      }
-      
-      const newIndex = direction === 'up' ? index - 1 : index + 1;
-      return arrayMove(prevFields, index, newIndex);
-    });
-  }, []);
-  
-  // Handle drag end - reorder fields
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      setFields((items) => {
-        const oldIndex = items.findIndex(item => item.id === active.id);
-        const newIndex = items.findIndex(item => item.id === over.id);
-        
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
+  // No field reordering needed for this page
   
   // Save template
   const handleSave = () => {
@@ -448,23 +381,23 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   }, [templateName, sourceFileType, fields, saveRef]);
   
   return (
-    <div>
+    <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
       {/* Template Configuration */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">Template Name</label>
+          <label className="block mb-2 text-sm">Template Name</label>
           <input 
             type="text" 
-            className="w-full px-3 py-2 border border-neutral-300 rounded-md electronInput" 
+            className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput" 
             placeholder="Enter template name"
             value={templateName}
             onChange={(e) => setTemplateName(e.target.value)}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">Source File Type</label>
+          <label className="block mb-2 text-sm">Source File Type</label>
           <select 
-            className="w-full px-3 py-2 border border-neutral-300 rounded-md electronInput"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput"
             value={sourceFileType}
             onChange={(e) => setSourceFileType(e.target.value)}
           >
@@ -476,130 +409,124 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       </div>
 
       {/* File Upload Section */}
-      <div className="mb-6">
-        <div 
-          className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center bg-neutral-50"
-          onDrop={handleFileDrop}
-          onDragOver={handleDragOver}
+      <div 
+        className="border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center"
+        onDrop={handleFileDrop}
+        onDragOver={handleDragOver}
+      >
+        <FontAwesomeIcon icon={faCloudArrowUp} className="text-4xl text-neutral-400 mb-3" />
+        <p className="mb-2">Drag and drop your file here, or click to browse</p>
+        <p className="text-sm text-neutral-500 mb-4">Supported formats: .csv, .txt</p>
+        <input
+          type="file"
+          accept=".csv,.txt,.json"
+          onChange={handleFileUpload}
+          className="hidden"
+          id="file-upload"
+          disabled={isParsingFile}
+        />
+        <label
+          htmlFor="file-upload"
+          className={`px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 cursor-pointer inline-block ${
+            isParsingFile ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
-          <FontAwesomeIcon icon={faUpload} className="text-4xl text-neutral-400 mb-4" />
-          <p className="text-lg text-neutral-600 mb-2">
-            <strong>Drag and drop your file here, or click to browse</strong>
+          {isParsingFile ? 'Parsing...' : 'Browse Files'}
+        </label>
+        
+        {/* File status messages */}
+        {uploadedFile && !isParsingFile && !parseError && (
+          <p className="mt-2 text-sm text-green-600">
+            ✓ File uploaded: {uploadedFile.name}
           </p>
-          <p className="text-sm text-neutral-500 mb-4">
-            Supported formats: .csv, .txt, .json
+        )}
+        
+        {isParsingFile && (
+          <p className="mt-2 text-sm text-blue-600">
+            🔄 Parsing file structure...
           </p>
-          <input
-            type="file"
-            accept=".csv,.txt,.json"
-            onChange={handleFileUpload}
-            className="hidden"
-            id="file-upload"
-            disabled={isParsingFile}
-          />
-          <label
-            htmlFor="file-upload"
-            className={`inline-flex items-center px-4 py-2 border border-neutral-300 rounded-md shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 cursor-pointer ${
-              isParsingFile ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            {isParsingFile ? 'Parsing...' : 'Browse Files'}
-          </label>
-          
-          {/* File status messages */}
-          {uploadedFile && !isParsingFile && !parseError && (
-            <p className="mt-2 text-sm text-green-600">
-              ✓ File uploaded: {uploadedFile.name}
+        )}
+        
+        {parseError && (
+          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">
+              ❌ Parse Error: {parseError}
             </p>
-          )}
-          
-          {isParsingFile && (
-            <p className="mt-2 text-sm text-blue-600">
-              🔄 Parsing file structure...
-            </p>
-          )}
-          
-          {parseError && (
-            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">
-                ❌ Parse Error: {parseError}
-              </p>
-            </div>
-          )}
-          
-          {parseWarnings.length > 0 && (
-            <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800 font-medium mb-1">⚠️ Warnings:</p>
-              {parseWarnings.map((warning, index) => (
-                <p key={index} className="text-sm text-yellow-700">• {warning}</p>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+        
+        {parseWarnings.length > 0 && (
+          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm text-yellow-800 font-medium mb-1">⚠️ Warnings:</p>
+            {parseWarnings.map((warning, index) => (
+              <p key={index} className="text-sm text-yellow-700">• {warning}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Warning Message */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6">
-        <div className="flex">
-          <FontAwesomeIcon icon={faExclamationTriangle} className="text-yellow-400 mr-3 mt-0.5" />
-          <div className="text-sm text-yellow-800">
-            <strong>No export template defined.</strong> Please create an export template first to enable field mapping.
-          </div>
-        </div>
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center">
+        <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 mr-3" />
+        <p className="text-sm text-amber-800">No export template defined. Please create an export template first to enable field mapping.</p>
       </div>
 
       {/* Field Mapping Section */}
-      <div className="bg-white rounded-lg border border-neutral-200">
-        <div className="px-6 py-4 border-b border-neutral-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-neutral-900">Field Mapping</h3>
-            <button 
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-neutral-900 hover:bg-neutral-800"
-              onClick={handleAddFieldCombination}
-            >
-              <FontAwesomeIcon icon={faPlus} className="mr-2" />
-              Add Field Combination
-            </button>
-          </div>
+      <div className="border border-neutral-200 rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-neutral-900">Field Mapping</h3>
+          <button 
+            className="px-3 py-1.5 text-sm border border-neutral-200 rounded-lg hover:bg-neutral-100 flex items-center gap-2 transition-colors"
+            onClick={handleAddFieldCombination}
+          >
+            <FontAwesomeIcon icon={faPlus} className="text-xs" />
+            Add Field Combination
+          </button>
         </div>
 
         <div className="overflow-x-auto">
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <table className="min-w-full divide-y divide-neutral-200">
-              <thead className="bg-neutral-50">
+          <table className="w-full table-fixed min-w-[800px]">
+            <colgroup>
+              <col className="w-[140px]" />
+              <col className="w-[100px]" />
+              <col className="w-[160px]" />
+              <col className="w-[280px]" />
+              <col className="w-[120px]" />
+            </colgroup>
+            <thead>
+              <tr className="bg-neutral-50 border-b border-neutral-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Source Field</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Data Type</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Sample Data</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Target Field</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200 bg-white">
+              {fields.length > 0 ? (
+                fields.map((field, index) => (
+                  <FieldRow 
+                    key={field.id} 
+                    field={field} 
+                    index={index}
+                    fields={fields}
+                    onChangeField={handleFieldChange}
+                    onDeleteField={handleDeleteField}
+                  />
+                ))
+              ) : (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider w-8"></th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Source Field</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Data Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Sample Data</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Target Field</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Actions</th>
+                  <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
+                    <div className="flex flex-col items-center">
+                      <FontAwesomeIcon icon={faExclamationTriangle} className="text-2xl text-neutral-400 mb-2" />
+                      <p>No fields mapped yet</p>
+                      <p className="text-sm">Upload a file or add field combinations to get started</p>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-neutral-200">
-                <SortableContext 
-                  items={fields.map(field => field.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {fields.map((field, index) => (
-                    <SortableRow 
-                      key={field.id} 
-                      field={field} 
-                      index={index}
-                      fields={fields}
-                      onChangeField={handleFieldChange}
-                      onDeleteField={handleDeleteField}
-                      onMoveField={handleMoveField}
-                    />
-                  ))}
-                </SortableContext>
-              </tbody>
-            </table>
-          </DndContext>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

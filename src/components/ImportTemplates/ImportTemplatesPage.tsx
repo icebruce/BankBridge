@@ -2,13 +2,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faArrowLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate } from '../../models/ImportTemplate';
 import ImportTemplatesList from './ImportTemplatesList';
 import SearchAndFilters from './SearchAndFilters';
 import NewImportTemplateEditor from './NewImportTemplateEditor';
-import Breadcrumbs from '../common/Breadcrumbs';
-import styles from './ImportTemplatesPage.module.css';
 
 const ImportTemplatesPage: FC = () => {
   const [templates, setTemplates] = useState<ImportTemplate[]>([]);
@@ -189,46 +187,35 @@ const ImportTemplatesPage: FC = () => {
     return matchesSearch && matchesAccount && matchesFileType;
   });
 
-  // Handle breadcrumb navigation
-  const handleBreadcrumbNavigate = (path: string) => {
-    if (path === 'Import Templates') {
-      setShowNewTemplateEditor(false);
-      setEditingTemplate(null);
-    }
-  };
 
-  // Generate breadcrumb items
-  const breadcrumbItems = showNewTemplateEditor 
-    ? [
-        { label: 'Import Templates', path: 'Import Templates' },
-        { label: editingTemplate ? `Edit ${editingTemplate.name}` : 'New Template' }
-      ]
-    : [{ label: 'Import Templates' }];
 
   return (
-    <div className={styles.container}>
-      {/* Breadcrumbs */}
-      <Breadcrumbs 
-        items={breadcrumbItems} 
-        onNavigate={handleBreadcrumbNavigate}
-      />
-
+    <div>
       {showNewTemplateEditor ? (
         // Show template editor
         <div>
           <div id="header" className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-2xl">
-                  {editingTemplate ? `Edit ${editingTemplate.name}` : 'New Import Template'}
-                </h2>
-                <p className="text-neutral-600">
-                  {editingTemplate ? 'Update your import template configuration' : 'Create a new import template'}
-                </p>
-              </div>
-              <div className="flex space-x-3">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
                 <button 
-                  className="px-4 py-2 border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50"
+                  className="mr-3 text-neutral-600"
+                  onClick={handleCancelTemplate}
+                >
+                  <FontAwesomeIcon icon={faArrowLeft} />
+                </button>
+                <div>
+                  <div className="flex items-center text-sm text-neutral-500 mb-1">
+                    <span>Import Templates</span>
+                    <FontAwesomeIcon icon={faChevronRight} className="mx-2 text-xs" />
+                    <span>{editingTemplate ? 'Edit Template' : 'New Template'}</span>
+                  </div>
+                  <h2 className="text-2xl font-semibold">{editingTemplate ? 'Edit Import Template' : 'New Import Template'}</h2>
+                  <p className="text-neutral-600">Create a new template from source file</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  className="px-4 py-2 border border-neutral-200 rounded-lg hover:bg-neutral-50"
                   onClick={handleCancelTemplate}
                 >
                   Cancel
@@ -237,7 +224,7 @@ const ImportTemplatesPage: FC = () => {
                   className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
                   onClick={() => saveTemplateRef.current?.()}
                 >
-                  {editingTemplate ? 'Update Template' : 'Save Template'}
+                  Save Template
                 </button>
               </div>
             </div>
@@ -256,7 +243,7 @@ const ImportTemplatesPage: FC = () => {
           <div id="header" className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="text-2xl">Import Templates</h2>
+                <h2 className="text-2xl font-semibold">Import Templates</h2>
                 <p className="text-neutral-600">Manage your import templates</p>
               </div>
               <button 

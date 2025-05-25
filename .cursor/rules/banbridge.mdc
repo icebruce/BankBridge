@@ -1,0 +1,99 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+1. General Mind-set
+
+    Ask before you act.
+
+        If a requirement is ambiguous, respond with a short clarifying question instead of guessing.
+
+    Keep prior work intact.
+
+        Never delete or rename files unless the user explicitly says so.
+
+    Small, atomic steps.
+
+        Each AI-generated commit should introduce one feature or fix and leave the app runnable.
+
+
+
+2. Project Layout & File Placement
+Purpose	Path	Rule for Cursor
+Static assets (HTML, CSS, images)	/public	Place only build-ready files here; NO component logic.
+React / UI components	/src/ui	One component = one file (or folder if it has subparts).
+State & logic hooks	/src/ui/hooks	Keep hooks pure; no direct Electron API calls.
+Electron main process	/src/main	Isolate all Node/Electron imports here.
+Shared helpers	/src/services	Pure TS/JS utilities (e.g., file I/O, DB adapters).
+Data models / types	/src/models	Define with JSDoc or TypeScript types.
+Tests	/tests	Mirror the source tree; use vitest or jest.
+
+
+
+3. Tech & Coding Standards
+Area	Hard Rule
+Language	Default to TypeScript (.ts / .tsx). Use JSDoc comments when plain JS.
+Styling	Use TailwindCSS utility classes exclusively—no inline styles/CSS-in-JS.
+Formatting	Run Prettier on save; stick to 2-space indent, single quotes, semi-colons.
+Linting	Use ESLint with Airbnb + TypeScript config. Cursor should auto-fix where safe.
+Logs	Use console.log for MVP; suggest adding winston for structured logging.
+Error handling	Wrap all async/IPC calls in try / catch; surface errors via dialog or toast.
+Tests	Every new helper or hook ⇒ a matching unit test. Achieve ≥ 80 % coverage.
+
+
+4. Electron-Specific Rules
+
+    Security first
+
+        Enable contextIsolation, sandbox, disable nodeIntegration in renderer.
+
+    IPC segregation
+
+        All renderer ↔ main interactions go through /src/services/ipc.ts helper.
+
+    Single source of truth
+
+        Store user prefs in a single JSON file via Electron-Store; expose CRUD via IPC only.
+
+    Packaging
+
+        Use electron-builder; keep config in electron-builder.json.
+
+5. Git & Commit Conventions
+Step	What Cursor Should Do
+Branch name	feat/<scope> or fix/<scope> (e.g., feat/onboarding-ui).
+Commit msg	Conventional Commits (feat: add import wizard).
+PR description	Include what, why, screenshots/gifs, and manual test steps.
+
+
+6. UI/UX Best-Practice Reminders
+
+    Keep primary actions top-right on Windows, top-left on macOS toolbars.
+
+    Minimum touch target: 44 × 44 px.
+
+    Dark-mode ready: rely on Tailwind dark: classes, avoid hard-coded colors.
+
+    Show progress bars for ops > 300 ms; use toasts for < 3 s confirmations.
+
+    
+
+7. When to Ask the User
+
+Cursor should pause and request direction when:
+
+    A change spans multiple domains (e.g., DB + UI) in the same PR.
+
+    Unclear acceptance criteria (e.g., “export function” but no format given).
+
+    Adding a dependency > 10 kB gzipped or that ships its own UI framework.
+
+8. Performance Guardrails
+
+    Renderer bundle ≤ 1 MB (after gzip).
+
+    Lazy-import heavy libs (e.g., xlsx, sql.js).
+
+
+    Debounce expensive redraws (> 16 ms).

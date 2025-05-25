@@ -20,7 +20,7 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* Upload Section */}
-      <div id="upload-section" className="bg-white p-6 rounded-lg shadow-sm mb-6">
+      <div id="upload-section" className="p-6 border border-neutral-200 rounded-lg mb-6">
         <div className="border-2 border-dashed border-neutral-300 rounded-lg p-8 text-center">
           <FontAwesomeIcon
             icon={faCloudArrowUp}
@@ -34,7 +34,7 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* File Processing Configuration */}
-      <div id="file-config" className="bg-white p-6 rounded-lg shadow-sm mb-6">
+      <div id="file-config" className="p-6 border border-neutral-200 rounded-lg mb-6">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="text-lg font-semibold mb-2">Process Files (3 files ready)</h3>
@@ -214,7 +214,7 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* Processing Summary Section */}
-      <div id="processing-summary" className="bg-white p-6 rounded-lg shadow-sm mb-6">
+      <div id="processing-summary" className="p-6 border border-neutral-200 rounded-lg mb-6">
         <h3 className="text-lg font-semibold mb-4">Processing Summary</h3>
         
         {/* Account 1 */}
@@ -303,7 +303,7 @@ const ProcessFilesPage: React.FC = () => {
       </div>
 
       {/* Recent Files Section */}
-      <div id="recent-files" className="bg-white p-6 rounded-lg shadow-sm mb-6">
+      <div id="recent-files" className="p-6 border border-neutral-200 rounded-lg mb-6">
         <h3 className="text-lg font-semibold mb-4">Recent Files</h3>
         <div className="flex items-center justify-between border border-neutral-200 rounded-lg p-4 mb-2">
           <div>

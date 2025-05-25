@@ -10,7 +10,6 @@ import SearchInput from './SearchInput';
 import TemplatesList from './TemplatesList';
 import NewTemplateEditor from './NewTemplateEditor';
 import Breadcrumbs from '../common/Breadcrumbs';
-import styles from './ExportTemplatesPage.module.css';
 
 
 
@@ -199,7 +198,7 @@ const ExportTemplatesPage: FC = () => {
 
   if (showNewTemplateEditor) {
     return (
-      <div className={styles.container}>
+      <div>
         <div id="header" className="mb-8">
           <Breadcrumbs 
             items={breadcrumbItems}
@@ -243,7 +242,7 @@ const ExportTemplatesPage: FC = () => {
   }
 
   return (
-    <div className={styles.container}>
+    <div>
       <div id="header" className="mb-8">
         <Breadcrumbs items={breadcrumbItems} onNavigate={handleBreadcrumbNavigate} />
         <PageHeader onNew={handleNew} />
