@@ -385,7 +385,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       {/* Template Configuration */}
       <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className="block mb-2 text-sm">Template Name</label>
+          <label className="block mb-2 text-sm font-semibold">Template Name</label>
           <input 
             type="text" 
             className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput" 
@@ -395,7 +395,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           />
         </div>
         <div>
-          <label className="block mb-2 text-sm">Source File Type</label>
+          <label className="block mb-2 text-sm font-semibold">Source File Type</label>
           <select 
             className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput"
             value={sourceFileType}

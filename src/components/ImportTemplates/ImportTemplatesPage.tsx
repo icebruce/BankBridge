@@ -204,7 +204,7 @@ const ImportTemplatesPage: FC = () => {
                   <FontAwesomeIcon icon={faArrowLeft} />
                 </button>
                 <div>
-                  <div className="flex items-center text-sm text-neutral-500 mb-1">
+                  <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">
                     <span>Import Templates</span>
                     <FontAwesomeIcon icon={faChevronRight} className="mx-2 text-xs" />
                     <span>{editingTemplate ? 'Edit Template' : 'New Template'}</span>
