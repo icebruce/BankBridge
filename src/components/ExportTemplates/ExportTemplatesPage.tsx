@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHome } from '@fortawesome/free-solid-svg-icons';
+import { faHome, faArrowLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { Template } from '../../models/Template';
 import { fetchTemplates, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, setDefaultTemplate } from '../../services/templateService';
 import PageHeader from './PageHeader';
@@ -200,30 +200,42 @@ const ExportTemplatesPage: FC = () => {
     return (
       <div>
         <div id="header" className="mb-8">
-          <Breadcrumbs 
-            items={breadcrumbItems}
-            showBackButton={true}
-            onBack={handleCancelTemplate}
-            onNavigate={handleBreadcrumbNavigate}
-          />
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-2xl">
-                {editingTemplate ? 'Edit Export Template' : 'New Export Template'}
-              </h2>
-              <p className="text-neutral-600">
-                {editingTemplate ? 'Modify fields and their properties' : 'Define fields and their properties'}
-              </p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <button 
+                className="mr-3 text-neutral-600 hover:text-neutral-900 transition-colors duration-200"
+                onClick={handleCancelTemplate}
+              >
+                <FontAwesomeIcon icon={faArrowLeft} />
+              </button>
+              <div>
+                <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">
+                  <button 
+                    className="hover:text-neutral-700 transition-colors duration-200"
+                    onClick={handleCancelTemplate}
+                  >
+                    Export Templates
+                  </button>
+                  <FontAwesomeIcon icon={faChevronRight} className="mx-2 text-xs" />
+                  <span>{editingTemplate ? 'Edit Template' : 'New Template'}</span>
+                </div>
+                <h2 className="text-2xl font-semibold">
+                  {editingTemplate ? 'Edit Export Template' : 'New Export Template'}
+                </h2>
+                <p className="text-neutral-600">
+                  {editingTemplate ? 'Modify fields and their properties' : 'Define fields and their properties'}
+                </p>
+              </div>
             </div>
             <div className="flex space-x-3">
               <button 
-                className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-lg hover:bg-neutral-50"
+                className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-lg hover:bg-neutral-50 hover:border-neutral-300 transition-all duration-200"
                 onClick={handleCancelTemplate}
               >
                 Cancel
               </button>
               <button 
-                className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+                className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 hover:shadow-sm transition-all duration-200"
                 onClick={() => saveTemplateRef.current?.()}
               >
                 Save Template

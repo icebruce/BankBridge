@@ -24,8 +24,8 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import styles from './NewTemplateEditor.module.css';
 import { Template } from '../../models/Template';
+import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';
 
 interface FieldType {
   id: string;
@@ -41,7 +41,7 @@ interface NewTemplateEditorProps {
   initialTemplate?: Template | null;
 }
 
-// SortableRow component - memoized to prevent unnecessary re-renders
+// SortableRow component for drag and drop functionality
 const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteField, onMoveField }: { 
   field: FieldType;
   index: number;
@@ -68,27 +68,27 @@ const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteF
   };
   
   return (
-    <tr ref={setNodeRef} style={style} className={isDragging ? "bg-neutral-50" : ""}>
-      <td className="py-3 px-4">
-        <div {...attributes} {...listeners} className="cursor-move">
+    <tr ref={setNodeRef} style={style} className={`${isDragging ? "bg-neutral-50" : "bg-white hover:bg-neutral-50/50"} transition-colors duration-150`}>
+      <td className="px-4 py-3 text-sm">
+        <div {...attributes} {...listeners} className="cursor-move flex justify-center">
           <FontAwesomeIcon 
             icon={faGripVertical} 
-            className="text-neutral-400"
+            className="text-neutral-400 hover:text-neutral-600"
           />
         </div>
       </td>
-      <td className="py-3 px-4">
+      <td className="px-4 py-3 text-sm">
         <input 
           type="text" 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           value={field.name}
           onChange={(e) => onChangeField(field.id, 'name', e.target.value)}
           placeholder="Field name"
         />
       </td>
-      <td className="py-3 px-4">
+      <td className="px-4 py-3 text-sm">
         <select 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           value={field.type}
           onChange={(e) => onChangeField(field.id, 'type', e.target.value as any)}
         >
@@ -98,45 +98,39 @@ const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteF
           <option value="Currency">Currency</option>
         </select>
       </td>
-      <td className="py-3 px-4">
+      <td className="px-4 py-3 text-sm">
         <input 
           type="text" 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           placeholder="Format pattern"
           value={field.format}
           onChange={(e) => onChangeField(field.id, 'format', e.target.value)}
         />
       </td>
-      <td className="py-3 px-4">
-        <div className="flex justify-center space-x-2">
+      <td className="px-4 py-3 text-sm text-center">
+        <div className="flex justify-center gap-1">
           <button 
-            className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-700"
+            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-neutral-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => onMoveField(index, 'up')}
             disabled={index === 0}
             title="Move Up"
           >
-            <FontAwesomeIcon 
-              icon={faArrowUp} 
-              className={index === 0 ? "text-neutral-300" : "text-neutral-700"} 
-            />
+            <FontAwesomeIcon icon={faArrowUp} className="text-xs" />
           </button>
           <button 
-            className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-700"
+            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-neutral-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => onMoveField(index, 'down')}
             disabled={index === fields.length - 1}
             title="Move Down"
           >
-            <FontAwesomeIcon 
-              icon={faArrowDown} 
-              className={index === fields.length - 1 ? "text-neutral-300" : "text-neutral-700"} 
-            />
+            <FontAwesomeIcon icon={faArrowDown} className="text-xs" />
           </button>
           <button 
-            className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-700"
+            className="p-1.5 hover:bg-red-100 rounded-lg text-red-600 hover:text-red-700 transition-colors duration-200"
             onClick={() => onDeleteField(field.id)}
             title="Delete"
           >
-            <FontAwesomeIcon icon={faTrash} />
+            <FontAwesomeIcon icon={faTrash} className="text-xs" />
           </button>
         </div>
       </td>
@@ -278,26 +272,96 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel,
       saveRef.current = handleSave;
     }
   }, [templateName, description, fields, saveRef]);
+
+  // Define table columns for DataTable
+  const columns: DataTableColumn<FieldType>[] = [
+    {
+      key: 'drag',
+      header: '#',
+      width: '60px',
+      headerClassName: 'text-center',
+      className: 'text-center',
+      render: (_, field, index) => (
+        <SortableRow 
+          field={field} 
+          index={index}
+          fields={fields}
+          onChangeField={handleFieldChange}
+          onDeleteField={handleDeleteField}
+          onMoveField={handleMoveField}
+        />
+      )
+    }
+  ];
+
+  // Custom table content with drag and drop
+  const tableContent = (
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[800px] table-auto">
+          <colgroup>
+            <col style={{ width: '60px', minWidth: '60px' }} />
+            <col style={{ width: '200px', minWidth: '200px' }} />
+            <col style={{ width: '140px', minWidth: '140px' }} />
+            <col style={{ width: '200px', minWidth: '200px' }} />
+            <col style={{ width: '140px', minWidth: '140px' }} />
+          </colgroup>
+          
+          <thead>
+            <tr className="bg-neutral-50 border-b border-neutral-200">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 text-center">#</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Field Name</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Type</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Format</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-200 bg-white">
+            <SortableContext 
+              items={fields.map(field => field.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {fields.map((field, index) => (
+                <SortableRow 
+                  key={field.id} 
+                  field={field} 
+                  index={index}
+                  fields={fields}
+                  onChangeField={handleFieldChange}
+                  onDeleteField={handleDeleteField}
+                  onMoveField={handleMoveField}
+                />
+              ))}
+            </SortableContext>
+          </tbody>
+        </table>
+      </div>
+    </DndContext>
+  );
   
   return (
-    <div>
-      <div id="template-config" className="bg-white p-6 rounded-lg shadow-sm mb-6">
-        <div className="flex items-center space-x-4 mb-6">
+    <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+      <div id="template-config" className="space-y-6">
+        <div className="flex items-center space-x-4">
           <div className="flex-1">
-            <label className="block text-sm text-neutral-600 mb-1">Template Name</label>
+            <label className="block text-sm font-semibold text-neutral-600 mb-1">Template Name</label>
             <input 
               type="text" 
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput" 
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" 
               placeholder="Enter template name"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm text-neutral-600 mb-1">Description</label>
+            <label className="block text-sm font-semibold text-neutral-600 mb-1">Description</label>
             <input 
               type="text" 
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput" 
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" 
               placeholder="Enter description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -306,53 +370,28 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel,
         </div>
       </div>
 
-      <div id="field-editor" className="bg-white p-6 rounded-lg shadow-sm mb-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg">Field Configuration</h3>
+      <div className="rounded-lg border border-neutral-200 overflow-hidden">
+        <div className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-neutral-900">Field Configuration</h3>
           <button 
-            className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 flex items-center"
+            className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-all duration-200 flex items-center"
             onClick={handleAddField}
           >
             <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add Field
           </button>
         </div>
-
-        <div className="overflow-x-auto">
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <table className="w-full">
-              <thead className="border-b border-neutral-200">
-                <tr>
-                  <th className="text-left py-3 px-4 w-10">#</th>
-                  <th className="text-left py-3 px-4">Field Name</th>
-                  <th className="text-left py-3 px-4">Type</th>
-                  <th className="text-left py-3 px-4">Format</th>
-                  <th className="text-center py-3 px-4 w-32">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200">
-                <SortableContext 
-                  items={fields.map(field => field.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {fields.map((field, index) => (
-                    <SortableRow 
-                      key={field.id} 
-                      field={field} 
-                      index={index}
-                      fields={fields}
-                      onChangeField={handleFieldChange}
-                      onDeleteField={handleDeleteField}
-                      onMoveField={handleMoveField}
-                    />
-                  ))}
-                </SortableContext>
-              </tbody>
-            </table>
-          </DndContext>
+        
+        {tableContent}
+        
+        <div className="p-4 border-t border-neutral-200 bg-white">
+          <div className="flex justify-between items-center text-sm text-neutral-600">
+            <span>
+              {fields.length} field{fields.length !== 1 ? 's' : ''} configured
+            </span>
+            <span className="text-xs text-neutral-500">
+              Drag rows to reorder • Use arrow buttons for precise positioning
+            </span>
+          </div>
         </div>
       </div>
     </div>

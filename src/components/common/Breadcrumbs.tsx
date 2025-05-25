@@ -24,7 +24,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({
   onNavigate
 }) => {
   return (
-    <div className="flex items-center mb-2 text-sm">
+    <div className="flex items-center mb-2 text-sm font-semibold">
       {showBackButton && onBack && (
         <button 
           onClick={onBack}

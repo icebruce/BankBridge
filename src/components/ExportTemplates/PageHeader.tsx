@@ -12,7 +12,7 @@ interface PageHeaderProps {
 
 const PageHeader: FC<PageHeaderProps> = ({ onNew }) => (
   <div className="flex justify-between items-center mb-4">
-    <div className="space-y-1">
+    <div>
       <h2 className="text-2xl font-semibold">Export Templates</h2>
       <p className="text-neutral-600">Manage your export templates and field mappings</p>
     </div>
