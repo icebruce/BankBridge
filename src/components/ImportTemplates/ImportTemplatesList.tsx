@@ -6,10 +6,12 @@ import {
   faTrash, 
   faClone,
   faChevronLeft, 
-  faChevronRight 
+  faChevronRight,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate } from '../../models/ImportTemplate';
-import styles from './ImportTemplatesList.module.css';
+import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';
+import TableActions, { TableActionPresets } from '../common/TableActions';
 
 interface ImportTemplatesListProps {
   templates: ImportTemplate[];
@@ -48,112 +50,118 @@ const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
     onDelete(template.id);
   };
 
-  if (loading) {
-    return (
-      <div className={styles.card}>
-        <h3 className={styles.title}>Templates</h3>
-        <div className="p-8 text-center">
-          <div className="text-neutral-500">Loading templates...</div>
-        </div>
-      </div>
-    );
-  }
+  // Define table columns with better responsive widths
+  const columns: DataTableColumn<ImportTemplate>[] = [
+    {
+      key: 'name',
+      header: 'Template Name',
+      width: '250px', // Increased for better text display
+      render: (value) => (
+        <span className="font-medium text-neutral-900">{value}</span>
+      )
+    },
+    {
+      key: 'fieldCount',
+      header: 'Fields',
+      width: '120px', // Increased slightly
+      render: (value) => (
+        <span className="text-neutral-600">{value} fields</span>
+      )
+    },
+    {
+      key: 'account',
+      header: 'Account',
+      width: '140px', // Increased for better spacing
+      render: (value) => (
+        <span className="text-neutral-600">{value}</span>
+      )
+    },
+    {
+      key: 'fileType',
+      header: 'File Type',
+      width: '140px', // Increased for better spacing
+      render: (value) => (
+        <span className="text-neutral-600">{value}</span>
+      )
+    },
+    {
+      key: 'updatedAt',
+      header: 'Last Modified',
+      width: '160px', // Increased for date display
+      render: (value) => (
+        <span className="text-neutral-600">{formatDate(value)}</span>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '120px', // Increased for badge display
+      render: (value) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          value === 'Active' 
+            ? 'bg-neutral-100 text-neutral-800'
+            : value === 'Inactive'
+            ? 'bg-red-100 text-red-800'
+            : 'bg-yellow-100 text-yellow-800'
+        }`}>
+          {value}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      width: '140px', // Increased for action buttons
+      headerClassName: 'text-center',
+      className: 'text-center',
+      render: (_, template) => (
+        <TableActions
+          actions={TableActionPresets.crudWithDuplicate(
+            () => handleEdit(template),
+            () => handleDuplicate(template),
+            () => handleDelete(template)
+          )}
+          className="justify-center"
+        />
+      )
+    }
+  ];
 
-  return (
-    <div className={styles.card}>
-      <h3 className={styles.title}>Templates</h3>
-      
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead className={styles.thead}>
-            <tr>
-              <th className={styles.th}>Template Name</th>
-              <th className={styles.th}>Fields</th>
-              <th className={styles.th}>Account</th>
-              <th className={styles.th}>File Type</th>
-              <th className={styles.th}>Last Modified</th>
-              <th className={styles.th}>Status</th>
-              <th className={styles.th + " text-center"}>Actions</th>
-            </tr>
-          </thead>
-          <tbody className={styles.rowDivide}>
-            {templates.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-4 text-neutral-500">
-                  No templates found. Create your first import template to get started.
-                </td>
-              </tr>
-            ) : (
-              templates.map((template) => (
-                <tr key={template.id}>
-                  <td className={styles.td}>{template.name}</td>
-                  <td className={styles.td}>{template.fieldCount} fields</td>
-                  <td className={styles.td}>{template.account}</td>
-                  <td className={styles.td}>{template.fileType}</td>
-                  <td className={styles.td}>{formatDate(template.updatedAt)}</td>
-                  <td className={styles.td}>
-                    <span className={`px-2 py-1 rounded-full text-sm ${
-                      template.status === 'Active' 
-                        ? 'bg-neutral-100 text-neutral-800'
-                        : template.status === 'Inactive'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {template.status}
-                    </span>
-                  </td>
-                  <td className={styles.td}>
-                    <div className={styles.actionGroup + " justify-center"}>
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => handleEdit(template)}
-                        title="Edit"
-                      >
-                        <FontAwesomeIcon icon={faEdit} />
-                      </button>
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => handleDuplicate(template)}
-                        title="Duplicate"
-                      >
-                        <FontAwesomeIcon icon={faClone} />
-                      </button>
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => handleDelete(template)}
-                        title="Delete"
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+  // Footer with pagination
+  const footer = (
+    <div className="flex items-center justify-between">
+      <div className="text-sm text-neutral-600">
+        Showing 1-{templates.length} of {templates.length} templates
       </div>
-
-      <div className="p-4 border-t border-neutral-200 flex items-center justify-between">
-        <div className="text-sm text-neutral-600">
-          Showing 1-{templates.length} of {templates.length} templates
-        </div>
-        <div className="flex gap-2">
-          <button 
-            className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50" 
-            disabled={true}
-          >
-            <FontAwesomeIcon icon={faChevronLeft} />
-          </button>
-          <button 
-            className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50" 
-            disabled={true}
-          >
-            <FontAwesomeIcon icon={faChevronRight} />
-          </button>
-        </div>
+      <div className="flex gap-2">
+        <button 
+          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200" 
+          disabled={true}
+        >
+          <FontAwesomeIcon icon={faChevronLeft} />
+        </button>
+        <button 
+          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200" 
+          disabled={true}
+        >
+          <FontAwesomeIcon icon={faChevronRight} />
+        </button>
       </div>
     </div>
+  );
+
+  return (
+    <DataTable
+      columns={columns}
+      data={templates}
+      loading={loading}
+      title="Templates"
+      emptyMessage="No templates found. Create your first import template to get started."
+      emptyIcon={<FontAwesomeIcon icon={faExclamationTriangle} />}
+      footer={footer}
+      {...DataTablePresets.standard}
+      minWidth="1110px"
+    />
   );
 };
 

@@ -473,7 +473,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
 
       {/* Field Mapping Section */}
       <div className="border border-neutral-200 rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
+        <div className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-neutral-900">Field Mapping</h3>
           <button 
             className="px-3 py-1.5 text-sm text-neutral-900 bg-neutral-200 hover:bg-neutral-300 rounded-lg flex items-center gap-2 transition-all duration-200 hover:shadow-sm border border-neutral-300 hover:border-neutral-400"
