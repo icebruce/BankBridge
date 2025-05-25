@@ -1,0 +1,97 @@
+/* src/components/ExportTemplates/NewTemplateEditor.module.css */
+
+.formGroup {
+  @apply mb-4;
+}
+
+.label {
+  @apply block text-sm text-neutral-600 mb-1;
+}
+
+.input {
+  @apply w-full px-4 py-2 border border-neutral-200 rounded-lg;
+}
+
+.formRow {
+  @apply flex items-center space-x-4;
+}
+
+.cancelButton {
+  @apply px-4 py-2 border border-neutral-200 text-neutral-600 rounded-lg hover:bg-neutral-50;
+}
+
+.saveButton {
+  @apply px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800;
+}
+
+.addButton {
+  @apply px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 flex items-center;
+}
+
+.buttonIcon {
+  @apply mr-2;
+}
+
+.actionButton {
+  @apply p-2 hover:bg-neutral-100 rounded-lg;
+}
+
+.deleteButton {
+  @apply p-2 hover:bg-neutral-100 rounded-lg text-neutral-700;
+}
+
+.card {
+  @apply bg-white p-6 rounded-lg shadow-sm mb-6;
+}
+
+.tableContainer {
+  @apply overflow-x-auto;
+}
+
+.table {
+  @apply w-full;
+}
+
+.thead {
+  @apply border-b border-neutral-200;
+}
+
+.th {
+  @apply text-left py-3 px-4;
+}
+
+.td {
+  @apply py-3 px-4;
+}
+
+.tbody {
+  @apply divide-y divide-neutral-200;
+}
+
+.dragHandle {
+  @apply text-neutral-400 cursor-move;
+}
+
+.pageHeader {
+  @apply mb-8;
+}
+
+.headerContent {
+  @apply flex justify-between items-center mb-4;
+}
+
+.title {
+  @apply text-2xl;
+}
+
+.subtitle {
+  @apply text-neutral-600;
+}
+
+.sectionTitle {
+  @apply text-lg;
+}
+
+.buttonRow {
+  @apply flex space-x-3;
+} 

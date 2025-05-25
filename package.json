@@ -1,0 +1,48 @@
+{
+  "name": "bankbridge-react",
+  "private": true,
+  "version": "0.0.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "npm run build-tailwind && vite",
+    "dev-with-tailwind": "concurrently \"npm run watch-tailwind\" \"vite\"",
+    "build-electron": "tsc -p tsconfig.electron.json",
+    "electron": "npm run build-electron && cross-env NODE_ENV=development electron .",
+    "start": "npm run build-tailwind && concurrently \"npm run dev\" \"wait-on http://localhost:5174 && npm run build-electron && cross-env NODE_ENV=development electron .\"",
+    "build": "npm run build-tailwind && tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "build-tailwind": "tailwindcss -i ./src/index.css -o ./src/tailwind.css",
+    "watch-tailwind": "tailwindcss -i ./src/index.css -o ./src/tailwind.css --watch"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@fortawesome/free-regular-svg-icons": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "@types/react-beautiful-dnd": "^13.1.8",
+    "react": "^18.2.0",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^25.0.0",
+    "eslint": "^9.22.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.1",
+    "wait-on": "^8.0.3"
+  }
+}

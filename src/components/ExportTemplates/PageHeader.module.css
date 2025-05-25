@@ -1,0 +1,25 @@
+/* src/components/ExportTemplates/PageHeader.module.css */
+
+.wrapper {
+    @apply flex justify-between items-center mb-4;
+}
+
+.titles {
+    @apply space-y-1;
+}
+
+.title {
+    @apply text-2xl font-semibold;
+}
+
+.subtitle {
+    @apply text-neutral-600;
+}
+
+.newButton {
+    @apply px-4 py-2 bg-neutral-900 text-white rounded-lg flex items-center hover:bg-neutral-800;
+}
+
+.icon {
+    @apply mr-2;
+}
