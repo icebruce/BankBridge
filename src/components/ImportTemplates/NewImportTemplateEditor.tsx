@@ -11,6 +11,7 @@ import {
   faCode
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate } from '../../models/ImportTemplate';
+import { Template } from '../../models/Template';
 import { fileParserService } from '../../services/fileParserService';
 import Button from '../common/Button';
 
@@ -28,7 +29,9 @@ interface NewImportTemplateEditorProps {
   onCancel: () => void;
   saveRef?: React.MutableRefObject<(() => void) | null>;
   initialTemplate?: ImportTemplate | null;
-  onAddFieldCombination?: () => void;
+  onAddFieldCombination?: (templateData: any, uploadedFields: string[]) => void;
+  currentTemplateData?: any;
+  defaultExportTemplate?: Template | null;
 }
 
 // TruncatedText component with tooltip
@@ -111,13 +114,16 @@ const FieldRow = React.memo(({
 }) => {
   // Check if this field is part of a combined group
   const isCombined = field.actions === 'Combined';
-  const isFirstInCombinedGroup = isCombined && (index === 0 || fields[index - 1].targetField !== field.targetField);
-  const isSecondInCombinedGroup = isCombined && index > 0 && fields[index - 1].targetField === field.targetField;
+  const isFirstInCombinedGroup = isCombined && (
+    index === 0 || 
+    fields[index - 1].targetField !== field.targetField || 
+    fields[index - 1].actions !== 'Combined'
+  );
   
   // Calculate rowspan for combined fields
   let rowSpan = 1;
   if (isCombined && isFirstInCombinedGroup) {
-    // Count how many consecutive fields have the same target field
+    // Count how many consecutive fields have the same target field and are combined
     for (let i = index + 1; i < fields.length; i++) {
       if (fields[i].targetField === field.targetField && fields[i].actions === 'Combined') {
         rowSpan++;
@@ -128,92 +134,80 @@ const FieldRow = React.memo(({
   }
   
   return (
-    <tr className="bg-white hover:bg-neutral-50/30">
+    <tr className={isCombined ? "bg-blue-50 hover:bg-blue-100/50" : "bg-white hover:bg-neutral-50/30"}>
       <td className="px-4 py-4 text-sm font-medium text-neutral-900">
         <TruncatedText 
           text={field.sourceField} 
           maxLength={18} 
-          className="font-medium text-neutral-900"
+          className={isCombined ? "font-medium text-blue-900" : "font-medium text-neutral-900"}
         />
       </td>
-      <td className="px-4 py-4 text-sm text-neutral-600">{field.dataType}</td>
+      <td className="px-4 py-4 text-sm text-neutral-600">
+        <span className={isCombined ? "text-blue-700" : "text-neutral-600"}>
+          {field.dataType}
+        </span>
+      </td>
       <td className="px-4 py-4 text-sm text-neutral-600">
         <TruncatedText 
           text={field.sampleData} 
           maxLength={22} 
-          className="text-neutral-600"
+          className={isCombined ? "text-blue-700" : "text-neutral-600"}
         />
       </td>
       {/* Target Field column - only render for first in group or non-combined fields */}
       {(!isCombined || isFirstInCombinedGroup) && (
-        <td className="px-4 py-4 align-top" rowSpan={rowSpan}>
-          <div className="space-y-2">
-            <div className="flex items-start gap-2">
-              <select 
-                className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                value={field.targetField}
-                onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
+        <td className="px-4 py-4 align-middle" rowSpan={rowSpan}>
+          <div className="flex items-center gap-2">
+            <select 
+              className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              value={field.targetField}
+              onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
+            >
+              <option value="">Select target field</option>
+              <option value="Full Name">Full Name</option>
+              <option value="Email Address">Email Address</option>
+              <option value="Phone Number">Phone Number</option>
+              <option value="Customer ID">Customer ID</option>
+              <option value="Transaction Date">Transaction Date</option>
+              <option value="Amount">Amount</option>
+            </select>
+            <div className="flex gap-2">
+              <button 
+                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                title={isCombined ? "Edit combination" : "Edit field"}
               >
-                <option value="">Select target field</option>
-                <option value="Full Name">Full Name</option>
-                <option value="Email Address">Email Address</option>
-                <option value="Phone Number">Phone Number</option>
-                <option value="Customer ID">Customer ID</option>
-                <option value="Transaction Date">Transaction Date</option>
-                <option value="Amount">Amount</option>
-              </select>
-              
-              {(!isCombined || isFirstInCombinedGroup) && (
-                <div className="flex gap-1 flex-shrink-0">
-                  <button 
-                    className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
-                    title="Edit combination"
-                  >
-                    <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 hover:text-neutral-800 text-xs transition-colors" />
-                  </button>
-                  <button 
-                    className="p-1.5 hover:bg-red-50 hover:text-red-600 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
-                    title="Delete combination"
-                    onClick={() => onDeleteField(field.id)}
-                  >
-                    <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs transition-colors" />
-                  </button>
-                </div>
-              )}
+                <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+              </button>
+              <button 
+                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                title={isCombined ? "Delete combination" : "Delete field"}
+                onClick={() => onDeleteField(field.id)}
+              >
+                <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+              </button>
             </div>
-            {isCombined && isFirstInCombinedGroup && (
-              <div className="text-xs text-neutral-500 flex items-center">
-                <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-1.5" />
-                Concat with space
-              </div>
-            )}
           </div>
+          {isCombined && isFirstInCombinedGroup && (
+            <div className="mt-2 text-sm text-neutral-500 flex items-center">
+              <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
+              Concat with space
+            </div>
+          )}
         </td>
       )}
       
-      <td className="px-4 py-4 text-sm text-center">
-        {field.actions === 'Combined' ? (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-            Combined
-          </span>
-        ) : (
-          <div className="flex gap-1">
-            <button 
-              className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
-              title="Link field"
-            >
-              <FontAwesomeIcon icon={faLink} className="text-neutral-400 hover:text-neutral-600 text-xs transition-colors" />
-            </button>
-            <button 
-              className="p-1.5 hover:bg-red-50 hover:text-red-600 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
-              title="Delete field"
-              onClick={() => onDeleteField(field.id)}
-            >
-              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs transition-colors" />
-            </button>
-          </div>
-        )}
-      </td>
+      {/* Actions column - only render for first in group or non-combined fields */}
+      {(!isCombined || isFirstInCombinedGroup) && (
+        <td className="px-4 py-4 text-sm align-middle" rowSpan={rowSpan}>
+          {field.actions === 'Combined' ? (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+              Combined
+            </span>
+          ) : (
+            <span className="text-neutral-500 text-xs">-</span>
+          )}
+        </td>
+      )}
     </tr>
   );
 });
@@ -222,7 +216,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   onSave, 
   saveRef, 
   initialTemplate,
-  onAddFieldCombination 
+  onAddFieldCombination,
+  currentTemplateData,
+  defaultExportTemplate
 }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
@@ -231,6 +227,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const [fieldCombinations, setFieldCombinations] = useState<any[]>([]);
   
   // Fields state
   const [fields, setFields] = useState<ImportFieldType[]>([
@@ -276,6 +273,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (initialTemplate) {
       setTemplateName(initialTemplate.name);
       setSourceFileType(initialTemplate.fileType);
+      setFieldCombinations(initialTemplate.fieldCombinations || []);
       
       // Convert field mappings to ImportFieldType format
       const convertedFields: ImportFieldType[] = initialTemplate.fieldMappings.map((mapping, index) => ({
@@ -284,19 +282,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         dataType: (mapping.dataType as any) || 'Text',
         sampleData: `Sample ${index + 1}`,
         targetField: mapping.targetField,
-        actions: 'Combined'
+        actions: ''
       }));
       
-      setFields(convertedFields.length > 0 ? convertedFields : [
-        { 
-          id: '1', 
-          sourceField: 'first_name', 
-          dataType: 'Text', 
-          sampleData: 'John',
-          targetField: 'Full Name',
-          actions: 'Combined'
-        }
-      ]);
+      setFields(convertedFields.length > 0 ? convertedFields : []);
     } else {
       // Reset form for new template
       setTemplateName('');
@@ -304,42 +293,20 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       setUploadedFile(null);
       setParseError(null);
       setParseWarnings([]);
-      setFields([
-        { 
-          id: '1', 
-          sourceField: 'first_name', 
-          dataType: 'Text', 
-          sampleData: 'John',
-          targetField: 'Full Name',
-          actions: 'Combined'
-        },
-        { 
-          id: '2', 
-          sourceField: 'last_name', 
-          dataType: 'Text', 
-          sampleData: 'Doe',
-          targetField: 'Full Name',
-          actions: 'Combined'
-        },
-        { 
-          id: '3', 
-          sourceField: 'email', 
-          dataType: 'Text', 
-          sampleData: 'john@example.com',
-          targetField: 'Email Address',
-          actions: ''
-        },
-        { 
-          id: '4', 
-          sourceField: 'phone', 
-          dataType: 'Text', 
-          sampleData: '+1234567890',
-          targetField: 'Phone Number',
-          actions: ''
-        }
-      ]);
+      setFieldCombinations([]);
+      setFields([]);
     }
   }, [initialTemplate]);
+
+  // Sync with currentTemplateData when returning from field combination editor
+  useEffect(() => {
+    if (currentTemplateData) {
+      setTemplateName(currentTemplateData.name || '');
+      setSourceFileType(currentTemplateData.sourceFileType || 'CSV File');
+      setFields(currentTemplateData.fields || []);
+      setFieldCombinations(currentTemplateData.fieldCombinations || []);
+    }
+  }, [currentTemplateData]);
   
   // No drag and drop needed for this page
   
@@ -370,10 +337,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           dataType: field.dataType,
           sampleData: field.sampleValue,
           targetField: '', // User will map this
-          actions: 'Combined'
+          actions: ''
         }));
         
         setFields(convertedFields);
+        setFieldCombinations([]); // Clear any existing field combinations
         
         if (parseResult.warnings && parseResult.warnings.length > 0) {
           setParseWarnings(parseResult.warnings);
@@ -409,7 +377,18 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   // Add a new field combination
   const handleAddFieldCombination = () => {
     if (onAddFieldCombination) {
-      onAddFieldCombination();
+      // Get current template data
+      const templateData = {
+        name: templateName,
+        sourceFileType,
+        fields,
+        fieldCombinations: [] // Will be populated by the field combination editor
+      };
+      
+      // Get uploaded file fields (source fields from the uploaded file)
+      const uploadedFields = fields.map(field => field.sourceField).filter(Boolean);
+      
+      onAddFieldCombination(templateData, uploadedFields);
     } else {
       // Fallback to old behavior if no handler provided
       const newField: ImportFieldType = {
@@ -454,7 +433,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     const templateData = {
       name: templateName,
       sourceFileType,
-      fields
+      fields,
+      fieldCombinations
     };
     onSave(templateData);
   };
@@ -464,7 +444,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (saveRef) {
       saveRef.current = handleSave;
     }
-  }, [templateName, sourceFileType, fields, saveRef]);
+  }, [templateName, sourceFileType, fields, fieldCombinations, saveRef]);
   
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
@@ -552,10 +532,19 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       </div>
 
       {/* Warning Message */}
-      <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center">
-        <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 mr-3" />
-        <p className="text-sm text-amber-800">No export template defined. Please create an export template first to enable field mapping.</p>
-      </div>
+      {!defaultExportTemplate && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center">
+          <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 mr-3" />
+          <p className="text-sm text-amber-800">No default export template found. Please create and set a default export template to enable field combinations.</p>
+        </div>
+      )}
+      
+      {defaultExportTemplate && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-lg flex items-center">
+          <FontAwesomeIcon icon={faExclamationTriangle} className="text-green-600 mr-3" />
+          <p className="text-sm text-green-800">Using default export template: <strong>{defaultExportTemplate.name}</strong> for field combinations.</p>
+        </div>
+      )}
 
       {/* Field Mapping Section */}
       <div className="border border-neutral-200 rounded-lg overflow-hidden">
@@ -565,6 +554,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
             variant="tertiary"
             icon={faPlus}
             onClick={handleAddFieldCombination}
+            disabled={!defaultExportTemplate}
+            title={!defaultExportTemplate ? "Set a default export template to enable field combinations" : "Add field combination"}
           >
             Add Field Combination
           </Button>
@@ -589,18 +580,91 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 bg-white">
-              {fields.length > 0 ? (
-                fields.map((field, index) => (
-                  <FieldRow 
-                    key={field.id} 
-                    field={field} 
-                    index={index}
-                    fields={fields}
-                    onChangeField={handleFieldChange}
-                    onDeleteField={handleDeleteField}
-                  />
-                ))
-              ) : (
+              {/* Regular field mappings */}
+              {fields.map((field, index) => (
+                <FieldRow 
+                  key={field.id} 
+                  field={field} 
+                  index={index}
+                  fields={fields}
+                  onChangeField={handleFieldChange}
+                  onDeleteField={handleDeleteField}
+                />
+              ))}
+              
+              {/* Field combinations */}
+              {fieldCombinations.map((combination, combinationIndex) => (
+                <tr key={combination.id} className="bg-blue-50 hover:bg-blue-100/50">
+                  <td className="px-4 py-4 text-sm font-medium text-blue-900">
+                    <TruncatedText 
+                      text={combination.sourceFields.map((sf: any) => sf.fieldName).join(', ')} 
+                      maxLength={18} 
+                      className="font-medium text-blue-900"
+                    />
+                  </td>
+                  <td className="px-4 py-4 text-sm text-blue-700">Text</td>
+                  <td className="px-4 py-4 text-sm text-blue-700">
+                    <TruncatedText 
+                      text={combination.sourceFields.map((sf: any) => {
+                        switch (sf.fieldName) {
+                          case 'first_name': return 'John';
+                          case 'last_name': return 'Doe';
+                          case 'middle_name': return 'Michael';
+                          case 'title': return 'Mr.';
+                          case 'suffix': return 'Jr.';
+                          default: return sf.fieldName.replace('_', ' ');
+                        }
+                      }).join(' ')} 
+                      maxLength={22} 
+                      className="text-blue-700"
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="space-y-2">
+                      <select 
+                        className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                        value={combination.targetField}
+                        disabled
+                      >
+                        <option value={combination.targetField}>{combination.targetField}</option>
+                      </select>
+                      
+                      <div className="text-xs text-neutral-500 flex items-center">
+                        <span className="text-xs">
+                          Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
+                            combination.delimiter === 'Space' ? 'space' :
+                            combination.delimiter === 'Comma' ? 'comma' :
+                            combination.delimiter === 'Semicolon' ? 'semicolon' : 'space'}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
+                        title="Edit combination"
+                      >
+                        <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 hover:text-neutral-800 text-xs transition-colors" />
+                      </button>
+                      <button 
+                        className="p-1.5 hover:bg-red-50 hover:text-red-600 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
+                        title="Delete combination"
+                        onClick={() => {
+                          setFieldCombinations(prev => prev.filter(c => c.id !== combination.id));
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs transition-colors" />
+                      </button>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Combined
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              
+              {fields.length === 0 && fieldCombinations.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
                     <div className="flex flex-col items-center">

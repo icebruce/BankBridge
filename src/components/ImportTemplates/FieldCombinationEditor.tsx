@@ -10,19 +10,7 @@ import {
   faTrash 
 } from '@fortawesome/free-solid-svg-icons';
 import Button from '../common/Button';
-
-interface SourceField {
-  id: string;
-  fieldName: string;
-  order: number;
-}
-
-interface FieldCombination {
-  targetField: string;
-  delimiter: string;
-  customDelimiter?: string;
-  sourceFields: SourceField[];
-}
+import { FieldCombination, SourceField } from '../../models/ImportTemplate';
 
 interface FieldCombinationEditorProps {
   onSave: (combination: FieldCombination) => void;
@@ -144,6 +132,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
     }
 
     const combination: FieldCombination = {
+      id: `field_combination_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
       targetField,
       delimiter,
       customDelimiter: delimiter === 'Custom' ? customDelimiter : undefined,

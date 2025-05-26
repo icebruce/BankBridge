@@ -3,7 +3,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faArrowLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import { ImportTemplate } from '../../models/ImportTemplate';
+import { ImportTemplate, FieldCombination } from '../../models/ImportTemplate';
+import { fetchImportTemplates, createImportTemplate, updateImportTemplate, deleteImportTemplate, duplicateImportTemplate } from '../../services/importTemplateService';
+import { getDefaultTemplate } from '../../services/templateService';
+import { Template } from '../../models/Template';
 import ImportTemplatesList from './ImportTemplatesList';
 import SearchAndFilters from './SearchAndFilters';
 import NewImportTemplateEditor from './NewImportTemplateEditor';
@@ -11,6 +14,7 @@ import FieldCombinationEditor from './FieldCombinationEditor';
 
 const ImportTemplatesPage: FC = () => {
   const [templates, setTemplates] = useState<ImportTemplate[]>([]);
+  const [defaultExportTemplate, setDefaultExportTemplate] = useState<Template | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedAccount, setSelectedAccount] = useState<string>('All Accounts');
   const [selectedFileType, setSelectedFileType] = useState<string>('All File Types');
@@ -18,46 +22,31 @@ const ImportTemplatesPage: FC = () => {
   const [showNewTemplateEditor, setShowNewTemplateEditor] = useState<boolean>(false);
   const [showFieldCombinationEditor, setShowFieldCombinationEditor] = useState<boolean>(false);
   const [editingTemplate, setEditingTemplate] = useState<ImportTemplate | null>(null);
+  const [currentTemplateData, setCurrentTemplateData] = useState<any>(null);
+  const [uploadedFileFields, setUploadedFileFields] = useState<string[]>([]);
   const saveTemplateRef = useRef<(() => void) | null>(null);
 
-  // Mock data for initial development
-  const mockTemplates: ImportTemplate[] = [
-    {
-      id: 'import_template_1',
-      name: 'Sales Import Template',
-      description: 'Template for importing sales data',
-      fieldCount: 24,
-      account: 'Account 1',
-      fileType: 'Sales Data',
-      createdAt: '2025-04-20T10:00:00Z',
-      updatedAt: '2025-04-26T14:30:00Z',
-      schemaVersion: '1.0.0',
-      status: 'Active',
-      fieldMappings: [],
-      isDefault: false
-    },
-    {
-      id: 'import_template_2',
-      name: 'Customer Import Template',
-      description: 'Template for importing customer information',
-      fieldCount: 18,
-      account: 'Account 2',
-      fileType: 'Customer Data',
-      createdAt: '2025-04-22T09:15:00Z',
-      updatedAt: '2025-04-24T16:45:00Z',
-      schemaVersion: '1.0.0',
-      status: 'Active',
-      fieldMappings: [],
-      isDefault: false
-    }
-  ];
-
   useEffect(() => {
-    // Simulate loading templates
-    setTimeout(() => {
-      setTemplates(mockTemplates);
-      setLoading(false);
-    }, 500);
+    // Load import templates and default export template
+    const loadTemplates = async () => {
+      try {
+        setLoading(true);
+        const [importTemplates, defaultTemplate] = await Promise.all([
+          fetchImportTemplates(),
+          getDefaultTemplate()
+        ]);
+        setTemplates(importTemplates);
+        setDefaultExportTemplate(defaultTemplate || null);
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        setTemplates([]);
+        setDefaultExportTemplate(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplates();
   }, []);
 
   const handleNewTemplate = () => {
@@ -67,18 +56,31 @@ const ImportTemplatesPage: FC = () => {
 
   const handleEditTemplate = (template: ImportTemplate) => {
     setEditingTemplate(template);
+    setCurrentTemplateData(null);
     setShowNewTemplateEditor(true);
   };
 
-  const handleDuplicateTemplate = (template: ImportTemplate) => {
-    console.log('Duplicating template:', template.name);
-    // TODO: Implement template duplication
+  const handleDuplicateTemplate = async (template: ImportTemplate) => {
+    try {
+      const duplicatedTemplate = await duplicateImportTemplate(template.id);
+      setTemplates(prev => [duplicatedTemplate, ...prev]);
+      console.log('Duplicated template:', duplicatedTemplate.name);
+    } catch (error) {
+      console.error('Error duplicating template:', error);
+      alert('Failed to duplicate template');
+    }
   };
 
-  const handleDeleteTemplate = (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: string) => {
     if (window.confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
-      setTemplates(prev => prev.filter(t => t.id !== templateId));
-      console.log('Deleted template:', templateId);
+      try {
+        await deleteImportTemplate(templateId);
+        setTemplates(prev => prev.filter(t => t.id !== templateId));
+        console.log('Deleted template:', templateId);
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        alert('Failed to delete template');
+      }
     }
   };
 
@@ -99,34 +101,32 @@ const ImportTemplatesPage: FC = () => {
         throw new Error('At least one field is required');
       }
       
-      // Create field mappings from the form data
-      const fieldMappings = templateData.fields.map((field: any) => ({
-        sourceField: field.sourceField,
-        targetField: field.targetField,
-        dataType: field.dataType,
-        required: false,
-        validation: ''
-      }));
+      // Create field mappings from the form data (excluding combined fields)
+      const fieldMappings = templateData.fields
+        .filter((field: any) => field.actions !== 'Combined')
+        .map((field: any) => ({
+          sourceField: field.sourceField,
+          targetField: field.targetField,
+          dataType: field.dataType,
+          required: false,
+          validation: ''
+        }));
 
       console.log('📋 Field mappings created:', fieldMappings);
+      console.log('🔗 Field combinations:', templateData.fieldCombinations || []);
 
-      const now = new Date().toISOString();
-      
       if (editingTemplate) {
         // Update existing template
         console.log('📝 Updating existing template:', editingTemplate.id);
         
-        const updatedTemplate: ImportTemplate = {
-          ...editingTemplate,
+        const updatedTemplate = await updateImportTemplate(editingTemplate.id, {
           name: templateData.name,
-          description: '',
-          account: 'Account 1',
+          description: templateData.description || '',
           fileType: templateData.sourceFileType,
-          status: 'Active',
           fieldCount: fieldMappings.length,
-          updatedAt: now,
-          fieldMappings
-        };
+          fieldMappings,
+          fieldCombinations: templateData.fieldCombinations || []
+        });
         
         console.log('✅ Template updated successfully:', updatedTemplate);
         
@@ -138,20 +138,13 @@ const ImportTemplatesPage: FC = () => {
         // Create new template
         console.log('➕ Creating new template');
         
-        const newTemplate: ImportTemplate = {
-          id: `import_template_${Date.now()}`,
+        const newTemplate = await createImportTemplate({
           name: templateData.name,
-          description: '',
-          fieldCount: fieldMappings.length,
-          account: 'Account 1',
+          description: templateData.description || '',
           fileType: templateData.sourceFileType,
-          createdAt: now,
-          updatedAt: now,
-          schemaVersion: '1.0.0',
-          status: 'Active',
           fieldMappings,
-          isDefault: false
-        };
+          fieldCombinations: templateData.fieldCombinations || []
+        });
         
         console.log('✅ Template created successfully:', newTemplate);
         
@@ -162,6 +155,7 @@ const ImportTemplatesPage: FC = () => {
       // Close the editor and reset editing state
       setShowNewTemplateEditor(false);
       setEditingTemplate(null);
+      setCurrentTemplateData(null);
       
       console.log('🎉 Template saved and UI updated');
     } catch (error) {
@@ -178,15 +172,27 @@ const ImportTemplatesPage: FC = () => {
     setShowNewTemplateEditor(false);
     setShowFieldCombinationEditor(false);
     setEditingTemplate(null);
+    setCurrentTemplateData(null);
   };
 
-  const handleAddFieldCombination = () => {
+  const handleAddFieldCombination = (templateData: any, uploadedFields: string[]) => {
+    setCurrentTemplateData(templateData);
+    setUploadedFileFields(uploadedFields);
     setShowFieldCombinationEditor(true);
   };
 
-  const handleSaveFieldCombination = (combination: any) => {
+  const handleSaveFieldCombination = (combination: FieldCombination) => {
     console.log('Field combination saved:', combination);
-    // TODO: Integrate with template editor
+    
+    // Add the combination to current template data
+    if (currentTemplateData) {
+      const updatedTemplateData = {
+        ...currentTemplateData,
+        fieldCombinations: [...(currentTemplateData.fieldCombinations || []), combination]
+      };
+      setCurrentTemplateData(updatedTemplateData);
+    }
+    
     setShowFieldCombinationEditor(false);
   };
 
@@ -213,6 +219,8 @@ const ImportTemplatesPage: FC = () => {
         <FieldCombinationEditor
           onSave={handleSaveFieldCombination}
           onCancel={handleCancelFieldCombination}
+          availableSourceFields={uploadedFileFields}
+          availableTargetFields={defaultExportTemplate?.fieldMappings.map(mapping => mapping.targetField) || []}
         />
       ) : showNewTemplateEditor ? (
         // Show template editor
@@ -264,6 +272,8 @@ const ImportTemplatesPage: FC = () => {
             saveRef={saveTemplateRef}
             initialTemplate={editingTemplate}
             onAddFieldCombination={handleAddFieldCombination}
+            currentTemplateData={currentTemplateData}
+            defaultExportTemplate={defaultExportTemplate}
           />
         </div>
       ) : (
