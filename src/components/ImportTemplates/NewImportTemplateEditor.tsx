@@ -12,6 +12,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate } from '../../models/ImportTemplate';
 import { fileParserService } from '../../services/fileParserService';
+import Button from '../common/Button';
 
 interface ImportFieldType {
   id: string;
@@ -27,6 +28,7 @@ interface NewImportTemplateEditorProps {
   onCancel: () => void;
   saveRef?: React.MutableRefObject<(() => void) | null>;
   initialTemplate?: ImportTemplate | null;
+  onAddFieldCombination?: () => void;
 }
 
 // TruncatedText component with tooltip
@@ -219,7 +221,8 @@ const FieldRow = React.memo(({
 const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({ 
   onSave, 
   saveRef, 
-  initialTemplate 
+  initialTemplate,
+  onAddFieldCombination 
 }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
@@ -405,15 +408,20 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   
   // Add a new field combination
   const handleAddFieldCombination = () => {
-    const newField: ImportFieldType = {
-      id: Date.now().toString(),
-      sourceField: '',
-      dataType: 'Text',
-      sampleData: '',
-      targetField: '',
-      actions: 'Combined'
-    };
-    setFields([...fields, newField]);
+    if (onAddFieldCombination) {
+      onAddFieldCombination();
+    } else {
+      // Fallback to old behavior if no handler provided
+      const newField: ImportFieldType = {
+        id: Date.now().toString(),
+        sourceField: '',
+        dataType: 'Text',
+        sampleData: '',
+        targetField: '',
+        actions: 'Combined'
+      };
+      setFields([...fields, newField]);
+    }
   };
   
   // Update field properties
@@ -553,13 +561,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       <div className="border border-neutral-200 rounded-lg overflow-hidden">
         <div className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-neutral-900">Field Mapping</h3>
-          <button 
-            className="px-3 py-1.5 text-sm text-neutral-900 bg-neutral-200 hover:bg-neutral-300 rounded-lg flex items-center gap-2 transition-all duration-200 hover:shadow-sm border border-neutral-300 hover:border-neutral-400"
+          <Button 
+            variant="tertiary"
+            icon={faPlus}
             onClick={handleAddFieldCombination}
           >
-            <FontAwesomeIcon icon={faPlus} className="text-xs" />
             Add Field Combination
-          </button>
+          </Button>
         </div>
 
         <div className="overflow-x-auto">

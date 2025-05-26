@@ -26,6 +26,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Template } from '../../models/Template';
 import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';
+import Button from '../common/Button';
 
 interface FieldType {
   id: string;
@@ -109,29 +110,27 @@ const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteF
       </td>
       <td className="px-4 py-3 text-sm text-center">
         <div className="flex justify-center gap-1">
-          <button 
-            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-neutral-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          <Button 
+            variant="icon"
+            icon={faArrowUp}
             onClick={() => onMoveField(index, 'up')}
             disabled={index === 0}
             title="Move Up"
-          >
-            <FontAwesomeIcon icon={faArrowUp} className="text-xs" />
-          </button>
-          <button 
-            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-neutral-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+          <Button 
+            variant="icon"
+            icon={faArrowDown}
             onClick={() => onMoveField(index, 'down')}
             disabled={index === fields.length - 1}
             title="Move Down"
-          >
-            <FontAwesomeIcon icon={faArrowDown} className="text-xs" />
-          </button>
-          <button 
-            className="p-1.5 hover:bg-red-100 rounded-lg text-red-600 hover:text-red-700 transition-colors duration-200"
+          />
+          <Button 
+            variant="icon"
+            icon={faTrash}
             onClick={() => onDeleteField(field.id)}
             title="Delete"
-          >
-            <FontAwesomeIcon icon={faTrash} className="text-xs" />
-          </button>
+            className="hover:bg-red-100 hover:text-red-600"
+          />
         </div>
       </td>
     </tr>
@@ -373,12 +372,13 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel,
       <div className="rounded-lg border border-neutral-200 overflow-hidden">
         <div className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-neutral-900">Field Configuration</h3>
-          <button 
-            className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-all duration-200 flex items-center"
+          <Button 
+            variant="tertiary"
+            icon={faPlus}
             onClick={handleAddField}
           >
-            <FontAwesomeIcon icon={faPlus} className="mr-2" /> Add Field
-          </button>
+            Add Field
+          </Button>
         </div>
         
         {tableContent}

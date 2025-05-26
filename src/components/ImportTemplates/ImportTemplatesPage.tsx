@@ -7,6 +7,7 @@ import { ImportTemplate } from '../../models/ImportTemplate';
 import ImportTemplatesList from './ImportTemplatesList';
 import SearchAndFilters from './SearchAndFilters';
 import NewImportTemplateEditor from './NewImportTemplateEditor';
+import FieldCombinationEditor from './FieldCombinationEditor';
 
 const ImportTemplatesPage: FC = () => {
   const [templates, setTemplates] = useState<ImportTemplate[]>([]);
@@ -15,6 +16,7 @@ const ImportTemplatesPage: FC = () => {
   const [selectedFileType, setSelectedFileType] = useState<string>('All File Types');
   const [loading, setLoading] = useState<boolean>(true);
   const [showNewTemplateEditor, setShowNewTemplateEditor] = useState<boolean>(false);
+  const [showFieldCombinationEditor, setShowFieldCombinationEditor] = useState<boolean>(false);
   const [editingTemplate, setEditingTemplate] = useState<ImportTemplate | null>(null);
   const saveTemplateRef = useRef<(() => void) | null>(null);
 
@@ -174,7 +176,22 @@ const ImportTemplatesPage: FC = () => {
   
   const handleCancelTemplate = () => {
     setShowNewTemplateEditor(false);
+    setShowFieldCombinationEditor(false);
     setEditingTemplate(null);
+  };
+
+  const handleAddFieldCombination = () => {
+    setShowFieldCombinationEditor(true);
+  };
+
+  const handleSaveFieldCombination = (combination: any) => {
+    console.log('Field combination saved:', combination);
+    // TODO: Integrate with template editor
+    setShowFieldCombinationEditor(false);
+  };
+
+  const handleCancelFieldCombination = () => {
+    setShowFieldCombinationEditor(false);
   };
 
   // Filter templates based on search and filters
@@ -191,7 +208,13 @@ const ImportTemplatesPage: FC = () => {
 
   return (
     <div>
-      {showNewTemplateEditor ? (
+      {showFieldCombinationEditor ? (
+        // Show field combination editor
+        <FieldCombinationEditor
+          onSave={handleSaveFieldCombination}
+          onCancel={handleCancelFieldCombination}
+        />
+      ) : showNewTemplateEditor ? (
         // Show template editor
         <div>
           <div id="header" className="mb-8">
@@ -240,6 +263,7 @@ const ImportTemplatesPage: FC = () => {
             onCancel={handleCancelTemplate}
             saveRef={saveTemplateRef}
             initialTemplate={editingTemplate}
+            onAddFieldCombination={handleAddFieldCombination}
           />
         </div>
       ) : (

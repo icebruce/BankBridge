@@ -174,9 +174,74 @@ className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-lg hover
 ```
 
 ### Tertiary Buttons
+
+#### Standard Tertiary Button (25% smaller than primary/secondary)
 ```tsx
-className="px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-all duration-200"
+className="px-3 py-1.5 text-sm bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300 transition-all duration-200"
 ```
+
+## Button Component
+
+### Usage
+
+Import the reusable Button component for consistent styling:
+
+```tsx
+import Button from '../common/Button';
+import { faPlus, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+```
+
+### Examples
+
+#### Primary Button
+```tsx
+<Button variant="primary" icon={faPlus}>
+  New Item
+</Button>
+```
+
+#### Secondary Button
+```tsx
+<Button variant="secondary">
+  Cancel
+</Button>
+```
+
+#### Tertiary Button (Standard)
+```tsx
+<Button variant="tertiary" icon={faPlus}>
+  Add Item
+</Button>
+```
+
+
+
+#### Icon Button
+```tsx
+<Button variant="icon" icon={faTrash} title="Delete" />
+```
+
+#### Back Arrow Button
+```tsx
+<Button variant="back-arrow" icon={faArrowLeft} onClick={handleBack} />
+```
+
+#### Upload Box Button
+```tsx
+<Button variant="upload-box">
+  Browse Files
+</Button>
+```
+
+### Props
+
+- `variant`: 'primary' | 'secondary' | 'tertiary' | 'icon' | 'back-arrow' | 'upload-box'
+- `size`: 'sm' | 'md' | 'lg' (default: 'md')
+- `icon`: FontAwesome icon definition
+- `iconPosition`: 'left' | 'right' (default: 'left')
+- `disabled`: boolean
+- `className`: Additional CSS classes
+- All standard button HTML attributes
 
 ### Icon Buttons
 ```tsx
