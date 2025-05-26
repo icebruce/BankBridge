@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { logStorageInfo } from './services/storageLocation';
+import { registerParseFileHandler } from './main/ipcHandlers/parseFile';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -74,6 +75,10 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Log storage information for debugging
   logStorageInfo();
+  
+  // Register IPC handlers
+  registerParseFileHandler();
+  
   createWindow();
 });
 

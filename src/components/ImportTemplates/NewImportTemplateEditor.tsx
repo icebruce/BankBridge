@@ -29,6 +29,70 @@ interface NewImportTemplateEditorProps {
   initialTemplate?: ImportTemplate | null;
 }
 
+// TruncatedText component with tooltip
+const TruncatedText: FC<{ 
+  text: string; 
+  maxLength?: number; 
+  className?: string;
+}> = ({ text, maxLength = 20, className = "" }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  
+  const shouldTruncate = text.length > maxLength;
+  const displayText = shouldTruncate ? `${text.substring(0, maxLength)}...` : text;
+  
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    if (shouldTruncate) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8
+      });
+      setShowTooltip(true);
+    }
+  };
+  
+  const handleMouseLeave = () => {
+    setShowTooltip(false);
+  };
+  
+  const handleClick = () => {
+    if (shouldTruncate) {
+      setShowTooltip(!showTooltip);
+    }
+  };
+  
+  return (
+    <>
+      <span 
+        className={`${className} ${shouldTruncate ? 'cursor-pointer hover:text-neutral-900 transition-colors' : ''}`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        title={shouldTruncate ? "Click or hover to view full text" : undefined}
+      >
+        {displayText}
+      </span>
+      
+      {showTooltip && shouldTruncate && (
+        <div 
+          className="fixed z-50 px-3 py-2 text-sm text-white bg-neutral-800 rounded-lg shadow-lg max-w-xs break-words"
+          style={{
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translateX(-50%) translateY(-100%)'
+          }}
+        >
+          {text}
+          <div 
+            className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-neutral-800"
+          />
+        </div>
+      )}
+    </>
+  );
+};
+
 // FieldRow component for field mapping
 const FieldRow = React.memo(({ 
   field, 
@@ -63,9 +127,21 @@ const FieldRow = React.memo(({
   
   return (
     <tr className="bg-white hover:bg-neutral-50/30">
-      <td className="px-4 py-4 text-sm font-medium text-neutral-900">{field.sourceField}</td>
+      <td className="px-4 py-4 text-sm font-medium text-neutral-900">
+        <TruncatedText 
+          text={field.sourceField} 
+          maxLength={18} 
+          className="font-medium text-neutral-900"
+        />
+      </td>
       <td className="px-4 py-4 text-sm text-neutral-600">{field.dataType}</td>
-      <td className="px-4 py-4 text-sm text-neutral-600">{field.sampleData}</td>
+      <td className="px-4 py-4 text-sm text-neutral-600">
+        <TruncatedText 
+          text={field.sampleData} 
+          maxLength={22} 
+          className="text-neutral-600"
+        />
+      </td>
       {/* Target Field column - only render for first in group or non-combined fields */}
       {(!isCombined || isFirstInCombinedGroup) && (
         <td className="px-4 py-4 align-top" rowSpan={rowSpan}>
@@ -84,7 +160,8 @@ const FieldRow = React.memo(({
                 <option value="Transaction Date">Transaction Date</option>
                 <option value="Amount">Amount</option>
               </select>
-              {isCombined && isFirstInCombinedGroup && (
+              
+              {(!isCombined || isFirstInCombinedGroup) && (
                 <div className="flex gap-1 flex-shrink-0">
                   <button 
                     className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
@@ -111,7 +188,8 @@ const FieldRow = React.memo(({
           </div>
         </td>
       )}
-      <td className="px-4 py-4">
+      
+      <td className="px-4 py-4 text-sm text-center">
         {field.actions === 'Combined' ? (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
             Combined
