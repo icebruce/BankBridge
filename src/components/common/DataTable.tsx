@@ -1,5 +1,4 @@
-import React from 'react';
-import type { FC, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 export interface DataTableColumn<T = any> {
   key: string;

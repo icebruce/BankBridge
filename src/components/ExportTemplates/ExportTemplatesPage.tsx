@@ -1,16 +1,14 @@
 // src/components/ExportTemplates/ExportTemplatesPage.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHome, faArrowLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { Template } from '../../models/Template';
 import { fetchTemplates, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, setDefaultTemplate } from '../../services/templateService';
 import PageHeader from './PageHeader';
 import SearchInput from './SearchInput';
 import TemplatesList from './TemplatesList';
 import NewTemplateEditor from './NewTemplateEditor';
-import Breadcrumbs from '../common/Breadcrumbs';
-
 
 
 const ExportTemplatesPage: FC = () => {
@@ -161,7 +159,7 @@ const ExportTemplatesPage: FC = () => {
     try {
       console.log('🔄 Setting default template:', templateId);
       
-      const updatedTemplate = await setDefaultTemplate(templateId);
+      await setDefaultTemplate(templateId);
       
       console.log('✅ Default template set successfully');
       
@@ -177,24 +175,6 @@ const ExportTemplatesPage: FC = () => {
       alert(`Failed to set default template: ${errorMessage}`);
     }
   }, []);
-
-  // Handle breadcrumb navigation
-  const handleBreadcrumbNavigate = (path: string) => {
-    if (path === '/export-templates') {
-      setShowNewTemplateEditor(false);
-      setEditingTemplate(null);
-    }
-  };
-
-  // Define breadcrumb items
-  const breadcrumbItems = showNewTemplateEditor 
-    ? [
-        { label: 'Export Templates', path: '/export-templates' },
-        { label: editingTemplate ? 'Edit Export Template' : 'New Export Template' }
-      ]
-    : [
-        { label: 'Export Templates', path: '/export-templates' }
-      ];
 
   if (showNewTemplateEditor) {
     return (

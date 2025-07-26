@@ -2,12 +2,9 @@
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faEdit, 
-  faTrash, 
-  faClone,
+  faExclamationTriangle, 
   faChevronLeft, 
-  faChevronRight,
-  faExclamationTriangle
+  faChevronRight 
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate } from '../../models/ImportTemplate';
 import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';

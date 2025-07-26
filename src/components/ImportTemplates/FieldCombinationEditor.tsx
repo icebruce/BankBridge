@@ -243,7 +243,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
               </Button>
             </div>
             <div className="p-4 space-y-4">
-              {[...sourceFields].sort((a, b) => a.order - b.order).map((field, index) => (
+              {[...sourceFields].sort((a, b) => a.order - b.order).map((field) => (
                 <div key={field.id} className="flex items-center gap-4">
                   <div className="flex items-center justify-center w-8 h-8 bg-neutral-100 rounded-full text-sm font-medium text-neutral-600">
                     {field.order}

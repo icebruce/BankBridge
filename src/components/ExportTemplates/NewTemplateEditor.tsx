@@ -25,7 +25,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Template } from '../../models/Template';
-import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';
 import Button from '../common/Button';
 
 interface FieldType {
@@ -137,7 +136,7 @@ const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteF
   );
 });
 
-const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel, saveRef, initialTemplate }) => {
+const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, initialTemplate }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
@@ -271,27 +270,6 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, onCancel,
       saveRef.current = handleSave;
     }
   }, [templateName, description, fields, saveRef]);
-
-  // Define table columns for DataTable
-  const columns: DataTableColumn<FieldType>[] = [
-    {
-      key: 'drag',
-      header: '#',
-      width: '60px',
-      headerClassName: 'text-center',
-      className: 'text-center',
-      render: (_, field, index) => (
-        <SortableRow 
-          field={field} 
-          index={index}
-          fields={fields}
-          onChangeField={handleFieldChange}
-          onDeleteField={handleDeleteField}
-          onMoveField={handleMoveField}
-        />
-      )
-    }
-  ];
 
   // Custom table content with drag and drop
   const tableContent = (

@@ -6,7 +6,6 @@ import {
   faTrash,
   faCloudArrowUp,
   faExclamationTriangle,
-  faLink,
   faPenToSquare,
   faCode
 } from '@fortawesome/free-solid-svg-icons';
@@ -98,7 +97,7 @@ const TruncatedText: FC<{
   );
 };
 
-// FieldRow component for field mapping
+// FieldRow component for field mapping - Updated for proper combined field display
 const FieldRow = React.memo(({ 
   field, 
   index, 
@@ -133,6 +132,13 @@ const FieldRow = React.memo(({
     }
   }
   
+  // Check if this is the last row in a combined group
+  const isLastInCombinedGroup = isCombined && (
+    index === fields.length - 1 || 
+    fields[index + 1].targetField !== field.targetField || 
+    fields[index + 1].actions !== 'Combined'
+  );
+  
   return (
     <tr className={isCombined ? "bg-blue-50 hover:bg-blue-100/50" : "bg-white hover:bg-neutral-50/30"}>
       <td className="px-4 py-4 text-sm font-medium text-neutral-900">
@@ -154,60 +160,53 @@ const FieldRow = React.memo(({
           className={isCombined ? "text-blue-700" : "text-neutral-600"}
         />
       </td>
-      {/* Target Field column - only render for first in group or non-combined fields */}
-      {(!isCombined || isFirstInCombinedGroup) && (
-        <td className="px-4 py-4 align-middle" rowSpan={rowSpan}>
-          <div className="flex items-center gap-2">
-            <select 
-              className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              value={field.targetField}
-              onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
-            >
-              <option value="">Select target field</option>
-              <option value="Full Name">Full Name</option>
-              <option value="Email Address">Email Address</option>
-              <option value="Phone Number">Phone Number</option>
-              <option value="Customer ID">Customer ID</option>
-              <option value="Transaction Date">Transaction Date</option>
-              <option value="Amount">Amount</option>
-            </select>
-            <div className="flex gap-2">
-              <button 
-                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                title={isCombined ? "Edit combination" : "Edit field"}
-              >
-                <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
-              </button>
-              <button 
-                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                title={isCombined ? "Delete combination" : "Delete field"}
-                onClick={() => onDeleteField(field.id)}
-              >
-                <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
-              </button>
-            </div>
+      <td className="px-4 py-4 align-middle">
+        <select 
+          className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          value={field.targetField}
+          onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
+        >
+          <option value="">Select target field</option>
+          <option value="Full Name">Full Name</option>
+          <option value="Email Address">Email Address</option>
+          <option value="Phone Number">Phone Number</option>
+          <option value="Customer ID">Customer ID</option>
+          <option value="Transaction Date">Transaction Date</option>
+          <option value="Amount">Amount</option>
+        </select>
+        {isCombined && (
+          <div className="mt-2 text-sm text-neutral-500 flex items-center">
+            <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
+            Concat with space
           </div>
-          {isCombined && isFirstInCombinedGroup && (
-            <div className="mt-2 text-sm text-neutral-500 flex items-center">
-              <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
-              Concat with space
-            </div>
-          )}
-        </td>
-      )}
-      
-      {/* Actions column - only render for first in group or non-combined fields */}
-      {(!isCombined || isFirstInCombinedGroup) && (
-        <td className="px-4 py-4 text-sm align-middle" rowSpan={rowSpan}>
-          {field.actions === 'Combined' ? (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-              Combined
-            </span>
-          ) : (
-            <span className="text-neutral-500 text-xs">-</span>
-          )}
-        </td>
-      )}
+        )}
+      </td>
+      <td className="px-4 py-4 text-sm align-middle">
+        <div className="flex gap-2">
+          <button 
+            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+            title={isCombined ? "Edit combination" : "Edit field"}
+          >
+            <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+          </button>
+          <button 
+            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+            title={isCombined ? "Delete combination" : "Delete field"}
+            onClick={() => onDeleteField(field.id)}
+          >
+            <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+          </button>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-sm align-middle">
+        {field.actions === 'Combined' ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+            Combined
+          </span>
+        ) : (
+          <span className="text-neutral-500 text-xs">-</span>
+        )}
+      </td>
     </tr>
   );
 });
@@ -567,8 +566,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               <col className="w-[140px]" />
               <col className="w-[100px]" />
               <col className="w-[160px]" />
-              <col className="w-[280px]" />
-              <col className="w-[120px]" />
+              <col className="w-[200px]" />
+              <col className="w-[100px]" />
+              <col className="w-[100px]" />
             </colgroup>
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200">
@@ -577,96 +577,208 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Sample Data</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Target Field</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Actions</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 bg-white">
-              {/* Regular field mappings */}
-              {fields.map((field, index) => (
-                <FieldRow 
-                  key={field.id} 
-                  field={field} 
-                  index={index}
-                  fields={fields}
-                  onChangeField={handleFieldChange}
-                  onDeleteField={handleDeleteField}
-                />
-              ))}
+              {/* Regular field mappings - exclude combined fields and fields used in combinations */}
+              {(() => {
+                // Get all field names that are used in field combinations
+                const fieldsInCombinations = fieldCombinations.flatMap(combination => 
+                  combination.sourceFields.map((sf: any) => sf.fieldName)
+                );
+                
+                // Filter out both manually combined fields and fields used in combinations
+                return fields
+                  .filter(field => field.actions !== 'Combined' && !fieldsInCombinations.includes(field.sourceField))
+                  .map((field, index) => (
+                    <FieldRow 
+                      key={field.id} 
+                      field={field} 
+                      index={index}
+                      fields={fields.filter(f => f.actions !== 'Combined' && !fieldsInCombinations.includes(f.sourceField))}
+                      onChangeField={handleFieldChange}
+                      onDeleteField={handleDeleteField}
+                    />
+                  ));
+              })()}
               
-              {/* Field combinations */}
-              {fieldCombinations.map((combination, combinationIndex) => (
-                <tr key={combination.id} className="bg-blue-50 hover:bg-blue-100/50">
-                  <td className="px-4 py-4 text-sm font-medium text-blue-900">
-                    <TruncatedText 
-                      text={combination.sourceFields.map((sf: any) => sf.fieldName).join(', ')} 
-                      maxLength={18} 
-                      className="font-medium text-blue-900"
-                    />
-                  </td>
-                  <td className="px-4 py-4 text-sm text-blue-700">Text</td>
-                  <td className="px-4 py-4 text-sm text-blue-700">
-                    <TruncatedText 
-                      text={combination.sourceFields.map((sf: any) => {
-                        switch (sf.fieldName) {
-                          case 'first_name': return 'John';
-                          case 'last_name': return 'Doe';
-                          case 'middle_name': return 'Michael';
-                          case 'title': return 'Mr.';
-                          case 'suffix': return 'Jr.';
-                          default: return sf.fieldName.replace('_', ' ');
-                        }
-                      }).join(' ')} 
-                      maxLength={22} 
-                      className="text-blue-700"
-                    />
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="space-y-2">
-                      <select 
-                        className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                        value={combination.targetField}
-                        disabled
-                      >
-                        <option value={combination.targetField}>{combination.targetField}</option>
-                      </select>
+              {/* Combined field groups from fields array */}
+              {(() => {
+                const combinedFields = fields.filter(field => field.actions === 'Combined');
+                const groupedCombined = combinedFields.reduce((groups: any, field) => {
+                  const key = field.targetField;
+                  if (!groups[key]) {
+                    groups[key] = [];
+                  }
+                  groups[key].push(field);
+                  return groups;
+                }, {});
+                
+                return Object.entries(groupedCombined).map(([targetField, groupFields]: [string, any]) => 
+                  groupFields.map((field: any, index: number) => (
+                    <tr key={field.id} className="bg-blue-50 hover:bg-blue-100/50">
+                      <td className="px-4 py-4 text-sm font-medium text-blue-900">
+                        <TruncatedText 
+                          text={field.sourceField} 
+                          maxLength={18} 
+                          className="font-medium text-blue-900"
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-sm text-blue-700">
+                        {field.dataType}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-blue-700">
+                        <TruncatedText 
+                          text={field.sampleData} 
+                          maxLength={22} 
+                          className="text-blue-700"
+                        />
+                      </td>
+                      {/* Target Field column - only render for first field in group */}
+                      {index === 0 && (
+                        <td className="px-4 py-4 align-middle border-0" rowSpan={groupFields.length}>
+                          <select 
+                            className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                            value={field.targetField}
+                            onChange={(e) => handleFieldChange(field.id, 'targetField', e.target.value)}
+                          >
+                            <option value="">Select target field</option>
+                            <option value="Full Name">Full Name</option>
+                            <option value="Email Address">Email Address</option>
+                            <option value="Phone Number">Phone Number</option>
+                            <option value="Customer ID">Customer ID</option>
+                            <option value="Transaction Date">Transaction Date</option>
+                            <option value="Amount">Amount</option>
+                          </select>
+                          <div className="mt-2 text-sm text-neutral-500 flex items-center">
+                            <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
+                            Concat with space
+                          </div>
+                        </td>
+                      )}
                       
-                      <div className="text-xs text-neutral-500 flex items-center">
-                        <span className="text-xs">
-                          Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
-                            combination.delimiter === 'Space' ? 'space' :
-                            combination.delimiter === 'Comma' ? 'comma' :
-                            combination.delimiter === 'Semicolon' ? 'semicolon' : 'space'}
+                      {/* Actions column - only render for first field in group */}
+                      {index === 0 && (
+                        <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
+                          <div className="flex gap-2">
+                            <button 
+                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                              title="Edit combination"
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+                            </button>
+                            <button 
+                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                              title="Delete combination"
+                              onClick={() => handleDeleteField(field.id)}
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                      
+                      {/* Status column - only render for first field in group */}
+                      {index === 0 && (
+                        <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+                            Combined
+                          </span>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                );
+              })()}
+              
+              {/* Field combinations created through Field Combination Editor */}
+              {fieldCombinations.map((combination) => 
+                combination.sourceFields.map((sourceField: any, index: number) => (
+                  <tr key={`${combination.id}-${sourceField.fieldName}`} className="bg-blue-50 hover:bg-blue-100/50">
+                    <td className="px-4 py-4 text-sm font-medium text-blue-900">
+                      <TruncatedText 
+                        text={sourceField.fieldName} 
+                        maxLength={18} 
+                        className="font-medium text-blue-900"
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-sm text-blue-700">Text</td>
+                    <td className="px-4 py-4 text-sm text-blue-700">
+                      <TruncatedText 
+                        text={(() => {
+                          switch (sourceField.fieldName) {
+                            case 'first_name': return 'John';
+                            case 'last_name': return 'Doe';
+                            case 'middle_name': return 'Michael';
+                            case 'title': return 'Mr.';
+                            case 'suffix': return 'Jr.';
+                            default: return sourceField.fieldName.replace('_', ' ');
+                          }
+                        })()} 
+                        maxLength={22} 
+                        className="text-blue-700"
+                      />
+                    </td>
+                    {/* Target Field column - only render for first field in combination */}
+                    {index === 0 && (
+                      <td className="px-4 py-4 align-middle border-0" rowSpan={combination.sourceFields.length}>
+                        <select 
+                          className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                          value={combination.targetField}
+                          disabled
+                        >
+                          <option value={combination.targetField}>{combination.targetField}</option>
+                        </select>
+                        <div className="mt-2 text-sm text-neutral-500 flex items-center">
+                          <span className="text-xs">
+                            Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
+                              combination.delimiter === 'Space' ? 'space' :
+                              combination.delimiter === 'Comma' ? 'comma' :
+                              combination.delimiter === 'Semicolon' ? 'semicolon' : 'space'}
+                          </span>
+                        </div>
+                      </td>
+                    )}
+                    
+                    {/* Actions column - only render for first field in combination */}
+                    {index === 0 && (
+                      <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={combination.sourceFields.length}>
+                        <div className="flex gap-2">
+                          <button 
+                            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                            title="Edit combination"
+                          >
+                            <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+                          </button>
+                          <button 
+                            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                            title="Delete combination"
+                            onClick={() => {
+                              setFieldCombinations(prev => prev.filter(c => c.id !== combination.id));
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                    
+                    {/* Status column - only render for first field in combination */}
+                    {index === 0 && (
+                      <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={combination.sourceFields.length}>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Combined
                         </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        className="p-1.5 hover:bg-neutral-100 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
-                        title="Edit combination"
-                      >
-                        <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 hover:text-neutral-800 text-xs transition-colors" />
-                      </button>
-                      <button 
-                        className="p-1.5 hover:bg-red-50 hover:text-red-600 hover:shadow-sm rounded transition-all duration-200 hover:scale-105"
-                        title="Delete combination"
-                        onClick={() => {
-                          setFieldCombinations(prev => prev.filter(c => c.id !== combination.id));
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs transition-colors" />
-                      </button>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Combined
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
               
               {fields.length === 0 && fieldCombinations.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-neutral-500">
                     <div className="flex flex-col items-center">
                       <FontAwesomeIcon icon={faExclamationTriangle} className="text-2xl text-neutral-400 mb-2" />
                       <p>No fields mapped yet</p>
