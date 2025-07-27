@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -17,13 +17,15 @@ interface FieldCombinationEditorProps {
   onCancel: () => void;
   availableSourceFields?: string[];
   availableTargetFields?: string[];
+  editingCombination?: FieldCombination | null;
 }
 
 const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
   onSave,
   onCancel,
   availableSourceFields = ['first_name', 'last_name', 'middle_name', 'title', 'suffix'],
-  availableTargetFields = ['Full Name', 'Address', 'Contact Info', 'Customer Details']
+  availableTargetFields = ['Full Name', 'Address', 'Contact Info', 'Customer Details'],
+  editingCombination = null
 }) => {
   const [targetField, setTargetField] = useState<string>('');
   const [delimiter, setDelimiter] = useState<string>('Space');
@@ -32,6 +34,16 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
     { id: '1', fieldName: 'first_name', order: 1 },
     { id: '2', fieldName: 'last_name', order: 2 }
   ]);
+
+  // Initialize state with editing combination data
+  useEffect(() => {
+    if (editingCombination) {
+      setTargetField(editingCombination.targetField);
+      setDelimiter(editingCombination.delimiter);
+      setCustomDelimiter(editingCombination.customDelimiter || '');
+      setSourceFields(editingCombination.sourceFields || []);
+    }
+  }, [editingCombination]);
 
   const delimiterOptions = [
     { value: 'Space', label: 'Space', symbol: ' ' },
@@ -132,7 +144,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
     }
 
     const combination: FieldCombination = {
-      id: `field_combination_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+      id: editingCombination?.id || `field_combination_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
       targetField,
       delimiter,
       customDelimiter: delimiter === 'Custom' ? customDelimiter : undefined,
@@ -167,7 +179,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
                   <FontAwesomeIcon icon={faChevronRight} className="mx-2 text-xs" />
                   <span>Field Combination</span>
                 </div>
-                <h2 className="text-2xl font-semibold">Add Field Combination</h2>
+                <h2 className="text-2xl font-semibold">{editingCombination ? 'Edit' : 'Add'} Field Combination</h2>
                 <p className="text-neutral-600">Combine multiple source fields into one target field</p>
               </div>
             </div>
@@ -182,7 +194,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
                 variant="primary"
                 onClick={handleSave}
               >
-                Save Combination
+                {editingCombination ? 'Update' : 'Save'} Combination
               </Button>
             </div>
           </div>

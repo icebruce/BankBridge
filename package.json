@@ -16,7 +16,10 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:import-templates": "vitest run src/components/ImportTemplates",
+    "test:import-templates:watch": "vitest src/components/ImportTemplates",
+    "test:import-templates:coverage": "vitest run --coverage src/components/ImportTemplates"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

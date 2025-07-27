@@ -24,7 +24,12 @@ const ImportTemplatesPage: FC = () => {
   const [editingTemplate, setEditingTemplate] = useState<ImportTemplate | null>(null);
   const [currentTemplateData, setCurrentTemplateData] = useState<any>(null);
   const [uploadedFileFields, setUploadedFileFields] = useState<string[]>([]);
+  const [editingFieldCombination, setEditingFieldCombination] = useState<FieldCombination | null>(null);
   const saveTemplateRef = useRef<(() => void) | null>(null);
+  const fieldCombinationsRef = useRef<{
+    updateFieldCombinations: (combinations: FieldCombination[]) => void;
+    getFieldCombinations: () => FieldCombination[];
+  } | null>(null);
 
   useEffect(() => {
     // Load import templates and default export template
@@ -178,26 +183,54 @@ const ImportTemplatesPage: FC = () => {
   const handleAddFieldCombination = (templateData: any, uploadedFields: string[]) => {
     setCurrentTemplateData(templateData);
     setUploadedFileFields(uploadedFields);
+    setEditingFieldCombination(templateData.editingCombination || null);
     setShowFieldCombinationEditor(true);
   };
 
   const handleSaveFieldCombination = (combination: FieldCombination) => {
-    console.log('Field combination saved:', combination);
+    // Get current field combinations from the template editor
+    const currentCombinations = fieldCombinationsRef.current?.getFieldCombinations() || [];
     
-    // Add the combination to current template data
+    let updatedCombinations;
+    if (editingFieldCombination) {
+      // Update existing combination
+      updatedCombinations = currentCombinations.map((c: FieldCombination) => 
+        c.id === combination.id ? combination : c
+      );
+    } else {
+      // Add new combination
+      updatedCombinations = [...currentCombinations, combination];
+    }
+    
+    // Update field combinations directly in the template editor
+    fieldCombinationsRef.current?.updateFieldCombinations(updatedCombinations);
+    
+    // Also update currentTemplateData for consistency
     if (currentTemplateData) {
       const updatedTemplateData = {
         ...currentTemplateData,
-        fieldCombinations: [...(currentTemplateData.fieldCombinations || []), combination]
+        fieldCombinations: updatedCombinations
       };
       setCurrentTemplateData(updatedTemplateData);
     }
     
     setShowFieldCombinationEditor(false);
+    setEditingFieldCombination(null);
   };
 
   const handleCancelFieldCombination = () => {
+    // When canceling, preserve the current field combinations in currentTemplateData
+    if (currentTemplateData && fieldCombinationsRef.current) {
+      const currentCombinations = fieldCombinationsRef.current.getFieldCombinations();
+      const updatedTemplateData = {
+        ...currentTemplateData,
+        fieldCombinations: currentCombinations
+      };
+      setCurrentTemplateData(updatedTemplateData);
+    }
+    
     setShowFieldCombinationEditor(false);
+    setEditingFieldCombination(null);
   };
 
   // Filter templates based on search and filters
@@ -221,6 +254,7 @@ const ImportTemplatesPage: FC = () => {
           onCancel={handleCancelFieldCombination}
           availableSourceFields={uploadedFileFields}
           availableTargetFields={defaultExportTemplate?.fieldMappings.map(mapping => mapping.targetField) || []}
+          editingCombination={editingFieldCombination}
         />
       ) : showNewTemplateEditor ? (
         // Show template editor
@@ -274,6 +308,7 @@ const ImportTemplatesPage: FC = () => {
             onAddFieldCombination={handleAddFieldCombination}
             currentTemplateData={currentTemplateData}
             defaultExportTemplate={defaultExportTemplate}
+            fieldCombinationsRef={fieldCombinationsRef}
           />
         </div>
       ) : (

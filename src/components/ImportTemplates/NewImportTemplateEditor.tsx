@@ -9,7 +9,7 @@ import {
   faPenToSquare,
   faCode
 } from '@fortawesome/free-solid-svg-icons';
-import { ImportTemplate } from '../../models/ImportTemplate';
+import { ImportTemplate, FieldCombination } from '../../models/ImportTemplate';
 import { Template } from '../../models/Template';
 import { fileParserService } from '../../services/fileParserService';
 import Button from '../common/Button';
@@ -31,6 +31,10 @@ interface NewImportTemplateEditorProps {
   onAddFieldCombination?: (templateData: any, uploadedFields: string[]) => void;
   currentTemplateData?: any;
   defaultExportTemplate?: Template | null;
+  fieldCombinationsRef?: React.MutableRefObject<{
+    updateFieldCombinations: (combinations: FieldCombination[]) => void;
+    getFieldCombinations: () => FieldCombination[];
+  } | null>;
 }
 
 // TruncatedText component with tooltip
@@ -187,6 +191,10 @@ const FieldRow = React.memo(({
             <button 
               className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
               title={isCombined ? "Edit combination" : "Edit field"}
+              onClick={isCombined ? () => {
+                // Handle edit combination logic
+                console.log('Edit combination clicked for field:', field.sourceField);
+              } : undefined}
             >
               <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
             </button>
@@ -217,7 +225,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   initialTemplate,
   onAddFieldCombination,
   currentTemplateData,
-  defaultExportTemplate
+  defaultExportTemplate,
+  fieldCombinationsRef
 }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
@@ -297,15 +306,30 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     }
   }, [initialTemplate]);
 
+  // Expose field combination methods to parent
+  useEffect(() => {
+    if (fieldCombinationsRef) {
+      fieldCombinationsRef.current = {
+        updateFieldCombinations: (combinations: FieldCombination[]) => {
+          setFieldCombinations(combinations);
+        },
+        getFieldCombinations: () => fieldCombinations
+      };
+    }
+  }, [fieldCombinationsRef, fieldCombinations]);
+
   // Sync with currentTemplateData when returning from field combination editor
   useEffect(() => {
     if (currentTemplateData) {
       setTemplateName(currentTemplateData.name || '');
       setSourceFileType(currentTemplateData.sourceFileType || 'CSV File');
       setFields(currentTemplateData.fields || []);
-      setFieldCombinations(currentTemplateData.fieldCombinations || []);
+      // Only update field combinations if they're different
+      if (JSON.stringify(currentTemplateData.fieldCombinations) !== JSON.stringify(fieldCombinations)) {
+        setFieldCombinations(currentTemplateData.fieldCombinations || []);
+      }
     }
-  }, [currentTemplateData]);
+  }, [currentTemplateData, fieldCombinations]);
   
   // No drag and drop needed for this page
   
@@ -381,7 +405,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         name: templateName,
         sourceFileType,
         fields,
-        fieldCombinations: [] // Will be populated by the field combination editor
+        fieldCombinations: fieldCombinations // Include current field combinations
       };
       
       // Get uploaded file fields (source fields from the uploaded file)
@@ -579,26 +603,30 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 bg-white">
-              {/* Regular field mappings - exclude combined fields and fields used in combinations */}
+                            {/* Regular field mappings - exclude combined fields and fields used in combinations */}
               {(() => {
                 // Get all field names that are used in field combinations
-                const fieldsInCombinations = fieldCombinations.flatMap(combination => 
+                const fieldsInCombinations = fieldCombinations.flatMap(combination =>
                   combination.sourceFields.map((sf: any) => sf.fieldName)
                 );
                 
+                console.log('🔍 Fields in combinations:', fieldsInCombinations);
+                console.log('🔍 All fields:', fields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
+                
                 // Filter out both manually combined fields and fields used in combinations
-                return fields
-                  .filter(field => field.actions !== 'Combined' && !fieldsInCombinations.includes(field.sourceField))
-                  .map((field, index) => (
-                    <FieldRow 
-                      key={field.id} 
-                      field={field} 
-                      index={index}
-                      fields={fields.filter(f => f.actions !== 'Combined' && !fieldsInCombinations.includes(f.sourceField))}
-                      onChangeField={handleFieldChange}
-                      onDeleteField={handleDeleteField}
-                    />
-                  ));
+                const filteredFields = fields.filter(field => field.actions !== 'Combined' && !fieldsInCombinations.includes(field.sourceField));
+                console.log('🔍 Filtered fields:', filteredFields.map(f => f.sourceField));
+                
+                return filteredFields.map((field, index) => (
+                  <FieldRow 
+                    key={field.id} 
+                    field={field} 
+                    index={index}
+                    fields={filteredFields}
+                    onChangeField={handleFieldChange}
+                    onDeleteField={handleDeleteField}
+                  />
+                ));
               })()}
               
               {/* Combined field groups from fields array */}
@@ -668,13 +696,21 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                               <button 
                                 className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                                 title="Edit combination"
+                                onClick={() => {
+                                  // Handle edit combination logic
+                                  console.log('Edit combination clicked for grouped fields');
+                                }}
                               >
                                 <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
                               </button>
                               <button 
                                 className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                                 title="Delete combination"
-                                onClick={() => handleDeleteField(field.id)}
+                                onClick={() => {
+                                  // Delete all fields in this combination group
+                                  const fieldIdsToDelete = groupFields.map((f: any) => f.id);
+                                  setFields(prevFields => prevFields.filter(field => !fieldIdsToDelete.includes(field.id)));
+                                }}
                               >
                                 <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                               </button>
@@ -753,14 +789,45 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                             <button 
                               className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                               title="Edit combination"
+                              onClick={() => {
+                                if (onAddFieldCombination) {
+                                  // Get current template data
+                                  const templateData: any = {
+                                    name: templateName,
+                                    sourceFileType,
+                                    fields,
+                                    fieldCombinations: fieldCombinations.filter(c => c.id !== combination.id), // Remove the one being edited
+                                    editingCombination: combination // Add the combination being edited
+                                  };
+                                  
+                                  // Get uploaded file fields (source fields from the uploaded file)
+                                  const uploadedFields = fields.map(field => field.sourceField).filter(Boolean);
+                                  
+                                  onAddFieldCombination(templateData, uploadedFields);
+                                }
+                              }}
                             >
                               <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
                             </button>
                             <button 
                               className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                               title="Delete combination"
+                              data-testid="delete-combination-button"
                               onClick={() => {
-                                setFieldCombinations(prev => prev.filter(c => c.id !== combination.id));
+                                alert('Delete button clicked!');
+                                
+                                try {
+                                  alert('About to check combination...');
+                                  if (!combination) {
+                                    alert('ERROR: combination is undefined!');
+                                    return;
+                                  }
+                                  alert('Combination exists!');
+                                  alert(`Combination ID: ${combination.id}`);
+                                } catch (error) {
+                                  alert(`Error accessing combination: ${error}`);
+                                  return;
+                                }
                               }}
                             >
                               <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
