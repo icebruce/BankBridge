@@ -181,25 +181,29 @@ const FieldRow = React.memo(({
           </div>
         )}
       </td>
-      <td className="px-4 py-4 text-sm align-middle">
-        <div className="flex gap-2 items-center">
-          <button 
-            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-            title={isCombined ? "Edit combination" : "Edit field"}
-          >
-            <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
-          </button>
-          <button 
-            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-            title={isCombined ? "Delete combination" : "Delete field"}
-            onClick={() => onDeleteField(field.id)}
-          >
-            <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
-          </button>
+      <td className="pl-4 pr-0 py-4 text-sm align-middle">
+        <div className="flex items-center">
+          <div className="flex gap-3 items-center">
+            <button 
+              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+              title={isCombined ? "Edit combination" : "Edit field"}
+            >
+              <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+            </button>
+            <button 
+              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+              title={isCombined ? "Delete combination" : "Delete field"}
+              onClick={() => onDeleteField(field.id)}
+            >
+              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+            </button>
+          </div>
           {field.actions === 'Combined' && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-              Combined
-            </span>
+            <div className="ml-4">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+                Combined
+              </span>
+            </div>
           )}
         </div>
       </td>
@@ -571,7 +575,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Data Type</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Sample Data</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Target Field</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Actions</th>
+                <th className="pl-4 pr-0 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 bg-white">
@@ -658,24 +662,28 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                       
                       {/* Actions column - only render for first field in group */}
                       {index === 0 && (
-                        <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
-                          <div className="flex gap-2 items-center">
-                            <button 
-                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                              title="Edit combination"
-                            >
-                              <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
-                            </button>
-                            <button 
-                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                              title="Delete combination"
-                              onClick={() => handleDeleteField(field.id)}
-                            >
-                              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
-                            </button>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                              Combined
-                            </span>
+                        <td className="pl-4 pr-0 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
+                          <div className="flex items-center">
+                            <div className="flex gap-3 items-center">
+                              <button 
+                                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                                title="Edit combination"
+                              >
+                                <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+                              </button>
+                              <button 
+                                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                                title="Delete combination"
+                                onClick={() => handleDeleteField(field.id)}
+                              >
+                                <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+                              </button>
+                            </div>
+                            <div className="ml-4">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+                                Combined
+                              </span>
+                            </div>
                           </div>
                         </td>
                       )}
@@ -739,26 +747,30 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     
                     {/* Actions column - only render for first field in combination */}
                     {index === 0 && (
-                      <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={combination.sourceFields.length}>
-                        <div className="flex gap-2 items-center">
-                          <button 
-                            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                            title="Edit combination"
-                          >
-                            <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
-                          </button>
-                          <button 
-                            className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                            title="Delete combination"
-                            onClick={() => {
-                              setFieldCombinations(prev => prev.filter(c => c.id !== combination.id));
-                            }}
-                          >
-                            <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
-                          </button>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Combined
-                          </span>
+                      <td className="pl-4 pr-0 py-4 text-sm align-middle border-0" rowSpan={combination.sourceFields.length}>
+                        <div className="flex items-center">
+                          <div className="flex gap-3 items-center">
+                            <button 
+                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                              title="Edit combination"
+                            >
+                              <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
+                            </button>
+                            <button 
+                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                              title="Delete combination"
+                              onClick={() => {
+                                setFieldCombinations(prev => prev.filter(c => c.id !== combination.id));
+                              }}
+                            >
+                              <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
+                            </button>
+                          </div>
+                          <div className="ml-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Combined
+                            </span>
+                          </div>
                         </div>
                       </td>
                     )}
