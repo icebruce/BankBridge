@@ -638,22 +638,26 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                       {/* Target Field column - only render for first field in group */}
                       {index === 0 && (
                         <td className="px-4 py-4 align-middle border-0" rowSpan={groupFields.length}>
-                          <select 
-                            className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                            value={field.targetField}
-                            onChange={(e) => handleFieldChange(field.id, 'targetField', e.target.value)}
-                          >
-                            <option value="">Select target field</option>
-                            <option value="Full Name">Full Name</option>
-                            <option value="Email Address">Email Address</option>
-                            <option value="Phone Number">Phone Number</option>
-                            <option value="Customer ID">Customer ID</option>
-                            <option value="Transaction Date">Transaction Date</option>
-                            <option value="Amount">Amount</option>
-                          </select>
-                          <div className="mt-2 text-sm text-neutral-500 flex items-center">
-                            <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
-                            Concat with space
+                          <div className="h-full flex flex-col justify-center">
+                            <div style={{transform: 'translateY(12px)'}}>
+                              <select 
+                                className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                                value={field.targetField}
+                                onChange={(e) => handleFieldChange(field.id, 'targetField', e.target.value)}
+                              >
+                                <option value="">Select target field</option>
+                                <option value="Full Name">Full Name</option>
+                                <option value="Email Address">Email Address</option>
+                                <option value="Phone Number">Phone Number</option>
+                                <option value="Customer ID">Customer ID</option>
+                                <option value="Transaction Date">Transaction Date</option>
+                                <option value="Amount">Amount</option>
+                              </select>
+                            </div>
+                            <div className="mt-4 text-sm text-neutral-500 flex items-center">
+                              <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
+                              Concat with space
+                            </div>
                           </div>
                         </td>
                       )}
@@ -723,20 +727,24 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     {/* Target Field column - only render for first field in combination */}
                     {index === 0 && (
                       <td className="px-4 py-4 align-middle border-0" rowSpan={combination.sourceFields.length}>
-                        <select 
-                          className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                          value={combination.targetField}
-                          disabled
-                        >
-                          <option value={combination.targetField}>{combination.targetField}</option>
-                        </select>
-                        <div className="mt-2 text-sm text-neutral-500 flex items-center">
-                          <span className="text-xs">
-                            Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
-                              combination.delimiter === 'Space' ? 'space' :
-                              combination.delimiter === 'Comma' ? 'comma' :
-                              combination.delimiter === 'Semicolon' ? 'semicolon' : 'space'}
-                          </span>
+                        <div className="h-full flex flex-col justify-center">
+                          <div style={{transform: 'translateY(12px)'}}>
+                            <select 
+                              className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                              value={combination.targetField}
+                              disabled
+                            >
+                              <option value={combination.targetField}>{combination.targetField}</option>
+                            </select>
+                          </div>
+                          <div className="mt-4 text-sm text-neutral-500">
+                            <span className="text-xs">
+                              Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
+                                combination.delimiter === 'Space' ? 'space' :
+                                combination.delimiter === 'Comma' ? 'comma' :
+                                combination.delimiter === 'Semicolon' ? 'semicolon' : 'space'}
+                            </span>
+                          </div>
                         </div>
                       </td>
                     )}
