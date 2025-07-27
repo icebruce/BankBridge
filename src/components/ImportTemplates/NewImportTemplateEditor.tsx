@@ -637,7 +637,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                       {index === 0 && (
                         <td className="px-4 py-4 align-middle border-0" rowSpan={groupFields.length}>
                           <div className="h-full flex flex-col justify-center">
-                            <div style={{transform: 'translateY(12px)'}}>
+                            <div style={{transform: 'translateY(20px)'}}>
                               <select 
                                 className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                                 value={field.targetField}
@@ -652,7 +652,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                 <option value="Amount">Amount</option>
                               </select>
                             </div>
-                            <div className="mt-4 text-sm text-neutral-500 flex items-center">
+                            <div className="mt-6 text-sm text-neutral-500 flex items-center">
                               <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
                               Concat with space
                             </div>
@@ -724,7 +724,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     {index === 0 && (
                       <td className="px-4 py-4 align-middle border-0" rowSpan={combination.sourceFields.length}>
                         <div className="h-full flex flex-col justify-center">
-                          <div style={{transform: 'translateY(12px)'}}>
+                          <div style={{transform: 'translateY(20px)'}}>
                             <select 
                               className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                               value={combination.targetField}
@@ -733,7 +733,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                               <option value={combination.targetField}>{combination.targetField}</option>
                             </select>
                           </div>
-                          <div className="mt-4 text-sm text-neutral-500">
+                          <div className="mt-6 text-sm text-neutral-500">
                             <span className="text-xs">
                               Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
                                 combination.delimiter === 'Space' ? 'space' :
