@@ -182,7 +182,7 @@ const FieldRow = React.memo(({
         )}
       </td>
       <td className="px-4 py-4 text-sm align-middle">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <button 
             className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
             title={isCombined ? "Edit combination" : "Edit field"}
@@ -196,16 +196,12 @@ const FieldRow = React.memo(({
           >
             <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
           </button>
+          {field.actions === 'Combined' && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+              Combined
+            </span>
+          )}
         </div>
-      </td>
-      <td className="px-4 py-4 text-sm align-middle">
-        {field.actions === 'Combined' ? (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-            Combined
-          </span>
-        ) : (
-          <span className="text-neutral-500 text-xs">-</span>
-        )}
       </td>
     </tr>
   );
@@ -567,8 +563,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               <col className="w-[100px]" />
               <col className="w-[160px]" />
               <col className="w-[200px]" />
-              <col className="w-[100px]" />
-              <col className="w-[100px]" />
+              <col className="w-[96px]" />
             </colgroup>
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200">
@@ -577,7 +572,6 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Sample Data</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Target Field</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Actions</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 bg-neutral-50 border-b border-neutral-200">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 bg-white">
@@ -665,7 +659,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                       {/* Actions column - only render for first field in group */}
                       {index === 0 && (
                         <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 items-center">
                             <button 
                               className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                               title="Edit combination"
@@ -679,16 +673,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                             >
                               <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                             </button>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+                              Combined
+                            </span>
                           </div>
-                        </td>
-                      )}
-                      
-                      {/* Status column - only render for first field in group */}
-                      {index === 0 && (
-                        <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                            Combined
-                          </span>
                         </td>
                       )}
                     </tr>
@@ -752,7 +740,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     {/* Actions column - only render for first field in combination */}
                     {index === 0 && (
                       <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={combination.sourceFields.length}>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           <button 
                             className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                             title="Edit combination"
@@ -768,16 +756,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                           >
                             <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                           </button>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Combined
+                          </span>
                         </div>
-                      </td>
-                    )}
-                    
-                    {/* Status column - only render for first field in combination */}
-                    {index === 0 && (
-                      <td className="px-4 py-4 text-sm align-middle border-0" rowSpan={combination.sourceFields.length}>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Combined
-                        </span>
                       </td>
                     )}
                   </tr>
@@ -786,7 +768,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               
               {fields.length === 0 && fieldCombinations.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-neutral-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
                     <div className="flex flex-col items-center">
                       <FontAwesomeIcon icon={faExclamationTriangle} className="text-2xl text-neutral-400 mb-2" />
                       <p>No fields mapped yet</p>
