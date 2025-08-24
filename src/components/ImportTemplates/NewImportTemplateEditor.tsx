@@ -577,8 +577,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
             variant="tertiary"
             icon={faPlus}
             onClick={handleAddFieldCombination}
-            disabled={!defaultExportTemplate}
-            title={!defaultExportTemplate ? "Set a default export template to enable field combinations" : "Add field combination"}
+            disabled={!defaultExportTemplate || (!uploadedFile && fields.length === 0)}
+            title={!defaultExportTemplate ? "Set a default export template to enable field combinations" : (!uploadedFile && fields.length === 0) ? "Upload a file to enable field combinations" : "Add field combination"}
           >
             Add Field Combination
           </Button>

@@ -568,6 +568,10 @@ video {
   }
 }
 
+.visible {
+  visibility: visible !important;
+}
+
 .fixed {
   position: fixed !important;
 }
@@ -1406,6 +1410,14 @@ video {
 
 .pl-10 {
   padding-left: 2.5rem !important;
+}
+
+.pl-4 {
+  padding-left: 1rem !important;
+}
+
+.pr-0 {
+  padding-right: 0px !important;
 }
 
 .pr-4 {

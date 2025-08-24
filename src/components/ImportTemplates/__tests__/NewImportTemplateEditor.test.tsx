@@ -109,7 +109,7 @@ describe('NewImportTemplateEditor', () => {
       expect(screen.getByText('Field Mapping')).toBeInTheDocument()
     })
 
-    it('should show "Add Field Combination" button when default export template exists', () => {
+    it('should show "Add Field Combination" button when default export template exists and file is uploaded', () => {
       render(
         <NewImportTemplateEditor
           onSave={mockOnSave}
@@ -119,7 +119,8 @@ describe('NewImportTemplateEditor', () => {
       )
 
       expect(screen.getByRole('button', { name: /add field combination/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /add field combination/i })).not.toBeDisabled()
+      // Button should be disabled initially since no file is uploaded
+      expect(screen.getByRole('button', { name: /add field combination/i })).toBeDisabled()
     })
 
     it('should disable "Add Field Combination" button when no default export template', () => {
@@ -144,6 +145,42 @@ describe('NewImportTemplateEditor', () => {
       )
 
       expect(screen.getByText(/no default export template found/i)).toBeInTheDocument()
+    })
+
+    it('should enable "Add Field Combination" button when both default export template exists and file is uploaded', () => {
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+        />
+      )
+
+      // Button should be disabled initially because no file is uploaded and no fields exist
+      expect(screen.getByRole('button', { name: /add field combination/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /add field combination/i })).toHaveAttribute('title', 'Upload a file to enable field combinations')
+    })
+
+    it('should enable "Add Field Combination" button when fields exist (indicating file was uploaded)', () => {
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          currentTemplateData={{
+            name: 'Test Template',
+            sourceFileType: 'CSV File',
+            fields: [
+              { id: '1', sourceField: 'first_name', dataType: 'Text', sampleData: 'John', targetField: 'Full Name', actions: '' }
+            ],
+            fieldCombinations: []
+          }}
+        />
+      )
+
+      // Button should be enabled because fields exist (indicating a file was uploaded)
+      expect(screen.getByRole('button', { name: /add field combination/i })).not.toBeDisabled()
+      expect(screen.getByRole('button', { name: /add field combination/i })).toHaveAttribute('title', 'Add field combination')
     })
   })
 
