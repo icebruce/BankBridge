@@ -815,25 +815,30 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         className="font-medium text-blue-900"
                       />
                     </td>
-                    <td className="px-4 py-4 text-sm text-blue-700">Text</td>
-                    <td className="px-4 py-4 text-sm text-blue-700">
-                      <TruncatedText 
-                                                 text={(() => {
-                           switch (sourceField.fieldName) {
-                             case 'first_name': return 'John';
-                             case 'last_name': return 'Doe';
-                             case 'middle_name': return 'Michael';
-                             case 'title': return 'Mr.';
-                             case 'suffix': return 'Jr.';
-                             case 'email': return 'john@example.com';
-                             case 'phone': return '+1234567890';
-                             default: return sourceField.fieldName.replace('_', ' ');
-                           }
-                         })()} 
-                        maxLength={22} 
-                        className="text-blue-700"
-                      />
-                    </td>
+                                         <td className="px-4 py-4 text-sm text-blue-700">
+                       {(() => {
+                         // Try to find the actual field data from the parsed file
+                         const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
+                         return actualField?.dataType || 'Text';
+                       })()}
+                     </td>
+                                         <td className="px-4 py-4 text-sm text-blue-700">
+                                               <TruncatedText 
+                          text={(() => {
+                            // Try to find the actual field data from the parsed file
+                            const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
+                            if (actualField && actualField.sampleData) {
+                              return actualField.sampleData;
+                            }
+                            
+                            // If no actual field found, just use the field name itself
+                            // This ensures we show the actual field name from the parsed file
+                            return sourceField.fieldName;
+                          })()} 
+                          maxLength={22} 
+                          className="text-blue-700"
+                        />
+                     </td>
                     {/* Target Field column - only render for first field in combination */}
                     {index === 0 && (
                       <td className="px-4 py-4 align-middle border-0" rowSpan={combination.sourceFields.length}>
@@ -909,27 +914,24 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                   const existingFieldNames = fields.map(f => f.sourceField);
                                   console.log('📝 Existing field names:', existingFieldNames);
                                   
-                                  const sourceFieldsToRestore = combination.sourceFields
-                                    .filter((sourceField: any) => !existingFieldNames.includes(sourceField.fieldName))
-                                    .map((sourceField: any) => ({
-                                      id: `restored_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
-                                      sourceField: sourceField.fieldName,
-                                      dataType: 'Text' as const,
-                                      sampleData: (() => {
-                                        switch (sourceField.fieldName) {
-                                          case 'first_name': return 'John';
-                                          case 'last_name': return 'Doe';
-                                          case 'middle_name': return 'Michael';
-                                          case 'title': return 'Mr.';
-                                          case 'suffix': return 'Jr.';
-                                          case 'email': return 'john@example.com';
-                                          case 'phone': return '+1234567890';
-                                          default: return sourceField.fieldName.replace('_', ' ');
-                                        }
-                                      })(),
-                                      targetField: '', // User will need to map this again
-                                      actions: '' // No longer combined
-                                    }));
+                                                                     const sourceFieldsToRestore = combination.sourceFields
+                                     .filter((sourceField: any) => !existingFieldNames.includes(sourceField.fieldName))
+                                     .map((sourceField: any) => {
+                                       // Try to find the actual field data from the parsed file
+                                       const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
+                                                                               const sampleData = actualField && actualField.sampleData 
+                                          ? actualField.sampleData 
+                                          : sourceField.fieldName; // Use the actual field name as fallback
+                                       
+                                       return {
+                                         id: `restored_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+                                         sourceField: sourceField.fieldName,
+                                         dataType: actualField?.dataType || 'Text' as const,
+                                         sampleData,
+                                         targetField: '', // User will need to map this again
+                                         actions: '' // No longer combined
+                                       };
+                                     });
                                   
                                   console.log('🔄 Fields to restore:', sourceFieldsToRestore);
                                   

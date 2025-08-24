@@ -30,10 +30,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
   const [targetField, setTargetField] = useState<string>('');
   const [delimiter, setDelimiter] = useState<string>('Space');
   const [customDelimiter, setCustomDelimiter] = useState<string>('');
-  const [sourceFields, setSourceFields] = useState<SourceField[]>([
-    { id: '1', fieldName: 'first_name', order: 1 },
-    { id: '2', fieldName: 'last_name', order: 2 }
-  ]);
+  const [sourceFields, setSourceFields] = useState<SourceField[]>([]);
 
   // Initialize state with editing combination data
   useEffect(() => {
@@ -42,8 +39,15 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
       setDelimiter(editingCombination.delimiter);
       setCustomDelimiter(editingCombination.customDelimiter || '');
       setSourceFields(editingCombination.sourceFields || []);
+    } else if (availableSourceFields.length > 0 && sourceFields.length === 0) {
+      // Add a default field using the first available field from the parsed file
+      setSourceFields([{
+        id: '1',
+        fieldName: availableSourceFields[0],
+        order: 1
+      }]);
     }
-  }, [editingCombination]);
+  }, [editingCombination, availableSourceFields, sourceFields.length]);
 
   const delimiterOptions = [
     { value: 'Space', label: 'Space', symbol: ' ' },
@@ -57,15 +61,9 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
     
     const sortedFields = [...sourceFields].sort((a, b) => a.order - b.order);
     const sampleValues = sortedFields.map(field => {
-      // Generate sample values based on field names
-      switch (field.fieldName) {
-        case 'first_name': return 'John';
-        case 'last_name': return 'Doe';
-        case 'middle_name': return 'Michael';
-        case 'title': return 'Mr.';
-        case 'suffix': return 'Jr.';
-        default: return field.fieldName.replace('_', ' ');
-      }
+      // Use the actual field name as sample data
+      // This ensures we show the real field names from the parsed file
+      return field.fieldName;
     });
     
     // Get the actual delimiter symbol
@@ -81,9 +79,13 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
   };
 
   const handleAddField = () => {
+    // Find the first available field that's not already used
+    const usedFieldNames = sourceFields.map(f => f.fieldName);
+    const availableField = availableSourceFields.find(field => !usedFieldNames.includes(field)) || availableSourceFields[0] || '';
+    
     const newField: SourceField = {
       id: Date.now().toString(),
-      fieldName: availableSourceFields[0] || '',
+      fieldName: availableField,
       order: sourceFields.length + 1
     };
     setSourceFields([...sourceFields, newField]);
