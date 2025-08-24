@@ -474,8 +474,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       {/* Template Configuration */}
       <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className="block mb-2 text-sm font-semibold">Template Name</label>
+          <label htmlFor="template-name" className="block mb-2 text-sm font-semibold">Template Name</label>
           <input 
+            id="template-name"
             type="text" 
             className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput" 
             placeholder="Enter template name"
@@ -484,8 +485,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           />
         </div>
         <div>
-          <label className="block mb-2 text-sm font-semibold">Source File Type</label>
+          <label htmlFor="source-file-type" className="block mb-2 text-sm font-semibold">Source File Type</label>
           <select 
+            id="source-file-type"
             className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput"
             value={sourceFileType}
             onChange={(e) => setSourceFileType(e.target.value)}
@@ -809,27 +811,17 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                             >
                               <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
                             </button>
-                            <button 
-                              className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
-                              title="Delete combination"
-                              data-testid="delete-combination-button"
-                              onClick={() => {
-                                alert('Delete button clicked!');
-                                
-                                try {
-                                  alert('About to check combination...');
-                                  if (!combination) {
-                                    alert('ERROR: combination is undefined!');
-                                    return;
-                                  }
-                                  alert('Combination exists!');
-                                  alert(`Combination ID: ${combination.id}`);
-                                } catch (error) {
-                                  alert(`Error accessing combination: ${error}`);
-                                  return;
-                                }
-                              }}
-                            >
+                                                         <button 
+                               className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
+                               title="Delete combination"
+                               data-testid="delete-combination-button"
+                               onClick={() => {
+                                 // Remove the field combination from the state
+                                 setFieldCombinations(prevCombinations => 
+                                   prevCombinations.filter(c => c.id !== combination.id)
+                                 );
+                               }}
+                             >
                               <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                             </button>
                           </div>
