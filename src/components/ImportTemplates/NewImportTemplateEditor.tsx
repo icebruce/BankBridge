@@ -21,6 +21,9 @@ interface ImportFieldType {
   sampleData: string;
   targetField: string;
   actions: string;
+  confidence?: number;
+  detectedDataType?: 'Text' | 'Number' | 'Date' | 'Currency' | 'Boolean';
+  isOverridden?: boolean;
 }
 
 interface NewImportTemplateEditorProps {
@@ -153,9 +156,30 @@ const FieldRow = React.memo(({
         />
       </td>
       <td className="px-4 py-4 text-sm text-neutral-600">
-        <span className={isCombined ? "text-blue-700" : "text-neutral-600"}>
-          {field.dataType}
-        </span>
+        <div className="flex items-center gap-2">
+          <select
+            aria-label="Data type"
+            className="px-2 py-1 text-sm border border-neutral-200 rounded electronInput"
+            value={field.dataType}
+            onChange={(e) => onChangeField(field.id, 'dataType', e.target.value)}
+          >
+            {['Text','Number','Date','Currency','Boolean'].map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          {field.confidence !== undefined && (
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
+                field.confidence >= 0.85 ? 'bg-green-100 text-green-800' :
+                field.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}
+              title={`Detected: ${field.detectedDataType || field.dataType} • Confidence: ${(field.confidence*100).toFixed(0)}%`}
+            >
+              {(field.confidence*100).toFixed(0)}%
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-4 py-4 text-sm text-neutral-600">
         <TruncatedText 
@@ -235,6 +259,16 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const [parseMetadata, setParseMetadata] = useState<{
+    encoding: string;
+    delimiter: string;
+    hasHeader: boolean | undefined;
+    hasQuotedFields: boolean | undefined;
+    hasBOM: boolean | undefined;
+    previewRows: string[][];
+  } | null>(null);
+
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
   const [fieldCombinations, setFieldCombinations] = useState<any[]>([]);
   const [isDeletingCombination, setIsDeletingCombination] = useState(false);
   const deletedCombinationIds = React.useRef<Set<string>>(new Set());
@@ -301,10 +335,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       setTemplateName('');
       setSourceFileType('CSV File');
       setUploadedFile(null);
-      setParseError(null);
-      setParseWarnings([]);
-      setFieldCombinations([]);
-      setFields([]);
+             setParseError(null);
+       setParseWarnings([]);
+       setParseMetadata(null);
+       
+       setIsPreviewCollapsed(false);
+       setFieldCombinations([]);
+       setFields([]);
     }
   }, [initialTemplate]);
 
@@ -382,7 +419,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
 
     try {
       console.log('Parsing file:', file.name);
-      const parseResult = await fileParserService.parseFile(file);
+             const parseResult = await fileParserService.parseFile(file, {
+         maxPreviewRows: 50,
+         hasHeader: undefined // Auto-detect
+       });
       
       if (parseResult.success) {
         // Convert parsed fields to ImportFieldType format
@@ -392,11 +432,24 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           dataType: field.dataType,
           sampleData: field.sampleValue,
           targetField: '', // User will map this
-          actions: ''
+          actions: '',
+          confidence: field.confidence,
+          detectedDataType: field.dataType,
+          isOverridden: false
         }));
         
         setFields(convertedFields);
         setFieldCombinations([]); // Clear any existing field combinations
+        
+        // Store parse metadata for display
+        setParseMetadata({
+          encoding: parseResult.detectedEncoding || 'Unknown',
+          delimiter: parseResult.detectedDelimiter || 'Unknown',
+          hasHeader: parseResult.hasHeader,
+          hasQuotedFields: parseResult.hasQuotedFields,
+          hasBOM: parseResult.hasBOM,
+          previewRows: parseResult.previewRows || []
+        });
         
         if (parseResult.warnings && parseResult.warnings.length > 0) {
           setParseWarnings(parseResult.warnings);
@@ -460,9 +513,14 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   
   // Update field properties
   const handleFieldChange = useCallback((id: string, property: keyof ImportFieldType, value: string) => {
-    setFields(prevFields => prevFields.map(field => 
-      field.id === id ? { ...field, [property]: value } : field
-    ));
+    setFields(prevFields => prevFields.map(field => {
+      if (field.id !== id) return field;
+      const updated: ImportFieldType = { ...field, [property]: value } as ImportFieldType;
+      if (property === 'dataType') {
+        updated.isOverridden = value !== field.detectedDataType;
+      }
+      return updated;
+    }));
   }, []);
   
   // Delete a field
@@ -569,15 +627,18 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       >
         <FontAwesomeIcon icon={faCloudArrowUp} className="text-4xl text-neutral-400 mb-3" />
         <p className="mb-2">Drag and drop your file here, or click to browse</p>
-        <p className="text-sm text-neutral-500 mb-4">Supported formats: .csv, .txt</p>
-        <input
-          type="file"
-          accept=".csv,.txt,.json"
-          onChange={handleFileUpload}
-          className="hidden"
-          id="file-upload"
-          disabled={isParsingFile}
-        />
+                 <p className="text-sm text-neutral-500 mb-4">Supported formats: .csv, .txt</p>
+         
+
+         
+         <input
+           type="file"
+           accept=".csv,.txt,.json"
+           onChange={handleFileUpload}
+           className="hidden"
+           id="file-upload"
+           disabled={isParsingFile}
+         />
         <label
           htmlFor="file-upload"
           className={`px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 hover:shadow-sm transition-all duration-200 cursor-pointer inline-block ${
@@ -587,35 +648,151 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           {isParsingFile ? 'Parsing...' : 'Browse Files'}
         </label>
         
-        {/* File status messages */}
-        {uploadedFile && !isParsingFile && !parseError && (
-          <p className="mt-2 text-sm text-green-600">
-            ✓ File uploaded: {uploadedFile.name}
-          </p>
-        )}
-        
-        {isParsingFile && (
-          <p className="mt-2 text-sm text-blue-600">
-            🔄 Parsing file structure...
-          </p>
-        )}
-        
-        {parseError && (
-          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-red-600">
-              ❌ Parse Error: {parseError}
-            </p>
-          </div>
-        )}
-        
-        {parseWarnings.length > 0 && (
-          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-sm text-yellow-800 font-medium mb-1">⚠️ Warnings:</p>
-            {parseWarnings.map((warning, index) => (
-              <p key={index} className="text-sm text-yellow-700">• {warning}</p>
-            ))}
-          </div>
-        )}
+                          {/* File status messages */}
+          {uploadedFile && !isParsingFile && !parseError && (
+            <div className="mt-4 space-y-3">
+              {/* File info */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-left">
+                <div className="flex items-center mb-2">
+                  <span className="mr-2" aria-hidden="true">✅</span>
+                  <p className="text-sm font-medium text-green-800">File uploaded successfully</p>
+                </div>
+                <div className="ml-10 mb-3">
+                  <p className="text-sm text-green-700">{uploadedFile.name}</p>
+                </div>
+                
+                {/* Parse metadata */}
+                {parseMetadata && (
+                  <div className="ml-10">
+                    <div className="grid grid-cols-2 w-fit gap-x-2 gap-y-0.5 text-xs">
+                      <div className="flex items-center">
+                        <span className="text-green-600 font-medium w-20">Encoding:</span>
+                        <span className="text-green-700">{parseMetadata.encoding}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-green-600 font-medium w-20">Delimiter:</span>
+                        <span className="text-green-700">{parseMetadata.delimiter}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-green-600 font-medium w-20">Header Row:</span>
+                        <span className="text-green-700">
+                          {parseMetadata.hasHeader === undefined ? 'Auto-detected' : parseMetadata.hasHeader ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="text-green-600 font-medium w-20">Quoted Fields:</span>
+                        <span className="text-green-700">{parseMetadata.hasQuotedFields ? 'Yes' : 'No'}</span>
+                      </div>
+                      {parseMetadata.hasBOM && (
+                        <>
+                          <div className="flex items-center">
+                            <span className="text-green-600 font-medium w-20">BOM:</span>
+                            <span className="text-green-700">Detected</span>
+                          </div>
+                          <div></div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Parse warnings directly after success box, left-aligned and single icon */}
+              {parseWarnings.length > 0 && (
+                <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left">
+                  <div className="flex items-center mb-1">
+                    <span className="mr-2" aria-hidden="true">⚠️</span>
+                    <h4 className="text-sm font-medium text-yellow-800">Parse Warnings</h4>
+                  </div>
+                  <div className="ml-10 mt-1 space-y-1">
+                    {parseWarnings.map((warning, index) => (
+                      <p key={index} className="text-sm text-yellow-700">• {warning}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Data preview */}
+              {parseMetadata?.previewRows && parseMetadata.previewRows.length > 0 && (
+                <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                  <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex justify-between items-center">
+                    <h4 className="text-sm font-medium text-neutral-700">📊 Data Preview (First 50 rows)</h4>
+                    <button
+                      onClick={() => setIsPreviewCollapsed(!isPreviewCollapsed)}
+                      className="flex items-center gap-2 text-xs text-neutral-600 hover:text-neutral-800 transition-colors"
+                    >
+                      <span>{isPreviewCollapsed ? 'Show Preview' : 'Hide Preview'}</span>
+                      <svg
+                        className={`w-4 h-4 transition-transform ${isPreviewCollapsed ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                  {!isPreviewCollapsed && (
+                    <div className="overflow-x-auto max-h-64">
+                      <table className="w-full text-xs">
+                        <thead className="bg-neutral-50">
+                          <tr>
+                            {parseMetadata.previewRows[0]?.map((header, index) => (
+                              <th key={index} className="px-3 py-2 text-left text-neutral-600 font-medium border-b border-neutral-200">
+                                {header}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                          {parseMetadata.previewRows.slice(1).map((row, rowIndex) => (
+                            <tr key={rowIndex} className="hover:bg-neutral-50">
+                              {row.map((cell, cellIndex) => (
+                                <td key={cellIndex} className="px-3 py-2 text-neutral-700 border-b border-neutral-100">
+                                  <div className="max-w-32 truncate" title={cell}>
+                                    {cell}
+                                  </div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+           </div>
+         )}
+         
+         {isParsingFile && (
+           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+             <div className="flex items-center">
+               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+               <p className="text-sm text-blue-700">Parsing file structure...</p>
+             </div>
+           </div>
+         )}
+         
+         {parseError && (
+           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+             <div className="flex items-start">
+               <div className="flex-shrink-0">
+                 <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                   <span className="text-white text-xs font-bold">!</span>
+                 </div>
+               </div>
+               <div className="ml-3">
+                 <h4 className="text-sm font-medium text-red-800">Parse Error</h4>
+                 <p className="text-sm text-red-700 mt-1">{parseError}</p>
+               </div>
+             </div>
+           </div>
+         )}
+         
+         {false && parseWarnings.length > 0 && (
+           <div></div>
+         )}
       </div>
 
       {/* Warning Message */}
@@ -712,7 +889,30 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         />
                       </td>
                       <td className="px-4 py-4 text-sm text-blue-700">
-                        {field.dataType}
+                        <div className="flex items-center gap-2">
+                          <select
+                            aria-label="Data type"
+                            className="px-2 py-1 text-sm border border-neutral-200 rounded electronInput"
+                            value={field.dataType}
+                            onChange={(e) => handleFieldChange(field.id, 'dataType', e.target.value)}
+                          >
+                            {['Text','Number','Date','Currency','Boolean'].map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                          {typeof field.confidence === 'number' && (
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
+                                field.confidence >= 0.85 ? 'bg-green-100 text-green-800' :
+                                field.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}
+                              title={`Detected: ${field.detectedDataType || field.dataType} • Confidence: ${(field.confidence*100).toFixed(0)}%`}
+                            >
+                              {(field.confidence*100).toFixed(0)}%
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-blue-700">
                         <TruncatedText 
@@ -791,10 +991,28 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                 <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                               </button>
                             </div>
-                            <div className="ml-4">
+                            <div className="ml-4 flex items-center gap-2">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
                                 Combined
                               </span>
+                              {(() => {
+                                const confidences = groupFields
+                                  .map((gf: any) => typeof gf.confidence === 'number' ? gf.confidence : undefined)
+                                  .filter((c: number | undefined) => c !== undefined) as number[];
+                                if (confidences.length === 0) return null;
+                                const combined = Math.min(...confidences);
+                                const tooltip = `Field confidences: ` + groupFields
+                                  .map((gf: any) => `${gf.sourceField}: ${Math.round((gf.confidence ?? 0) * 100)}%`)
+                                  .join(', ');
+                                return (
+                                  <span
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-neutral-100 text-neutral-700 border border-neutral-200"
+                                    title={`${tooltip} • Combined: ${Math.round(combined * 100)}%`}
+                                  >
+                                    {Math.round(combined * 100)}%
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                         </td>
@@ -816,12 +1034,37 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                       />
                     </td>
                                          <td className="px-4 py-4 text-sm text-blue-700">
-                       {(() => {
-                         // Try to find the actual field data from the parsed file
-                         const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
-                         return actualField?.dataType || 'Text';
-                       })()}
-                     </td>
+                      {(() => {
+                        const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
+                        if (!actualField) return <span>Text</span>;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <select
+                              aria-label="Data type"
+                              className="px-2 py-1 text-sm border border-neutral-200 rounded electronInput"
+                              value={actualField.dataType}
+                              onChange={(e) => handleFieldChange(actualField.id, 'dataType', e.target.value)}
+                            >
+                              {['Text','Number','Date','Currency','Boolean'].map(t => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+                            {typeof actualField.confidence === 'number' && (
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${
+                                  actualField.confidence >= 0.85 ? 'bg-green-100 text-green-800' :
+                                  actualField.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}
+                                title={`Detected: ${actualField.detectedDataType || actualField.dataType} • Confidence: ${(actualField.confidence*100).toFixed(0)}%`}
+                              >
+                                {(actualField.confidence*100).toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
                                          <td className="px-4 py-4 text-sm text-blue-700">
                                                <TruncatedText 
                           text={(() => {

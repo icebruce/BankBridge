@@ -1,7 +1,7 @@
 /**
- * File Parser Service
+ * Enhanced File Parser Service
  * Lightweight and efficient parsers for CSV, JSON, and text files
- * with comprehensive error handling and field structure extraction
+ * with comprehensive error handling, encoding support, and field structure extraction
  */
 
 export interface ParsedField {
@@ -15,18 +15,27 @@ export interface ParseResult {
   success: boolean;
   fields: ParsedField[];
   rowCount: number;
+  previewRows?: string[][]; // First 50 rows for preview
   error?: string;
   warnings?: string[];
+  detectedEncoding?: string;
+  detectedDelimiter?: string;
+  hasHeader?: boolean;
+  hasQuotedFields?: boolean;
+  hasBOM?: boolean;
 }
 
 export interface ParserOptions {
   maxRows?: number; // Limit rows for performance (default: 100)
   delimiter?: string; // CSV delimiter (default: auto-detect)
   encoding?: string; // File encoding (default: 'utf-8')
+  hasHeader?: boolean; // Whether file has header row (default: auto-detect)
+  maxPreviewRows?: number; // Number of preview rows (default: 50)
 }
 
 class FileParserService {
   private readonly DEFAULT_MAX_ROWS = 100;
+  private readonly DEFAULT_MAX_PREVIEW_ROWS = 50;
   private readonly SAMPLE_SIZE = 10; // Number of rows to analyze for type detection
 
   /**
@@ -35,15 +44,15 @@ class FileParserService {
   async parseFile(file: File, options: ParserOptions = {}): Promise<ParseResult> {
     try {
       const fileExtension = this.getFileExtension(file.name);
-      const text = await this.readFileAsText(file);
+      const { text, encoding, hasBOM } = await this.readFileWithEncoding(file, options.encoding);
 
       switch (fileExtension) {
         case 'csv':
-          return this.parseCSV(text, options);
+          return this.parseCSV(text, options, hasBOM);
         case 'json':
-          return this.parseJSON(text, options);
+          return this.parseJSON(text, options, hasBOM);
         case 'txt':
-          return this.parseText(text, options);
+          return this.parseText(text, options, hasBOM);
         default:
           return {
             success: false,
@@ -63,9 +72,9 @@ class FileParserService {
   }
 
   /**
-   * Parse CSV file
+   * Parse CSV file with enhanced features
    */
-  private parseCSV(text: string, options: ParserOptions): ParseResult {
+  private parseCSV(text: string, options: ParserOptions, hasBOM: boolean): ParseResult {
     try {
       const lines = text.split('\n').filter(line => line.trim());
       if (lines.length === 0) {
@@ -77,29 +86,54 @@ class FileParserService {
         };
       }
 
-      // Auto-detect delimiter
+      // Auto-detect delimiter if not specified
       const delimiter = options.delimiter || this.detectCSVDelimiter(lines[0]);
       
+      // Auto-detect header row if not specified
+      const hasHeader = options.hasHeader !== undefined ? options.hasHeader : this.detectHeaderRow(lines, delimiter);
+      
+      // Debug logging for header detection
+      console.log('🔍 CSV Header Detection:', {
+        firstLine: lines[0]?.substring(0, 100),
+        secondLine: lines[1]?.substring(0, 100),
+        detectedDelimiter: delimiter,
+        hasHeader,
+        firstRowCells: this.splitRow(lines[0], delimiter),
+        secondRowCells: lines[1] ? this.splitRow(lines[1], delimiter) : []
+      });
+      
+      // Check for quoted fields
+      const hasQuotedFields = this.detectQuotedFields(lines, delimiter);
+      
       // Parse header row
-      const headers = this.parseCSVRow(lines[0], delimiter);
+      const headerRowIndex = hasHeader ? 0 : -1;
+      const headers = hasHeader ? this.parseCSVRow(lines[0], delimiter) : this.generateDefaultHeaders(lines, delimiter);
+      
       if (headers.length === 0) {
         return {
           success: false,
           fields: [],
           rowCount: 0,
-          error: 'No headers found in CSV file'
+          error: 'No valid columns found in CSV file'
         };
       }
 
-      // Parse sample data rows for type detection
-      const maxRows = Math.min(options.maxRows || this.DEFAULT_MAX_ROWS, lines.length - 1);
-      const sampleRows: string[][] = [];
+      // Parse data rows (skip header if present)
+      const dataStartIndex = hasHeader ? 1 : 0;
+      const maxRows = Math.min(options.maxRows || this.DEFAULT_MAX_ROWS, lines.length - dataStartIndex);
+      const maxPreviewRows = Math.min(options.maxPreviewRows || this.DEFAULT_MAX_PREVIEW_ROWS, maxRows);
       
-      for (let i = 1; i <= Math.min(this.SAMPLE_SIZE, maxRows); i++) {
+      const sampleRows: string[][] = [];
+      const previewRows: string[][] = [];
+      
+      for (let i = dataStartIndex; i < dataStartIndex + maxRows; i++) {
         if (i < lines.length) {
           const row = this.parseCSVRow(lines[i], delimiter);
           if (row.length === headers.length) {
             sampleRows.push(row);
+            if (previewRows.length < maxPreviewRows) {
+              previewRows.push(row);
+            }
           }
         }
       }
@@ -121,8 +155,13 @@ class FileParserService {
       return {
         success: true,
         fields,
-        rowCount: lines.length - 1, // Exclude header
-        warnings: this.generateWarnings(fields, sampleRows.length, maxRows)
+        rowCount: lines.length - dataStartIndex,
+        previewRows: hasHeader ? [headers, ...previewRows] : previewRows,
+        detectedDelimiter: delimiter,
+        hasHeader,
+        hasQuotedFields,
+        hasBOM,
+        warnings: this.generateWarnings(fields, sampleRows.length, maxRows, hasHeader)
       };
 
     } catch (error) {
@@ -136,9 +175,9 @@ class FileParserService {
   }
 
   /**
-   * Parse JSON file
+   * Parse JSON file with enhanced features
    */
-  private parseJSON(text: string, options: ParserOptions): ParseResult {
+  private parseJSON(text: string, options: ParserOptions, hasBOM: boolean): ParseResult {
     try {
       const data = JSON.parse(text);
       
@@ -147,9 +186,9 @@ class FileParserService {
         if (typeof data === 'object' && data !== null) {
           const nestedArrayResult = this.findNestedArrays(data);
           if (nestedArrayResult.found && nestedArrayResult.arrayData && nestedArrayResult.path) {
-            return this.parseNestedJSONArray(nestedArrayResult.arrayData, nestedArrayResult.path, options, nestedArrayResult.allArrays);
+            return this.parseNestedJSONArray(nestedArrayResult.arrayData, nestedArrayResult.path, options, nestedArrayResult.allArrays, hasBOM);
           }
-          return this.parseJSONObject(data);
+          return this.parseJSONObject(data, hasBOM);
         } else {
           return {
             success: false,
@@ -169,7 +208,7 @@ class FileParserService {
         };
       }
 
-      return this.parseJSONArray(data, options);
+      return this.parseJSONArray(data, options, hasBOM);
 
     } catch (error) {
       return {
@@ -182,12 +221,14 @@ class FileParserService {
   }
 
   /**
-   * Parse a direct JSON array
+   * Parse a direct JSON array with preview
    */
-  private parseJSONArray(data: any[], options: ParserOptions): ParseResult {
+  private parseJSONArray(data: any[], options: ParserOptions, hasBOM: boolean): ParseResult {
     // Analyze first few objects to determine structure
     const maxRows = Math.min(options.maxRows || this.DEFAULT_MAX_ROWS, data.length);
+    const maxPreviewRows = Math.min(options.maxPreviewRows || this.DEFAULT_MAX_PREVIEW_ROWS, maxRows);
     const sampleObjects = data.slice(0, Math.min(this.SAMPLE_SIZE, maxRows));
+    const previewObjects = data.slice(0, maxPreviewRows);
     
     // Collect all unique keys
     const allKeys = new Set<string>();
@@ -215,19 +256,29 @@ class FileParserService {
       };
     });
 
+    // Generate preview rows
+    const previewRows = previewObjects.map(obj => {
+      return Array.from(allKeys).map(key => {
+        const value = obj[key];
+        return value !== undefined && value !== null ? this.flattenValue(value) : '';
+      });
+    });
+
     return {
       success: true,
       fields,
       rowCount: data.length,
-      warnings: this.generateWarnings(fields, sampleObjects.length, maxRows)
+      previewRows: [Array.from(allKeys), ...previewRows],
+      hasBOM,
+      warnings: this.generateWarnings(fields, sampleObjects.length, maxRows, false)
     };
   }
 
   /**
    * Parse nested JSON array with context about its location
    */
-  private parseNestedJSONArray(data: any[], path: string, options: ParserOptions, allArrays?: Array<{path: string; data: any[]; count: number}>): ParseResult {
-    const result = this.parseJSONArray(data, options);
+  private parseNestedJSONArray(data: any[], path: string, options: ParserOptions, allArrays?: Array<{path: string; data: any[]; count: number}>, hasBOM?: boolean): ParseResult {
+    const result = this.parseJSONArray(data, options, hasBOM || false);
     
     if (result.success) {
       // Add warning about nested structure
@@ -337,7 +388,7 @@ class FileParserService {
   /**
    * Parse single JSON object
    */
-  private parseJSONObject(obj: Record<string, any>): ParseResult {
+  private parseJSONObject(obj: Record<string, any>, hasBOM: boolean): ParseResult {
     const fields: ParsedField[] = Object.entries(obj).map(([key, value]) => {
       const sampleValue = String(value);
       const dataType = this.detectDataType([sampleValue]);
@@ -353,14 +404,16 @@ class FileParserService {
     return {
       success: true,
       fields,
-      rowCount: 1
+      rowCount: 1,
+      previewRows: [Object.keys(obj), Object.values(obj).map(v => this.flattenValue(v))],
+      hasBOM
     };
   }
 
   /**
-   * Parse text file (tab-delimited or space-delimited)
+   * Parse text file (tab-delimited or space-delimited) with enhanced features
    */
-  private parseText(text: string, options: ParserOptions): ParseResult {
+  private parseText(text: string, options: ParserOptions, hasBOM: boolean): ParseResult {
     try {
       const lines = text.split('\n').filter(line => line.trim());
       if (lines.length === 0) {
@@ -375,29 +428,41 @@ class FileParserService {
       // Auto-detect delimiter (tab or multiple spaces)
       const delimiter = this.detectTextDelimiter(lines[0]);
       
+      // Auto-detect header row
+      const hasHeader = options.hasHeader !== undefined ? options.hasHeader : this.detectHeaderRow(lines, delimiter);
+      
       // Parse header row
-      const headers = lines[0].split(delimiter).map(h => h.trim()).filter(h => h);
+      const headerRowIndex = hasHeader ? 0 : -1;
+      const headers = hasHeader ? lines[0].split(delimiter).map(h => h.trim()).filter(h => h) : this.generateDefaultHeaders(lines, delimiter);
+      
       if (headers.length === 0) {
         return {
           success: false,
           fields: [],
           rowCount: 0,
-          error: 'No headers found in text file'
+          error: 'No valid columns found in text file'
         };
       }
 
-      // Parse sample data rows
-      const maxRows = Math.min(options.maxRows || this.DEFAULT_MAX_ROWS, lines.length - 1);
-      const sampleRows: string[][] = [];
+      // Parse data rows
+      const dataStartIndex = hasHeader ? 1 : 0;
+      const maxRows = Math.min(options.maxRows || this.DEFAULT_MAX_ROWS, lines.length - dataStartIndex);
+      const maxPreviewRows = Math.min(options.maxPreviewRows || this.DEFAULT_MAX_PREVIEW_ROWS, maxRows);
       
-             for (let i = 1; i <= Math.min(this.SAMPLE_SIZE, maxRows); i++) {
-         if (i < lines.length) {
-           const row = lines[i].split(delimiter).map(cell => cell.trim());
-           if (row.length >= headers.length) {
-             sampleRows.push(row);
-           }
-         }
-       }
+      const sampleRows: string[][] = [];
+      const previewRows: string[][] = [];
+      
+      for (let i = dataStartIndex; i < dataStartIndex + maxRows; i++) {
+        if (i < lines.length) {
+          const row = lines[i].split(delimiter).map(cell => cell.trim());
+          if (row.length >= headers.length) {
+            sampleRows.push(row);
+            if (previewRows.length < maxPreviewRows) {
+              previewRows.push(row);
+            }
+          }
+        }
+      }
 
       // Generate field information
       const fields: ParsedField[] = headers.map((header, index) => {
@@ -416,8 +481,12 @@ class FileParserService {
       return {
         success: true,
         fields,
-        rowCount: lines.length - 1,
-        warnings: this.generateWarnings(fields, sampleRows.length, maxRows)
+        rowCount: lines.length - dataStartIndex,
+        previewRows: hasHeader ? [headers, ...previewRows] : previewRows,
+        detectedDelimiter: typeof delimiter === 'string' ? delimiter : 'space',
+        hasHeader,
+        hasBOM,
+        warnings: this.generateWarnings(fields, sampleRows.length, maxRows, hasHeader)
       };
 
     } catch (error) {
@@ -431,19 +500,76 @@ class FileParserService {
   }
 
   /**
-   * Utility methods
+   * Enhanced utility methods
    */
   private getFileExtension(filename: string): string {
     return filename.split('.').pop()?.toLowerCase() || '';
   }
 
-  private async readFileAsText(file: File): Promise<string> {
+  private async readFileWithEncoding(file: File, preferredEncoding?: string): Promise<{ text: string; encoding: string; hasBOM: boolean }> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
+      
+      reader.onload = () => {
+        try {
+          const result = reader.result as ArrayBuffer;
+          const { text, encoding, hasBOM } = this.detectEncodingAndDecode(result, preferredEncoding);
+          resolve({ text, encoding, hasBOM });
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
       reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     });
+  }
+
+  private detectEncodingAndDecode(buffer: ArrayBuffer, preferredEncoding?: string): { text: string; encoding: string; hasBOM: boolean } {
+    const uint8Array = new Uint8Array(buffer);
+    let encoding = preferredEncoding || 'utf-8';
+    let hasBOM = false;
+    let startIndex = 0;
+
+    // Check for BOM (Byte Order Mark)
+    if (uint8Array.length >= 3) {
+      // UTF-8 BOM: EF BB BF
+      if (uint8Array[0] === 0xEF && uint8Array[1] === 0xBB && uint8Array[2] === 0xBF) {
+        encoding = 'utf-8';
+        hasBOM = true;
+        startIndex = 3;
+      }
+      // UTF-16 LE BOM: FF FE
+      else if (uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
+        encoding = 'utf-16le';
+        hasBOM = true;
+        startIndex = 2;
+      }
+      // UTF-16 BE BOM: FE FF
+      else if (uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
+        encoding = 'utf-16be';
+        hasBOM = true;
+        startIndex = 2;
+      }
+    }
+
+    // Decode the text
+    let text: string;
+    if (encoding === 'utf-16le' || encoding === 'utf-16be') {
+      const uint16Array = new Uint16Array(buffer.slice(startIndex));
+      if (encoding === 'utf-16be') {
+        // Swap byte order for big-endian
+        for (let i = 0; i < uint16Array.length; i++) {
+          uint16Array[i] = ((uint16Array[i] & 0xFF) << 8) | ((uint16Array[i] & 0xFF00) >> 8);
+        }
+      }
+      text = String.fromCharCode.apply(null, Array.from(uint16Array));
+    } else {
+      const decoder = new TextDecoder(encoding);
+      text = decoder.decode(buffer.slice(startIndex));
+    }
+
+    return { text, encoding, hasBOM };
   }
 
   private detectCSVDelimiter(line: string): string {
@@ -468,6 +594,144 @@ class FileParserService {
     return /\s+/; // Single or multiple spaces
   }
 
+  private detectHeaderRow(lines: string[], delimiter: string | RegExp): boolean {
+    if (lines.length < 2) return false;
+    
+    const firstRow = this.splitRow(lines[0], delimiter);
+    const secondRow = this.splitRow(lines[1], delimiter);
+    
+    // More sophisticated header detection
+    const firstRowTextRatio = this.calculateTextRatio(firstRow);
+    const secondRowTextRatio = this.calculateTextRatio(secondRow);
+    
+    // Check for common header patterns
+    const hasHeaderPatterns = firstRow.some(cell => {
+      const trimmed = cell.trim().toLowerCase();
+      // Common header patterns
+      return trimmed.includes('name') || 
+             trimmed.includes('email') || 
+             trimmed.includes('phone') || 
+             trimmed.includes('date') || 
+             trimmed.includes('amount') || 
+             trimmed.includes('id') || 
+             trimmed.includes('address') ||
+             trimmed.includes('city') ||
+             trimmed.includes('state') ||
+             trimmed.includes('zip') ||
+             trimmed.includes('country') ||
+             trimmed.includes('transaction') ||
+             trimmed.includes('description') ||
+             trimmed.includes('category') ||
+             trimmed.includes('account') ||
+             trimmed.includes('balance') ||
+             trimmed.includes('currency') ||
+             trimmed.includes('type') ||
+             trimmed.includes('status');
+    });
+    
+    // Check if first row has more text-like content than second row
+    const textRatioComparison = firstRowTextRatio > secondRowTextRatio;
+    
+    // Check if first row has fewer empty cells than second row
+    const firstRowNonEmpty = firstRow.filter(cell => cell.trim()).length;
+    const secondRowNonEmpty = secondRow.filter(cell => cell.trim()).length;
+    const nonEmptyComparison = firstRowNonEmpty >= secondRowNonEmpty;
+    
+    // Check if first row has consistent cell content (all text or all short)
+    const firstRowConsistent = firstRow.every(cell => {
+      const trimmed = cell.trim();
+      return trimmed.length <= 30 && !/^\d+$/.test(trimmed);
+    });
+    
+    // Additional check: if first row contains mostly short, descriptive text and second row contains data
+    const firstRowLooksLikeHeaders = firstRow.every(cell => {
+      const trimmed = cell.trim();
+      // Headers are usually short, descriptive, and don't contain numbers or special characters
+      return trimmed.length > 0 && 
+             trimmed.length <= 50 && 
+             !/^\d+$/.test(trimmed) && 
+             !/^\d+\.\d+$/.test(trimmed) &&
+             !trimmed.includes('@') && // Not email addresses
+             !trimmed.includes('http') && // Not URLs
+             !trimmed.includes('www.') && // Not URLs
+             !trimmed.includes('.com') && // Not URLs
+             !trimmed.includes('.org') && // Not URLs
+             !trimmed.includes('.net'); // Not URLs
+    });
+    
+    // Multiple criteria for header detection
+    const criteria = [
+      hasHeaderPatterns,           // Contains common header words
+      textRatioComparison,         // First row is more text-like
+      nonEmptyComparison,          // First row has fewer empty cells
+      firstRowConsistent,          // First row has consistent, reasonable-length content
+      firstRowLooksLikeHeaders     // First row looks like typical CSV headers
+    ];
+    
+    // Require at least 3 out of 5 criteria to be true for more reliable detection
+    const trueCriteria = criteria.filter(Boolean).length;
+    const result = trueCriteria >= 3;
+    
+    console.log('🔍 Header Detection Details:', {
+      firstRow: firstRow,
+      secondRow: secondRow,
+      criteria: {
+        hasHeaderPatterns,
+        textRatioComparison,
+        nonEmptyComparison,
+        firstRowConsistent,
+        firstRowLooksLikeHeaders
+      },
+      trueCriteria,
+      result
+    });
+    
+    return result;
+  }
+
+  private detectQuotedFields(lines: string[], delimiter: string): boolean {
+    // Check first few lines for quoted fields
+    const checkLines = Math.min(5, lines.length);
+    for (let i = 0; i < checkLines; i++) {
+      if (lines[i].includes('"')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private generateDefaultHeaders(lines: string[], delimiter: string | RegExp): string[] {
+    const firstRow = this.splitRow(lines[0], delimiter);
+    return firstRow.map((_, index) => `Column_${index + 1}`);
+  }
+
+  private splitRow(line: string, delimiter: string | RegExp): string[] {
+    if (typeof delimiter === 'string') {
+      return line.split(delimiter).map(cell => cell.trim());
+    } else {
+      return line.split(delimiter).map(cell => cell.trim());
+    }
+  }
+
+  private calculateTextRatio(cells: string[]): number {
+    if (cells.length === 0) return 0;
+    
+    let textCells = 0;
+    let totalCells = 0;
+    
+    cells.forEach(cell => {
+      if (cell.trim()) {
+        totalCells++;
+        // Check if cell looks like text (not just numbers)
+        if (!/^\d+$/.test(cell.trim()) && !/^\d+\.\d+$/.test(cell.trim())) {
+          textCells++;
+        }
+      }
+    });
+    
+    return totalCells > 0 ? textCells / totalCells : 0;
+  }
+
   private parseCSVRow(line: string, delimiter: string): string[] {
     const result: string[] = [];
     let current = '';
@@ -489,6 +753,8 @@ class FileParserService {
     result.push(current.trim());
     return result;
   }
+
+
 
   private detectDataType(values: string[]): 'Text' | 'Number' | 'Date' | 'Currency' | 'Boolean' {
     if (values.length === 0) return 'Text';
@@ -565,7 +831,7 @@ class FileParserService {
     return matches / nonEmptyValues.length;
   }
 
-  private generateWarnings(fields: ParsedField[], sampleSize: number, maxRows: number): string[] {
+  private generateWarnings(fields: ParsedField[], sampleSize: number, maxRows: number, hasHeader: boolean): string[] {
     const warnings: string[] = [];
 
     // Low confidence warnings
@@ -583,6 +849,11 @@ class FileParserService {
     const emptyFields = fields.filter(f => !f.sampleValue);
     if (emptyFields.length > 0) {
       warnings.push(`No sample data found for: ${emptyFields.map(f => f.name).join(', ')}`);
+    }
+
+    // Header detection warning
+    if (hasHeader === undefined) {
+      warnings.push('Header row detection was automatic. Verify this is correct for your file.');
     }
 
     return warnings;
