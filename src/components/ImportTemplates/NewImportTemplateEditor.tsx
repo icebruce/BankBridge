@@ -136,12 +136,12 @@ const FieldRow = React.memo(({
     }
   }
   
-  // Check if this is the last row in a combined group
-  const isLastInCombinedGroup = isCombined && (
-    index === fields.length - 1 || 
-    fields[index + 1].targetField !== field.targetField || 
-    fields[index + 1].actions !== 'Combined'
-  );
+  // Note: isLastInCombinedGroup is calculated but not currently used
+  // const isLastInCombinedGroup = isCombined && (
+  //   index === fields.length - 1 || 
+  //   fields[index + 1].targetField !== field.targetField || 
+  //   fields[index + 1].actions !== 'Combined'
+  // );
   
   return (
     <tr className={isCombined ? "bg-blue-50 hover:bg-blue-100/50" : "bg-white hover:bg-neutral-50/30"}>
@@ -236,6 +236,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const [parseError, setParseError] = useState<string | null>(null);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const [fieldCombinations, setFieldCombinations] = useState<any[]>([]);
+  const [isDeletingCombination, setIsDeletingCombination] = useState(false);
+  const deletedCombinationIds = React.useRef<Set<string>>(new Set());
   
   // Fields state
   const [fields, setFields] = useState<ImportFieldType[]>([
@@ -311,25 +313,55 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (fieldCombinationsRef) {
       fieldCombinationsRef.current = {
         updateFieldCombinations: (combinations: FieldCombination[]) => {
-          setFieldCombinations(combinations);
+          // Don't update if we're in the middle of deleting a combination
+          if (!isDeletingCombination) {
+            // Filter out any combinations that were deleted
+            const filteredCombinations = combinations.filter(
+              (combination: any) => !deletedCombinationIds.current.has(combination.id)
+            );
+            console.log('🔄 updateFieldCombinations filtering:', {
+              original: combinations.length,
+              filtered: filteredCombinations.length,
+              deletedIds: Array.from(deletedCombinationIds.current)
+            });
+            setFieldCombinations(filteredCombinations);
+          }
         },
         getFieldCombinations: () => fieldCombinations
       };
     }
-  }, [fieldCombinationsRef, fieldCombinations]);
+  }, [fieldCombinationsRef, fieldCombinations, isDeletingCombination]);
 
   // Sync with currentTemplateData when returning from field combination editor
   useEffect(() => {
-    if (currentTemplateData) {
+    if (currentTemplateData && !isDeletingCombination) {
       setTemplateName(currentTemplateData.name || '');
       setSourceFileType(currentTemplateData.sourceFileType || 'CSV File');
       setFields(currentTemplateData.fields || []);
-      // Only update field combinations if they're different
+      // Only update field combinations if they're different AND we're not in the middle of a delete operation
       if (JSON.stringify(currentTemplateData.fieldCombinations) !== JSON.stringify(fieldCombinations)) {
-        setFieldCombinations(currentTemplateData.fieldCombinations || []);
+        // Filter out any combinations that were deleted
+        const filteredCombinations = (currentTemplateData.fieldCombinations || []).filter(
+          (combination: any) => !deletedCombinationIds.current.has(combination.id)
+        );
+        console.log('🔄 Filtering out deleted combinations:', {
+          original: currentTemplateData.fieldCombinations?.length || 0,
+          filtered: filteredCombinations.length,
+          deletedIds: Array.from(deletedCombinationIds.current)
+        });
+        setFieldCombinations(filteredCombinations);
       }
     }
-  }, [currentTemplateData, fieldCombinations]);
+  }, [currentTemplateData, isDeletingCombination]); // Add isDeletingCombination dependency
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log('🔄 Fields state changed:', fields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
+  }, [fields]);
+
+  useEffect(() => {
+    console.log('🔄 FieldCombinations state changed:', fieldCombinations.map(c => ({ id: c.id, targetField: c.targetField, sourceFields: c.sourceFields.map(sf => sf.fieldName) })));
+  }, [fieldCombinations]);
   
   // No drag and drop needed for this page
   
@@ -435,7 +467,37 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   
   // Delete a field
   const handleDeleteField = useCallback((id: string) => {
-    setFields(prevFields => prevFields.filter(field => field.id !== id));
+    console.log('🗑️ handleDeleteField called with ID:', id);
+    
+    setFields(prevFields => {
+      const fieldToDelete = prevFields.find(field => field.id === id);
+      console.log('📊 Field to delete:', fieldToDelete);
+      
+      // If this is a combined field, we need to handle it specially
+      if (fieldToDelete && fieldToDelete.actions === 'Combined') {
+        console.log('🔗 Deleting combined field group with targetField:', fieldToDelete.targetField);
+        
+        // Find all fields that are part of the same combination group
+        const sameTargetField = fieldToDelete.targetField;
+        // Note: fieldsInSameGroup is calculated but not currently used
+        // const fieldsInSameGroup = prevFields.filter(field => 
+        //   field.targetField === sameTargetField && field.actions === 'Combined'
+        // );
+        
+        // Remove all fields in the combination group
+        const newFields = prevFields.filter(field => 
+          !(field.targetField === sameTargetField && field.actions === 'Combined')
+        );
+        console.log('📊 Fields after removing combined group:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
+        return newFields;
+      }
+      
+      // For regular fields, just remove the single field
+      console.log('🗑️ Removing single field');
+      const newFields = prevFields.filter(field => field.id !== id);
+      console.log('📊 Fields after removing single field:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
+      return newFields;
+    });
   }, []);
   
   // No field reordering needed for this page
@@ -612,12 +674,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                   combination.sourceFields.map((sf: any) => sf.fieldName)
                 );
                 
-                console.log('🔍 Fields in combinations:', fieldsInCombinations);
-                console.log('🔍 All fields:', fields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
-                
                 // Filter out both manually combined fields and fields used in combinations
                 const filteredFields = fields.filter(field => field.actions !== 'Combined' && !fieldsInCombinations.includes(field.sourceField));
-                console.log('🔍 Filtered fields:', filteredFields.map(f => f.sourceField));
                 
                 return filteredFields.map((field, index) => (
                   <FieldRow 
@@ -643,7 +701,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                   return groups;
                 }, {});
                 
-                return Object.entries(groupedCombined).map(([targetField, groupFields]: [string, any]) => 
+                return Object.entries(groupedCombined).map(([, groupFields]: [string, any]) => 
                   groupFields.map((field: any, index: number) => (
                     <tr key={field.id} className="bg-blue-50 hover:bg-blue-100/50">
                       <td className="px-4 py-4 text-sm font-medium text-blue-900">
@@ -708,11 +766,27 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                               <button 
                                 className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                                 title="Delete combination"
-                                onClick={() => {
-                                  // Delete all fields in this combination group
-                                  const fieldIdsToDelete = groupFields.map((f: any) => f.id);
-                                  setFields(prevFields => prevFields.filter(field => !fieldIdsToDelete.includes(field.id)));
-                                }}
+                                                                 onClick={() => {
+                                   console.log('🗑️ Delete button clicked for manually combined field group');
+                                   console.log('📊 Group fields to reset:', groupFields.map(f => ({ id: f.id, sourceField: f.sourceField, targetField: f.targetField })));
+                                   
+                                   // When deleting a manually combined field group, restore the individual fields
+                                   // by changing their actions back to empty (not combined)
+                                   const fieldIdsToUpdate = groupFields.map((f: any) => f.id);
+                                   console.log('🔄 Field IDs to update:', fieldIdsToUpdate);
+                                   
+                                   setFields(prevFields => {
+                                     const newFields = prevFields.map(field => 
+                                       fieldIdsToUpdate.includes(field.id) 
+                                         ? { ...field, actions: '', targetField: '' } // Reset to individual fields
+                                         : field
+                                     );
+                                     console.log('📊 Fields after reset:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions, targetField: f.targetField })));
+                                     return newFields;
+                                   });
+                                   
+                                   console.log('✅ Manual combination delete completed');
+                                 }}
                               >
                                 <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                               </button>
@@ -744,16 +818,18 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     <td className="px-4 py-4 text-sm text-blue-700">Text</td>
                     <td className="px-4 py-4 text-sm text-blue-700">
                       <TruncatedText 
-                        text={(() => {
-                          switch (sourceField.fieldName) {
-                            case 'first_name': return 'John';
-                            case 'last_name': return 'Doe';
-                            case 'middle_name': return 'Michael';
-                            case 'title': return 'Mr.';
-                            case 'suffix': return 'Jr.';
-                            default: return sourceField.fieldName.replace('_', ' ');
-                          }
-                        })()} 
+                                                 text={(() => {
+                           switch (sourceField.fieldName) {
+                             case 'first_name': return 'John';
+                             case 'last_name': return 'Doe';
+                             case 'middle_name': return 'Michael';
+                             case 'title': return 'Mr.';
+                             case 'suffix': return 'Jr.';
+                             case 'email': return 'john@example.com';
+                             case 'phone': return '+1234567890';
+                             default: return sourceField.fieldName.replace('_', ' ');
+                           }
+                         })()} 
                         maxLength={22} 
                         className="text-blue-700"
                       />
@@ -815,12 +891,74 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                                title="Delete combination"
                                data-testid="delete-combination-button"
-                               onClick={() => {
-                                 // Remove the field combination from the state
-                                 setFieldCombinations(prevCombinations => 
-                                   prevCombinations.filter(c => c.id !== combination.id)
-                                 );
-                               }}
+                                                               onClick={() => {
+                                  console.log('🗑️ Delete button clicked for combination:', combination.id);
+                                  console.log('📊 Current fields:', fields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
+                                  console.log('🔗 Combination to delete:', combination);
+                                  
+                                  // Set the deleting flag to prevent the useEffect from re-adding the combination
+                                  setIsDeletingCombination(true);
+                                  
+                                  // Track this combination as deleted to prevent it from being re-added
+                                  deletedCombinationIds.current.add(combination.id);
+                                  console.log('🚫 Added combination ID to deleted set:', combination.id);
+                                  
+                                  // When deleting a field combination, restore the individual source fields
+                                  // back to the fields array so they "explode" back into single lines
+                                  // But only if they don't already exist in the fields array
+                                  const existingFieldNames = fields.map(f => f.sourceField);
+                                  console.log('📝 Existing field names:', existingFieldNames);
+                                  
+                                  const sourceFieldsToRestore = combination.sourceFields
+                                    .filter((sourceField: any) => !existingFieldNames.includes(sourceField.fieldName))
+                                    .map((sourceField: any) => ({
+                                      id: `restored_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+                                      sourceField: sourceField.fieldName,
+                                      dataType: 'Text' as const,
+                                      sampleData: (() => {
+                                        switch (sourceField.fieldName) {
+                                          case 'first_name': return 'John';
+                                          case 'last_name': return 'Doe';
+                                          case 'middle_name': return 'Michael';
+                                          case 'title': return 'Mr.';
+                                          case 'suffix': return 'Jr.';
+                                          case 'email': return 'john@example.com';
+                                          case 'phone': return '+1234567890';
+                                          default: return sourceField.fieldName.replace('_', ' ');
+                                        }
+                                      })(),
+                                      targetField: '', // User will need to map this again
+                                      actions: '' // No longer combined
+                                    }));
+                                  
+                                  console.log('🔄 Fields to restore:', sourceFieldsToRestore);
+                                  
+                                  // Add the restored fields to the fields array (only if there are any to add)
+                                  if (sourceFieldsToRestore.length > 0) {
+                                    console.log('➕ Adding restored fields to fields array');
+                                    setFields(prevFields => {
+                                      const newFields = [...prevFields, ...sourceFieldsToRestore];
+                                      console.log('📊 New fields array:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
+                                      return newFields;
+                                    });
+                                  } else {
+                                    console.log('⚠️ No fields to restore (all already exist)');
+                                  }
+                                  
+                                  // Remove the field combination from the state
+                                  console.log('🗑️ Removing combination from fieldCombinations');
+                                  setFieldCombinations(prevCombinations => {
+                                    const newCombinations = prevCombinations.filter(c => c.id !== combination.id);
+                                    console.log('📊 New fieldCombinations array:', newCombinations);
+                                    return newCombinations;
+                                  });
+                                  
+                                  // Reset the deleting flag after a short delay to allow state updates to complete
+                                  setTimeout(() => {
+                                    setIsDeletingCombination(false);
+                                    console.log('✅ Delete operation completed and flag reset');
+                                  }, 100);
+                                }}
                              >
                               <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                             </button>
