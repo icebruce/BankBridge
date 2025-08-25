@@ -40,6 +40,40 @@ interface NewImportTemplateEditorProps {
   } | null>;
 }
 
+// Simple dropdown for target fields
+const TargetSelect: FC<{
+  options: string[];
+  value: string;
+  placeholder?: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  isError?: boolean;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+}> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, isError, onChange, onBlur }) => (
+  <select
+    className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput ${
+      disabled
+        ? 'opacity-60 cursor-not-allowed'
+        : isError
+          ? 'border-red-600 focus:border-red-600 focus:ring-0 focus:outline-none'
+          : 'border-neutral-200'
+    }`}
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    onBlur={onBlur}
+    disabled={disabled}
+    aria-invalid={isError ? true : undefined}
+    style={isError ? { borderColor: '#dc2626' } : undefined}
+    title={disabled ? (disabledReason || 'Disabled') : undefined}
+  >
+    <option value="">{placeholder}</option>
+    {options.map(opt => (
+      <option key={opt} value={opt}>{opt}</option>
+    ))}
+  </select>
+);
+
 // TruncatedText component with tooltip
 const TruncatedText: FC<{ 
   text: string; 
@@ -110,13 +144,21 @@ const FieldRow = React.memo(({
   index, 
   fields, 
   onChangeField, 
-  onDeleteField
+  onDeleteField,
+  availableTargetFields,
+  hasDefaultExportTemplate,
+  onTargetBlur,
+  isTargetError
 }: { 
   field: ImportFieldType;
   index: number;
   fields: ImportFieldType[];
   onChangeField: (id: string, property: keyof ImportFieldType, value: string) => void;
   onDeleteField: (id: string) => void;
+  availableTargetFields: string[];
+  hasDefaultExportTemplate: boolean;
+  onTargetBlur?: (id: string) => void;
+  isTargetError?: boolean;
 }) => {
   // Check if this field is part of a combined group
   const isCombined = field.actions === 'Combined';
@@ -159,7 +201,7 @@ const FieldRow = React.memo(({
         <div className="flex items-center gap-2">
           <select
             aria-label="Data type"
-            className="px-2 py-1 text-sm border border-neutral-200 rounded electronInput"
+            className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput"
             value={field.dataType}
             onChange={(e) => onChangeField(field.id, 'dataType', e.target.value)}
           >
@@ -189,19 +231,21 @@ const FieldRow = React.memo(({
         />
       </td>
       <td className="px-4 py-4 align-middle">
-        <select 
-          className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-          value={field.targetField}
-          onChange={(e) => onChangeField(field.id, 'targetField', e.target.value)}
-        >
-          <option value="">Select target field</option>
-          <option value="Full Name">Full Name</option>
-          <option value="Email Address">Email Address</option>
-          <option value="Phone Number">Phone Number</option>
-          <option value="Customer ID">Customer ID</option>
-          <option value="Transaction Date">Transaction Date</option>
-          <option value="Amount">Amount</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <TargetSelect
+              options={availableTargetFields}
+              value={field.targetField}
+              onChange={(v) => onChangeField(field.id, 'targetField', v)}
+              onBlur={() => onTargetBlur && onTargetBlur(field.id)}
+              isError={!!isTargetError}
+              disabled={!hasDefaultExportTemplate}
+              disabledReason={!hasDefaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
+              placeholder="Select target field"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 pointer-events-none select-none" title="Required">*</span>
+          </div>
+        </div>
         {isCombined && (
           <div className="mt-2 text-sm text-neutral-500 flex items-center">
             <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
@@ -312,6 +356,19 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   // Available file types
   const fileTypes = ['CSV File', 'Excel File', 'JSON File', 'XML File'];
 
+  // Derive available target fields from the selected export template
+  const availableTargetFields: string[] = (defaultExportTemplate?.fieldMappings || [])
+    .map(m => m.targetField)
+    .filter(Boolean)
+    .filter((v, i, a) => a.indexOf(v) === i);
+
+  // Track touched fields for error border behavior
+  const [touchedTargetFields, setTouchedTargetFields] = useState<Record<string, boolean>>({});
+  const markTouched = (id: string) => setTouchedTargetFields(prev => ({ ...prev, [id]: true }));
+
+  // Track whether the user has typed the template name to avoid overwriting it from currentTemplateData
+  const hasUserTypedTemplateName = React.useRef<boolean>(false);
+
   // Initialize form with template data when editing
   useEffect(() => {
     if (initialTemplate) {
@@ -372,7 +429,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   // Sync with currentTemplateData when returning from field combination editor
   useEffect(() => {
     if (currentTemplateData && !isDeletingCombination) {
-      setTemplateName(currentTemplateData.name || '');
+      // Only overwrite the template name if the user hasn't typed one in this session
+      if (!hasUserTypedTemplateName.current && (templateName ?? '').trim() === '' && (currentTemplateData.name ?? '') !== '') {
+        setTemplateName(currentTemplateData.name);
+      }
+      // Always keep file type and fields in sync when returning from editor
       setSourceFileType(currentTemplateData.sourceFileType || 'CSV File');
       setFields(currentTemplateData.fields || []);
       // Only update field combinations if they're different AND we're not in the middle of a delete operation
@@ -389,7 +450,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         setFieldCombinations(filteredCombinations);
       }
     }
-  }, [currentTemplateData, isDeletingCombination]); // Add isDeletingCombination dependency
+  }, [currentTemplateData, isDeletingCombination, templateName]); // Include templateName for guard
 
   // Debug logging for state changes
   useEffect(() => {
@@ -397,7 +458,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   }, [fields]);
 
   useEffect(() => {
-    console.log('🔄 FieldCombinations state changed:', fieldCombinations.map(c => ({ id: c.id, targetField: c.targetField, sourceFields: c.sourceFields.map(sf => sf.fieldName) })));
+    console.log('🔄 FieldCombinations state changed:', fieldCombinations.map((c: any) => ({ id: c.id, targetField: c.targetField, sourceFields: c.sourceFields.map((sf: { fieldName: string }) => sf.fieldName) })));
   }, [fieldCombinations]);
   
   // No drag and drop needed for this page
@@ -494,7 +555,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       };
       
       // Get uploaded file fields (source fields from the uploaded file)
-      const uploadedFields = fields.map(field => field.sourceField).filter(Boolean);
+      const uploadedFields = fields.map((field: any) => field.sourceField).filter(Boolean);
       
       onAddFieldCombination(templateData, uploadedFields);
     } else {
@@ -572,6 +633,29 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       alert('Please add at least one field');
       return;
     }
+
+    // Required target mapping validation for visible/added fields
+    // 1) regular visible fields (exclude fields used in combinations)
+    const fieldsInCombinations = fieldCombinations.flatMap((combination: any) =>
+      combination.sourceFields.map((sf: { fieldName: string }) => sf.fieldName)
+    );
+    const regularVisibleFields = fields.filter(f => f.actions !== 'Combined' && !fieldsInCombinations.includes(f.sourceField));
+    const missingRegular = regularVisibleFields.filter(f => !f.targetField);
+
+    // 2) grouped/legacy combined fields (require a target on the group; mark any with empty target)
+    const missingCombined = fields.filter(f => f.actions === 'Combined' && !f.targetField);
+
+    const invalidIds = [...missingRegular, ...missingCombined].map(f => f.id);
+    if (invalidIds.length > 0) {
+      // Mark as touched to show red border and halt save
+      setTouchedTargetFields(prev => {
+        const next = { ...prev } as Record<string, boolean>;
+        invalidIds.forEach(id => { next[id] = true; });
+        return next;
+      });
+      alert('Please map all required fields before saving.');
+      return;
+    }
     
     const templateData = {
       name: templateName,
@@ -601,7 +685,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
             className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput" 
             placeholder="Enter template name"
             value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
+            onChange={(e) => { hasUserTypedTemplateName.current = true; setTemplateName(e.target.value); }}
           />
         </div>
         <div>
@@ -847,8 +931,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                             {/* Regular field mappings - exclude combined fields and fields used in combinations */}
               {(() => {
                 // Get all field names that are used in field combinations
-                const fieldsInCombinations = fieldCombinations.flatMap(combination =>
-                  combination.sourceFields.map((sf: any) => sf.fieldName)
+                const fieldsInCombinations = fieldCombinations.flatMap((combination: any) =>
+                  combination.sourceFields.map((sf: { fieldName: string }) => sf.fieldName)
                 );
                 
                 // Filter out both manually combined fields and fields used in combinations
@@ -862,6 +946,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     fields={filteredFields}
                     onChangeField={handleFieldChange}
                     onDeleteField={handleDeleteField}
+                    availableTargetFields={availableTargetFields}
+                    hasDefaultExportTemplate={!!defaultExportTemplate}
+                    onTargetBlur={markTouched}
+                    isTargetError={touchedTargetFields[field.id] && !field.targetField}
                   />
                 ));
               })()}
@@ -892,7 +980,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         <div className="flex items-center gap-2">
                           <select
                             aria-label="Data type"
-                            className="px-2 py-1 text-sm border border-neutral-200 rounded electronInput"
+                            className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput"
                             value={field.dataType}
                             onChange={(e) => handleFieldChange(field.id, 'dataType', e.target.value)}
                           >
@@ -925,20 +1013,20 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                       {index === 0 && (
                         <td className="px-4 py-4 align-middle border-0" rowSpan={groupFields.length}>
                           <div className="h-full flex flex-col justify-center">
-                            <div style={{transform: 'translateY(20px)'}}>
-                              <select 
-                                className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                                value={field.targetField}
-                                onChange={(e) => handleFieldChange(field.id, 'targetField', e.target.value)}
-                              >
-                                <option value="">Select target field</option>
-                                <option value="Full Name">Full Name</option>
-                                <option value="Email Address">Email Address</option>
-                                <option value="Phone Number">Phone Number</option>
-                                <option value="Customer ID">Customer ID</option>
-                                <option value="Transaction Date">Transaction Date</option>
-                                <option value="Amount">Amount</option>
-                              </select>
+                            <div style={{transform: 'translateY(20px)'}} className="flex items-center gap-2">
+                              <div className="relative flex-1">
+                                <TargetSelect
+                                  options={availableTargetFields}
+                                  value={field.targetField}
+                                  onChange={(v) => handleFieldChange(field.id, 'targetField', v)}
+                                  onBlur={() => markTouched(field.id)}
+                                  isError={touchedTargetFields[field.id] && !field.targetField}
+                                  disabled={!defaultExportTemplate}
+                                  disabledReason={!defaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
+                                  placeholder="Select target field"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 pointer-events-none select-none" title="Required">*</span>
+                              </div>
                             </div>
                             <div className="mt-6 text-sm text-neutral-500 flex items-center">
                               <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
@@ -968,7 +1056,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                 title="Delete combination"
                                                                  onClick={() => {
                                    console.log('🗑️ Delete button clicked for manually combined field group');
-                                   console.log('📊 Group fields to reset:', groupFields.map(f => ({ id: f.id, sourceField: f.sourceField, targetField: f.targetField })));
+                                   console.log('📊 Group fields to reset:', groupFields.map((f: any) => ({ id: f.id, sourceField: f.sourceField, targetField: f.targetField })));
                                    
                                    // When deleting a manually combined field group, restore the individual fields
                                    // by changing their actions back to empty (not combined)
@@ -1041,7 +1129,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                           <div className="flex items-center gap-2">
                             <select
                               aria-label="Data type"
-                              className="px-2 py-1 text-sm border border-neutral-200 rounded electronInput"
+                              className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput"
                               value={actualField.dataType}
                               onChange={(e) => handleFieldChange(actualField.id, 'dataType', e.target.value)}
                             >
@@ -1127,7 +1215,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                   };
                                   
                                   // Get uploaded file fields (source fields from the uploaded file)
-                                  const uploadedFields = fields.map(field => field.sourceField).filter(Boolean);
+                                  const uploadedFields = fields.map((field: any) => field.sourceField).filter(Boolean);
                                   
                                   onAddFieldCombination(templateData, uploadedFields);
                                 }
