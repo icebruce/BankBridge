@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -316,6 +317,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const [fieldCombinations, setFieldCombinations] = useState<any[]>([]);
   const [isDeletingCombination, setIsDeletingCombination] = useState(false);
   const deletedCombinationIds = React.useRef<Set<string>>(new Set());
+  const [formError, setFormError] = useState<string | null>(null);
   
   // Fields state
   const [fields, setFields] = useState<ImportFieldType[]>([
@@ -368,6 +370,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
 
   // Track whether the user has typed the template name to avoid overwriting it from currentTemplateData
   const hasUserTypedTemplateName = React.useRef<boolean>(false);
+  const templateNameRef = React.useRef<HTMLInputElement | null>(null);
+  const [nameTouched, setNameTouched] = useState<boolean>(false);
 
   // Initialize form with template data when editing
   useEffect(() => {
@@ -625,7 +629,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const handleSave = () => {
     // Basic validation
     if (!templateName.trim()) {
-      alert('Please enter a template name');
+      setNameTouched(true);
+      setFormError('Please enter a template name');
+      setTimeout(() => templateNameRef.current?.focus(), 0);
       return;
     }
     
@@ -653,7 +659,12 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         invalidIds.forEach(id => { next[id] = true; });
         return next;
       });
-      alert('Please map all required fields before saving.');
+      setFormError('Please map all required fields before saving.');
+      // Keep UX responsive by focusing the template name if it's empty so user can start there
+      if (!templateName.trim()) {
+        setNameTouched(true);
+        setTimeout(() => templateNameRef.current?.focus(), 0);
+      }
       return;
     }
     
@@ -663,6 +674,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       fields,
       fieldCombinations
     };
+    setFormError(null);
     onSave(templateData);
   };
 
@@ -682,10 +694,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           <input 
             id="template-name"
             type="text" 
-            className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput" 
+            className={`w-full px-3 py-2 border rounded-lg electronInput ${nameTouched && !templateName.trim() ? 'border-red-600' : 'border-neutral-200'}`} 
             placeholder="Enter template name"
             value={templateName}
             onChange={(e) => { hasUserTypedTemplateName.current = true; setTemplateName(e.target.value); }}
+            onBlur={() => setNameTouched(true)}
+            aria-invalid={nameTouched && !templateName.trim() ? true : undefined}
+            ref={templateNameRef}
           />
         </div>
         <div>
@@ -878,6 +893,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
            <div></div>
          )}
       </div>
+
+      {formError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{formError}</div>
+      )}
 
       {/* Warning Message */}
       {!defaultExportTemplate && (

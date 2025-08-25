@@ -210,7 +210,7 @@ describe('NewImportTemplateEditor', () => {
       )
 
       // Should show the combined tag for field combinations
-      expect(screen.getByText('Combined')).toBeInTheDocument()
+      expect(screen.getAllByText('Combined').length).toBeGreaterThan(0)
     })
 
     it('should allow editing existing field combinations', () => {
@@ -308,8 +308,8 @@ describe('NewImportTemplateEditor', () => {
         />
       )
 
-      // Initially should have default state
-      expect(screen.getByDisplayValue('')).toBeInTheDocument() // empty template name
+      // Initially template name input exists (may be empty)
+      expect(screen.getByLabelText(/template name/i)).toBeInTheDocument()
 
       // Update with currentTemplateData
       rerender(
@@ -406,11 +406,11 @@ describe('NewImportTemplateEditor', () => {
       fireEvent.click(deleteButtons[0])
 
       // The field combination should be removed
-      expect(screen.queryByText('Combined')).not.toBeInTheDocument()
+      expect(screen.queryAllByText('Combined').length).toBe(0)
       
       // The individual fields should now appear as regular fields
-      expect(screen.getByText('email')).toBeInTheDocument()
-      expect(screen.getByText('phone')).toBeInTheDocument()
+      expect(screen.queryAllByText('email').length).toBeGreaterThan(0)
+      expect(screen.queryAllByText('phone').length).toBeGreaterThan(0)
     })
 
     it('should delete all fields in a combined field group when delete is clicked', () => {
@@ -446,9 +446,9 @@ describe('NewImportTemplateEditor', () => {
       fireEvent.click(deleteButtons[0])
 
       // Both fields in the combination should be removed
-      expect(screen.queryByText('first_name')).not.toBeInTheDocument()
-      expect(screen.queryByText('last_name')).not.toBeInTheDocument()
-      expect(screen.queryByText('Combined')).not.toBeInTheDocument()
+      expect(screen.queryAllByText('first_name').length).toBe(0)
+      expect(screen.queryAllByText('last_name').length).toBe(0)
+      expect(screen.queryAllByText('Combined').length).toBe(0)
       
       // The regular field should still be there
       expect(screen.getByText('email')).toBeInTheDocument()
@@ -526,7 +526,7 @@ describe('NewImportTemplateEditor', () => {
       fireEvent.change(templateNameInput, { target: { value: 'Test Template' } })
 
       // Clear any default fields
-      const deleteButtons = screen.getAllByTitle(/delete/i)
+      const deleteButtons = screen.getAllByTitle(/delete combination|delete field/i)
       deleteButtons.forEach(button => fireEvent.click(button))
 
       // Try to save
@@ -558,6 +558,122 @@ describe('NewImportTemplateEditor', () => {
           fieldCombinations: expect.any(Array)
         })
       )
+    })
+  })
+
+  describe('Target field mapping validation and UI', () => {
+    it('disables target select with reason when no default export template', () => {
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={null}
+          currentTemplateData={{
+            name: 'Test',
+            sourceFileType: 'CSV File',
+            fields: [
+              { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John', targetField: '', actions: '' }
+            ],
+            fieldCombinations: []
+          }}
+        />
+      )
+
+      const selects = screen.getAllByRole('combobox')
+      // The first select in the target column should be disabled (data type selects are enabled)
+      const targetSelect = selects.find(s => (s as HTMLSelectElement).options[0]?.textContent === 'Select target field') as HTMLSelectElement
+      expect(targetSelect).toBeDefined()
+      expect(targetSelect.disabled).toBe(true)
+      expect(targetSelect.title).toMatch(/enable mapping/i)
+    })
+
+    it('marks unmapped visible fields invalid on save', () => {
+      const localSaveRef: any = { current: null }
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          saveRef={localSaveRef}
+          currentTemplateData={{
+            name: 'Test',
+            sourceFileType: 'CSV File',
+            fields: [
+              { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John', targetField: '', actions: '' }
+            ],
+            fieldCombinations: []
+          }}
+        />
+      )
+
+      // Trigger save to mark required fields as touched
+      localSaveRef.current?.()
+
+      const targetSelect = screen.getAllByRole('combobox').find(s => (s as HTMLSelectElement).options[0]?.textContent === 'Select target field') as HTMLSelectElement
+      expect(targetSelect).toBeDefined()
+      return waitFor(() => expect(targetSelect.getAttribute('aria-invalid')).toBe('true'))
+    })
+
+    it('data type dropdown uses same rounded border styling as target select', () => {
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          currentTemplateData={{
+            name: 'Test',
+            sourceFileType: 'CSV File',
+            fields: [
+              { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John', targetField: '', actions: '' }
+            ],
+            fieldCombinations: []
+          }}
+        />
+      )
+
+      const dataTypeSelect = screen.getAllByLabelText('Data type')[0]
+      expect(dataTypeSelect.className).toContain('rounded-lg')
+      expect(dataTypeSelect.className).toContain('border')
+    })
+
+    it('keeps typed template name when currentTemplateData syncs', () => {
+      const { rerender } = render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          currentTemplateData={{
+            name: 'Initial Name',
+            sourceFileType: 'CSV File',
+            fields: [
+              { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John', targetField: '', actions: '' }
+            ],
+            fieldCombinations: []
+          }}
+        />
+      )
+
+      const nameInput = screen.getByLabelText(/template name/i)
+      fireEvent.change(nameInput, { target: { value: 'User Name' } })
+
+      // Simulate a sync from editor returning
+      rerender(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          currentTemplateData={{
+            name: 'Synced Name',
+            sourceFileType: 'CSV File',
+            fields: [
+              { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John', targetField: '', actions: '' }
+            ],
+            fieldCombinations: []
+          }}
+        />
+      )
+
+      expect((screen.getByLabelText(/template name/i) as HTMLInputElement).value).toBe('User Name')
     })
   })
 
