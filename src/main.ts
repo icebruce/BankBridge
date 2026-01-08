@@ -2,6 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { logStorageInfo } from './services/storageLocation';
 import { registerParseFileHandler } from './main/ipcHandlers/parseFile';
+import { registerSettingsHandlers } from './main/ipcHandlers/settings';
+import { registerMasterDataHandlers } from './main/ipcHandlers/masterData';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -12,6 +14,7 @@ function createWindow(): void {
       contextIsolation: true,
       sandbox: false,
       webSecurity: true,
+      preload: path.join(__dirname, 'preload.js'),
       // Performance optimizations
       experimentalFeatures: true,
       backgroundThrottling: false,
@@ -75,10 +78,12 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Log storage information for debugging
   logStorageInfo();
-  
+
   // Register IPC handlers
   registerParseFileHandler();
-  
+  registerSettingsHandlers();
+  registerMasterDataHandlers();
+
   createWindow();
 });
 
