@@ -46,9 +46,13 @@ const mockTemplates: Template[] = [
 describe('templateService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(localStorageService.loadTemplatesFromStorage).mockReturnValue(mockTemplates)
+    // Reset all mock implementations to defaults - return a deep copy to avoid mutation between tests
+    vi.mocked(localStorageService.loadTemplatesFromStorage).mockReturnValue(
+      JSON.parse(JSON.stringify(mockTemplates))
+    )
     vi.mocked(localStorageService.generateTemplateId).mockReturnValue('template_new_123')
     vi.mocked(localStorageService.getCurrentTimestamp).mockReturnValue('2023-01-03T00:00:00Z')
+    vi.mocked(localStorageService.saveTemplatesToStorage).mockImplementation(() => {})
   })
 
   describe('fetchTemplates', () => {
@@ -63,9 +67,9 @@ describe('templateService', () => {
       vi.mocked(localStorageService.loadTemplatesFromStorage)
         .mockReturnValueOnce([]) // First call returns empty
         .mockReturnValueOnce(mockTemplates) // Second call returns mock data
-      
-      const templates = await fetchTemplates()
-      
+
+      await fetchTemplates()
+
       expect(localStorageService.saveTemplatesToStorage).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({ name: 'Bank Statement Export' })

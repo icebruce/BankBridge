@@ -44,7 +44,7 @@ class FileParserService {
   async parseFile(file: File, options: ParserOptions = {}): Promise<ParseResult> {
     try {
       const fileExtension = this.getFileExtension(file.name);
-      const { text, encoding, hasBOM } = await this.readFileWithEncoding(file, options.encoding);
+      const { text, encoding: _encoding, hasBOM } = await this.readFileWithEncoding(file, options.encoding);
 
       switch (fileExtension) {
         case 'csv':
@@ -92,21 +92,11 @@ class FileParserService {
       // Auto-detect header row if not specified
       const hasHeader = options.hasHeader !== undefined ? options.hasHeader : this.detectHeaderRow(lines, delimiter);
       
-      // Debug logging for header detection
-      console.log('🔍 CSV Header Detection:', {
-        firstLine: lines[0]?.substring(0, 100),
-        secondLine: lines[1]?.substring(0, 100),
-        detectedDelimiter: delimiter,
-        hasHeader,
-        firstRowCells: this.splitRow(lines[0], delimiter),
-        secondRowCells: lines[1] ? this.splitRow(lines[1], delimiter) : []
-      });
-      
       // Check for quoted fields
       const hasQuotedFields = this.detectQuotedFields(lines, delimiter);
       
       // Parse header row
-      const headerRowIndex = hasHeader ? 0 : -1;
+      const _headerRowIndex = hasHeader ? 0 : -1;
       const headers = hasHeader ? this.parseCSVRow(lines[0], delimiter) : this.generateDefaultHeaders(lines, delimiter);
       
       if (headers.length === 0) {
@@ -432,7 +422,7 @@ class FileParserService {
       const hasHeader = options.hasHeader !== undefined ? options.hasHeader : this.detectHeaderRow(lines, delimiter);
       
       // Parse header row
-      const headerRowIndex = hasHeader ? 0 : -1;
+      const _headerRowIndex = hasHeader ? 0 : -1;
       const headers = hasHeader ? lines[0].split(delimiter).map(h => h.trim()).filter(h => h) : this.generateDefaultHeaders(lines, delimiter);
       
       if (headers.length === 0) {
@@ -671,21 +661,7 @@ class FileParserService {
     // Require at least 3 out of 5 criteria to be true for more reliable detection
     const trueCriteria = criteria.filter(Boolean).length;
     const result = trueCriteria >= 3;
-    
-    console.log('🔍 Header Detection Details:', {
-      firstRow: firstRow,
-      secondRow: secondRow,
-      criteria: {
-        hasHeaderPatterns,
-        textRatioComparison,
-        nonEmptyComparison,
-        firstRowConsistent,
-        firstRowLooksLikeHeaders
-      },
-      trueCriteria,
-      result
-    });
-    
+
     return result;
   }
 

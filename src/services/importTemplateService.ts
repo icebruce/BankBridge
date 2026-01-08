@@ -98,7 +98,9 @@ export const getImportTemplateById = (id: string): Promise<ImportTemplate | unde
 export const createImportTemplate = (templateData: {
   name: string;
   description?: string;
+  account: string;
   fileType: string;
+  status?: 'Active' | 'Inactive' | 'Draft';
   fieldMappings: ImportFieldMapping[];
   fieldCombinations?: FieldCombination[];
 }): Promise<ImportTemplate> => {
@@ -119,12 +121,12 @@ export const createImportTemplate = (templateData: {
         name: templateData.name.trim(),
         description: templateData.description?.trim() || '',
         fieldCount: templateData.fieldMappings.length,
-        account: 'Default Account', // TODO: Make this configurable
+        account: templateData.account?.trim() || '',
         fileType: templateData.fileType,
         createdAt: now,
         updatedAt: now,
         schemaVersion: CURRENT_SCHEMA_VERSION,
-        status: 'Active',
+        status: templateData.status || 'Active',
         fieldMappings: templateData.fieldMappings,
         isDefault: false,
         fieldCombinations: templateData.fieldCombinations || []

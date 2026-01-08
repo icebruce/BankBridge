@@ -1,19 +1,64 @@
-# BankBridge React
+# BankBridge
 
-A high-performance Electron desktop application for financial data processing and template management.
+An Electron desktop application that bridges the gap between various bank statement formats and Monarch Money's import requirements.
+
+## Problem
+
+Monarch Money lacks native integrations with many banks, forcing users to:
+- Manually export data from their banks
+- Transform it to match Monarch's expected format
+- Manually deduplicate transactions
+
+This is time-consuming and error-prone.
+
+## Solution
+
+BankBridge automates this workflow with:
+- **Template-based mapping** - Define how source fields map to target fields
+- **Intelligent duplicate detection** - Identify and handle duplicate transactions
+- **Master data management** - Maintain reference data for consistent processing
+- **Automated export generation** - Generate Monarch-compatible CSV/Excel files
 
 ## Features
 
-- **Template Management**: Create and manage import/export templates
-- **File Processing**: High-performance streaming parser for large files
-- **Data Transformation**: Intelligent data type detection and transformation
-- **Progress Tracking**: Real-time progress updates for long-running operations
-- **Error Handling**: Comprehensive error reporting and validation
+### Import Templates
+- Map source file columns to standardized fields
+- Field combinations (merge multiple source fields)
+- Data type detection (text, number, currency, date, boolean)
+- Support for multiple accounts and file types
+
+### Export Templates
+- Define output field mappings
+- Format transformations
+- Multiple export formats (CSV, JSON, etc.)
+
+### File Processing
+- High-performance streaming parser
+- Handles large files without blocking UI
+- Real-time progress tracking
+- Comprehensive error reporting with reject files
+
+### Master Data (Planned)
+- Reference data management
+- Lookup tables for consistent categorization
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Desktop | Electron |
+| Frontend | React + TypeScript |
+| Styling | Tailwind CSS |
+| Build | Vite |
+| Testing | Vitest + React Testing Library |
+| Parsing | fast-csv, stream-json |
+| Validation | Zod |
+| Logging | Winston |
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js (v16 or higher)
+- Node.js v16+
 - npm
 
 ### Installation
@@ -28,73 +73,54 @@ npm run start
 
 ### Testing
 ```bash
-npm test
+npm test                # Run tests
+npm run test:coverage   # With coverage report
+npm run test:ui         # Visual test runner
 ```
 
-## Parsing Large Files
-
-BankBridge includes a high-performance streaming file parser that can handle large CSV, JSON, and TXT files without blocking the UI.
-
-### Features
-- **Streaming Processing**: Handles files of any size without loading everything into memory
-- **Progress Tracking**: Real-time progress updates during parsing
-- **Worker Threads**: Parsing runs in background threads to keep UI responsive
-- **Error Handling**: Comprehensive error reporting with reject file generation
-- **Data Transformation**: Automatic flattening of nested objects and array explosion
-- **Type Detection**: Intelligent detection of data types (text, number, currency, date, boolean)
-
-### IPC Channels
-- **Channel**: `parse-file`
-- **Progress Event**: `parse-progress`
-
-### Error Codes
-- `UNSUPPORTED_FORMAT` - File type not supported
-- `SCHEMA_MISMATCH` - Data doesn't match expected schema
-- `CSV_ROW_INVALID` - Invalid CSV row format
-- `JSON_PARSE_ERROR` - JSON parsing error
-- `FILE_TOO_LARGE` - File exceeds memory limits
-- `MEMORY_LIMIT_EXCEEDED` - Memory usage exceeded
-- `VALIDATION_FAILED` - Row validation failed
-- `TRANSFORM_ERROR` - Data transformation error
-- `IO_ERROR` - File system error
-
-### Usage Example
-```typescript
-import { useParseFile } from '@/ui/hooks/useParseFile';
-
-const { parse, progress, isLoading, error } = useParseFile();
-
-const handleFileUpload = async (filePath: string) => {
-  try {
-    const result = await parse(filePath, {
-      maxRows: 100000,
-      chunkSize: 1000,
-      mapping: {
-        tags: { type: 'array', explode: true }
-      }
-    });
-    
-    console.log(`Parsed ${result.stats.validRows} rows successfully`);
-  } catch (err) {
-    console.error('Parse failed:', err);
-  }
-};
+### Build
+```bash
+npm run build
 ```
 
 ## Architecture
 
-### Core Components
-- **SmartParse**: Main parsing service with streaming support
-- **Transformers**: Pure utility functions for data transformation
-- **Worker Threads**: Background processing for large files
-- **IPC Handlers**: Electron main process communication
-- **React Hooks**: UI integration for parsing functionality
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Electron Main Process                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
+│  │ IPC Handlers│  │Worker Thread│  │ File System     │ │
+│  │             │◄─┤ (SmartParse)│  │ Storage         │ │
+│  └──────┬──────┘  └─────────────┘  └─────────────────┘ │
+└─────────┼───────────────────────────────────────────────┘
+          │ IPC
+┌─────────▼───────────────────────────────────────────────┐
+│                  Electron Renderer Process              │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │                  React Application               │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │   │
+│  │  │ Import   │ │ Export   │ │ Process Files    │ │   │
+│  │  │ Templates│ │ Templates│ │                  │ │   │
+│  │  └──────────┘ └──────────┘ └──────────────────┘ │   │
+│  │                                                  │   │
+│  │  ┌──────────────────────────────────────────┐   │   │
+│  │  │            Services Layer                 │   │   │
+│  │  │  templateService, SmartParse, etc.       │   │   │
+│  │  └──────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
+│  Storage: localStorage (templates)                      │
+└─────────────────────────────────────────────────────────┘
+```
 
-### Tech Stack
-- **Frontend**: React + TypeScript + Tailwind CSS
-- **Desktop**: Electron
-- **Build**: Vite
-- **Testing**: Vitest
-- **Parsing**: fast-csv, stream-json
-- **Validation**: Zod
-- **Logging**: Winston
+## Documentation
+
+- [DESIGN_GUIDE.md](./DESIGN_GUIDE.md) - UI/UX patterns and styling
+- [PARSING_STRATEGY.md](./PARSING_STRATEGY.md) - File parsing strategy
+- [TESTING_GUIDE.md](./TESTING_GUIDE.md) - Testing approach
+- [TEMPLATE_STORAGE.md](./TEMPLATE_STORAGE.md) - Template persistence
+- [ELECTRON_INPUT_FIXES.md](./ELECTRON_INPUT_FIXES.md) - Electron optimizations
+
+## Contributing
+
+See [CLAUDE.md](./CLAUDE.md) for development guidelines.
