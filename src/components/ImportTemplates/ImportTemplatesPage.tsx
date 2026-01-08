@@ -25,6 +25,9 @@ const ImportTemplatesPage: FC = () => {
   const [currentTemplateData, setCurrentTemplateData] = useState<any>(null);
   const [uploadedFileFields, setUploadedFileFields] = useState<string[]>([]);
   const [editingFieldCombination, setEditingFieldCombination] = useState<FieldCombination | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const saveTemplateRef = useRef<(() => void) | null>(null);
   const fieldCombinationsRef = useRef<{
     updateFieldCombinations: (combinations: FieldCombination[]) => void;
@@ -67,32 +70,36 @@ const ImportTemplatesPage: FC = () => {
 
   const handleDuplicateTemplate = async (template: ImportTemplate) => {
     try {
+      setPageError(null);
       const duplicatedTemplate = await duplicateImportTemplate(template.id);
       setTemplates(prev => [duplicatedTemplate, ...prev]);
-      console.log('Duplicated template:', duplicatedTemplate.name);
+      setSuccessMessage(`Template "${duplicatedTemplate.name}" created`);
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error duplicating template:', error);
-      alert('Failed to duplicate template');
+      setPageError('Failed to duplicate template');
     }
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (window.confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
       try {
+        setPageError(null);
         await deleteImportTemplate(templateId);
         setTemplates(prev => prev.filter(t => t.id !== templateId));
-        console.log('Deleted template:', templateId);
+        setSuccessMessage('Template deleted successfully');
+        setTimeout(() => setSuccessMessage(null), 3000);
       } catch (error) {
         console.error('Error deleting template:', error);
-        alert('Failed to delete template');
+        setPageError('Failed to delete template');
       }
     }
   };
 
   const handleSaveTemplate = useCallback(async (templateData: any) => {
     try {
-      console.log('🔄 Saving import template with data:', templateData);
-      
+      setIsSaving(true);
+
       // Validate input data
       if (!templateData) {
         throw new Error('No template data provided');
@@ -117,42 +124,36 @@ const ImportTemplatesPage: FC = () => {
           validation: ''
         }));
 
-      console.log('📋 Field mappings created:', fieldMappings);
-      console.log('🔗 Field combinations:', templateData.fieldCombinations || []);
-
       if (editingTemplate) {
         // Update existing template
-        console.log('📝 Updating existing template:', editingTemplate.id);
-        
+
         const updatedTemplate = await updateImportTemplate(editingTemplate.id, {
           name: templateData.name,
           description: templateData.description || '',
+          account: templateData.account || '',
           fileType: templateData.sourceFileType,
+          status: templateData.status || 'Active',
           fieldCount: fieldMappings.length,
           fieldMappings,
           fieldCombinations: templateData.fieldCombinations || []
         });
-        
-        console.log('✅ Template updated successfully:', updatedTemplate);
-        
+
         // Update the template in the list
         setTemplates(prev => prev.map(t => 
           t.id === editingTemplate.id ? updatedTemplate : t
         ));
       } else {
         // Create new template
-        console.log('➕ Creating new template');
-        
         const newTemplate = await createImportTemplate({
           name: templateData.name,
           description: templateData.description || '',
+          account: templateData.account || '',
           fileType: templateData.sourceFileType,
+          status: templateData.status || 'Active',
           fieldMappings,
           fieldCombinations: templateData.fieldCombinations || []
         });
-        
-        console.log('✅ Template created successfully:', newTemplate);
-        
+
         // Add the new template to the list
         setTemplates(prev => [newTemplate, ...prev]);
       }
@@ -161,15 +162,15 @@ const ImportTemplatesPage: FC = () => {
       setShowNewTemplateEditor(false);
       setEditingTemplate(null);
       setCurrentTemplateData(null);
-      
-      console.log('🎉 Template saved and UI updated');
+      setPageError(null);
+      setSuccessMessage('Template saved successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('❌ Error saving template:', error);
-      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-      
-      // Show more specific error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(`Failed to save template: ${errorMessage}`);
+      setPageError(`Failed to save template: ${errorMessage}`);
+    } finally {
+      setIsSaving(false);
     }
   }, [editingTemplate]);
   
@@ -290,11 +291,12 @@ const ImportTemplatesPage: FC = () => {
                 >
                   Cancel
                 </button>
-                <button 
-                  className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800"
+                <button
+                  className={`px-4 py-2 bg-neutral-900 text-white rounded-lg transition-all duration-200 ${isSaving ? 'opacity-70 cursor-not-allowed' : 'hover:bg-neutral-800'}`}
                   onClick={() => saveTemplateRef.current?.()}
+                  disabled={isSaving}
                 >
-                  Save Template
+                  {isSaving ? 'Saving...' : 'Save Template'}
                 </button>
               </div>
             </div>
@@ -330,6 +332,20 @@ const ImportTemplatesPage: FC = () => {
             </div>
           </div>
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+              {successMessage}
+            </div>
+          )}
+
+          {/* Error Message */}
+          {pageError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+              {pageError}
+            </div>
+          )}
+
           <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
             <SearchAndFilters
               searchTerm={searchTerm}
@@ -338,6 +354,8 @@ const ImportTemplatesPage: FC = () => {
               onAccountChange={setSelectedAccount}
               selectedFileType={selectedFileType}
               onFileTypeChange={setSelectedFileType}
+              accounts={[...new Set(templates.map(t => t.account).filter(Boolean))]}
+              fileTypes={[...new Set(templates.map(t => t.fileType).filter(Boolean))]}
             />
 
             <ImportTemplatesList

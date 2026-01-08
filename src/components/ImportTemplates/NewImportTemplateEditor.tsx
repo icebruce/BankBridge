@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ReactDOM from 'react-dom';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -41,17 +40,18 @@ interface NewImportTemplateEditorProps {
   } | null>;
 }
 
-// Simple dropdown for target fields
+// Simple dropdown for target fields with support for disabled options
 const TargetSelect: FC<{
   options: string[];
   value: string;
   placeholder?: string;
   disabled?: boolean;
   disabledReason?: string;
+  disabledOptions?: string[];
   isError?: boolean;
   onChange: (value: string) => void;
   onBlur?: () => void;
-}> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, isError, onChange, onBlur }) => (
+}> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, disabledOptions = [], isError, onChange, onBlur }) => (
   <select
     className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput ${
       disabled
@@ -69,9 +69,14 @@ const TargetSelect: FC<{
     title={disabled ? (disabledReason || 'Disabled') : undefined}
   >
     <option value="">{placeholder}</option>
-    {options.map(opt => (
-      <option key={opt} value={opt}>{opt}</option>
-    ))}
+    {options.map(opt => {
+      const isOptionDisabled = disabledOptions.includes(opt) && opt !== value;
+      return (
+        <option key={opt} value={opt} disabled={isOptionDisabled}>
+          {opt}{isOptionDisabled ? ' (already mapped)' : ''}
+        </option>
+      );
+    })}
   </select>
 );
 
@@ -140,23 +145,27 @@ const TruncatedText: FC<{
 };
 
 // FieldRow component for field mapping - Updated for proper combined field display
-const FieldRow = React.memo(({ 
-  field, 
-  index, 
-  fields, 
-  onChangeField, 
+const FieldRow = React.memo(({
+  field,
+  index,
+  fields,
+  onChangeField,
   onDeleteField,
+  onEditCombination,
   availableTargetFields,
+  usedTargetFields,
   hasDefaultExportTemplate,
   onTargetBlur,
   isTargetError
-}: { 
+}: {
   field: ImportFieldType;
   index: number;
   fields: ImportFieldType[];
   onChangeField: (id: string, property: keyof ImportFieldType, value: string) => void;
   onDeleteField: (id: string) => void;
+  onEditCombination?: (targetField: string) => void;
   availableTargetFields: string[];
+  usedTargetFields: string[];
   hasDefaultExportTemplate: boolean;
   onTargetBlur?: (id: string) => void;
   isTargetError?: boolean;
@@ -242,6 +251,7 @@ const FieldRow = React.memo(({
               isError={!!isTargetError}
               disabled={!hasDefaultExportTemplate}
               disabledReason={!hasDefaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
+              disabledOptions={usedTargetFields}
               placeholder="Select target field"
             />
             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 pointer-events-none select-none" title="Required">*</span>
@@ -257,13 +267,10 @@ const FieldRow = React.memo(({
       <td className="pl-4 pr-0 py-4 text-sm align-middle">
         <div className="flex items-center">
           <div className="flex gap-3 items-center">
-            <button 
+            <button
               className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
               title={isCombined ? "Edit combination" : "Edit field"}
-              onClick={isCombined ? () => {
-                // Handle edit combination logic
-                console.log('Edit combination clicked for field:', field.sourceField);
-              } : undefined}
+              onClick={isCombined && onEditCombination ? () => onEditCombination(field.targetField) : undefined}
             >
               <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
             </button>
@@ -299,7 +306,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
 }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
+  const [account, setAccount] = useState('');
   const [sourceFileType, setSourceFileType] = useState('CSV File');
+  const [status, setStatus] = useState<'Active' | 'Inactive' | 'Draft'>('Active');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -371,13 +380,17 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   // Track whether the user has typed the template name to avoid overwriting it from currentTemplateData
   const hasUserTypedTemplateName = React.useRef<boolean>(false);
   const templateNameRef = React.useRef<HTMLInputElement | null>(null);
+  const accountRef = React.useRef<HTMLInputElement | null>(null);
   const [nameTouched, setNameTouched] = useState<boolean>(false);
+  const [accountTouched, setAccountTouched] = useState<boolean>(false);
 
   // Initialize form with template data when editing
   useEffect(() => {
     if (initialTemplate) {
       setTemplateName(initialTemplate.name);
+      setAccount(initialTemplate.account || '');
       setSourceFileType(initialTemplate.fileType);
+      setStatus(initialTemplate.status || 'Active');
       setFieldCombinations(initialTemplate.fieldCombinations || []);
       
       // Convert field mappings to ImportFieldType format
@@ -394,7 +407,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     } else {
       // Reset form for new template
       setTemplateName('');
+      setAccount('');
       setSourceFileType('CSV File');
+      setStatus('Active');
       setUploadedFile(null);
              setParseError(null);
        setParseWarnings([]);
@@ -417,11 +432,6 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
             const filteredCombinations = combinations.filter(
               (combination: any) => !deletedCombinationIds.current.has(combination.id)
             );
-            console.log('🔄 updateFieldCombinations filtering:', {
-              original: combinations.length,
-              filtered: filteredCombinations.length,
-              deletedIds: Array.from(deletedCombinationIds.current)
-            });
             setFieldCombinations(filteredCombinations);
           }
         },
@@ -437,6 +447,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       if (!hasUserTypedTemplateName.current && (templateName ?? '').trim() === '' && (currentTemplateData.name ?? '') !== '') {
         setTemplateName(currentTemplateData.name);
       }
+      // Sync account if provided
+      if (currentTemplateData.account && account.trim() === '') {
+        setAccount(currentTemplateData.account);
+      }
       // Always keep file type and fields in sync when returning from editor
       setSourceFileType(currentTemplateData.sourceFileType || 'CSV File');
       setFields(currentTemplateData.fields || []);
@@ -446,25 +460,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         const filteredCombinations = (currentTemplateData.fieldCombinations || []).filter(
           (combination: any) => !deletedCombinationIds.current.has(combination.id)
         );
-        console.log('🔄 Filtering out deleted combinations:', {
-          original: currentTemplateData.fieldCombinations?.length || 0,
-          filtered: filteredCombinations.length,
-          deletedIds: Array.from(deletedCombinationIds.current)
-        });
         setFieldCombinations(filteredCombinations);
       }
     }
-  }, [currentTemplateData, isDeletingCombination, templateName]); // Include templateName for guard
+  }, [currentTemplateData, isDeletingCombination, templateName, account]);
 
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('🔄 Fields state changed:', fields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
-  }, [fields]);
-
-  useEffect(() => {
-    console.log('🔄 FieldCombinations state changed:', fieldCombinations.map((c: any) => ({ id: c.id, targetField: c.targetField, sourceFields: c.sourceFields.map((sf: { fieldName: string }) => sf.fieldName) })));
-  }, [fieldCombinations]);
-  
   // No drag and drop needed for this page
   
   // Handle file upload
@@ -476,14 +476,22 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   };
 
   // Process uploaded file and parse its structure
+  const MAX_FILE_SIZE_MB = 10;
   const processUploadedFile = async (file: File) => {
     setIsParsingFile(true);
     setParseError(null);
     setParseWarnings([]);
     setUploadedFile(file);
 
+    // Check file size limit
+    const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      setParseError(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit. Please select a smaller file.`);
+      setIsParsingFile(false);
+      return;
+    }
+
     try {
-      console.log('Parsing file:', file.name);
              const parseResult = await fileParserService.parseFile(file, {
          maxPreviewRows: 50,
          hasHeader: undefined // Auto-detect
@@ -520,7 +528,6 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           setParseWarnings(parseResult.warnings);
         }
         
-        console.log(`Successfully parsed ${parseResult.rowCount} rows with ${parseResult.fields.length} fields`);
       } else {
         setParseError(parseResult.error || 'Failed to parse file');
         console.error('Parse error:', parseResult.error);
@@ -590,53 +597,94 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   
   // Delete a field
   const handleDeleteField = useCallback((id: string) => {
-    console.log('🗑️ handleDeleteField called with ID:', id);
-    
     setFields(prevFields => {
       const fieldToDelete = prevFields.find(field => field.id === id);
-      console.log('📊 Field to delete:', fieldToDelete);
-      
-      // If this is a combined field, we need to handle it specially
+
+      // If this is a combined field, remove all fields in the combination group
       if (fieldToDelete && fieldToDelete.actions === 'Combined') {
-        console.log('🔗 Deleting combined field group with targetField:', fieldToDelete.targetField);
-        
-        // Find all fields that are part of the same combination group
         const sameTargetField = fieldToDelete.targetField;
-        // Note: fieldsInSameGroup is calculated but not currently used
-        // const fieldsInSameGroup = prevFields.filter(field => 
-        //   field.targetField === sameTargetField && field.actions === 'Combined'
-        // );
-        
-        // Remove all fields in the combination group
-        const newFields = prevFields.filter(field => 
+        return prevFields.filter(field =>
           !(field.targetField === sameTargetField && field.actions === 'Combined')
         );
-        console.log('📊 Fields after removing combined group:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
-        return newFields;
       }
-      
+
       // For regular fields, just remove the single field
-      console.log('🗑️ Removing single field');
-      const newFields = prevFields.filter(field => field.id !== id);
-      console.log('📊 Fields after removing single field:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
-      return newFields;
+      return prevFields.filter(field => field.id !== id);
     });
   }, []);
-  
+
+  // Handle editing a legacy combined field group
+  const handleEditLegacyCombination = useCallback((targetField: string) => {
+    // Find all fields in this combined group
+    const combinedFields = fields.filter(f => f.targetField === targetField && f.actions === 'Combined');
+    if (combinedFields.length === 0) return;
+
+    // Convert legacy combined fields to FieldCombination format
+    const legacyCombination: FieldCombination = {
+      id: `legacy_${Date.now()}`,
+      targetField,
+      delimiter: 'Space', // Legacy combined fields use space
+      sourceFields: combinedFields.map((f, i) => ({
+        id: `sf_${Date.now()}_${i}`,
+        fieldName: f.sourceField,
+        order: i + 1
+      }))
+    };
+
+    // Remove the legacy combined fields from the fields array
+    setFields(prevFields => prevFields.filter(f => !(f.targetField === targetField && f.actions === 'Combined')));
+
+    // Open the FieldCombinationEditor with this combination for editing
+    if (onAddFieldCombination) {
+      const templateData: any = {
+        name: templateName,
+        account,
+        sourceFileType,
+        status,
+        fields: fields.filter(f => !(f.targetField === targetField && f.actions === 'Combined')),
+        fieldCombinations,
+        editingCombination: legacyCombination
+      };
+      const uploadedFields = fields.map(f => f.sourceField).filter(Boolean);
+      onAddFieldCombination(templateData, uploadedFields);
+    }
+  }, [fields, fieldCombinations, templateName, account, sourceFileType, status, onAddFieldCombination]);
+
   // No field reordering needed for this page
-  
+
   // Save template
   const handleSave = () => {
-    // Basic validation
-    if (!templateName.trim()) {
+    // Template name validation
+    const trimmedName = templateName.trim();
+    if (!trimmedName) {
       setNameTouched(true);
-      setFormError('Please enter a template name');
+      setFormError('Template name is required');
       setTimeout(() => templateNameRef.current?.focus(), 0);
       return;
     }
-    
+    if (trimmedName.length < 2) {
+      setNameTouched(true);
+      setFormError('Template name must be at least 2 characters');
+      setTimeout(() => templateNameRef.current?.focus(), 0);
+      return;
+    }
+    if (trimmedName.length > 100) {
+      setNameTouched(true);
+      setFormError('Template name cannot exceed 100 characters');
+      setTimeout(() => templateNameRef.current?.focus(), 0);
+      return;
+    }
+
+    // Account validation
+    if (!account.trim()) {
+      setAccountTouched(true);
+      setFormError('Account is required');
+      setTimeout(() => accountRef.current?.focus(), 0);
+      return;
+    }
+
     if (fields.length === 0) {
-      alert('Please add at least one field');
+      setFormError('At least one field mapping is required');
       return;
     }
 
@@ -670,7 +718,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     
     const templateData = {
       name: templateName,
+      account,
       sourceFileType,
+      status,
       fields,
       fieldCombinations
     };
@@ -683,18 +733,18 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (saveRef) {
       saveRef.current = handleSave;
     }
-  }, [templateName, sourceFileType, fields, fieldCombinations, saveRef]);
+  }, [templateName, account, sourceFileType, status, fields, fieldCombinations, saveRef]);
   
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
       {/* Template Configuration */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <label htmlFor="template-name" className="block mb-2 text-sm font-semibold">Template Name</label>
-          <input 
+          <input
             id="template-name"
-            type="text" 
-            className={`w-full px-3 py-2 border rounded-lg electronInput ${nameTouched && !templateName.trim() ? 'border-red-600' : 'border-neutral-200'}`} 
+            type="text"
+            className={`w-full px-3 py-2 border rounded-lg electronInput ${nameTouched && !templateName.trim() ? 'border-red-600' : 'border-neutral-200'}`}
             placeholder="Enter template name"
             value={templateName}
             onChange={(e) => { hasUserTypedTemplateName.current = true; setTemplateName(e.target.value); }}
@@ -704,8 +754,22 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           />
         </div>
         <div>
+          <label htmlFor="account" className="block mb-2 text-sm font-semibold">Account</label>
+          <input
+            id="account"
+            type="text"
+            className={`w-full px-3 py-2 border rounded-lg electronInput ${accountTouched && !account.trim() ? 'border-red-600' : 'border-neutral-200'}`}
+            placeholder="Enter account name"
+            value={account}
+            onChange={(e) => setAccount(e.target.value)}
+            onBlur={() => setAccountTouched(true)}
+            aria-invalid={accountTouched && !account.trim() ? true : undefined}
+            ref={accountRef}
+          />
+        </div>
+        <div>
           <label htmlFor="source-file-type" className="block mb-2 text-sm font-semibold">Source File Type</label>
-          <select 
+          <select
             id="source-file-type"
             className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput"
             value={sourceFileType}
@@ -953,19 +1017,27 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                 const fieldsInCombinations = fieldCombinations.flatMap((combination: any) =>
                   combination.sourceFields.map((sf: { fieldName: string }) => sf.fieldName)
                 );
-                
+
                 // Filter out both manually combined fields and fields used in combinations
                 const filteredFields = fields.filter(field => field.actions !== 'Combined' && !fieldsInCombinations.includes(field.sourceField));
-                
+
+                // Calculate used target fields (targets already selected by other fields or combinations)
+                const usedByRegularFields = filteredFields.map(f => f.targetField).filter(Boolean);
+                const usedByCombinations = fieldCombinations.map((c: any) => c.targetField).filter(Boolean);
+                const usedByManualCombined = fields.filter(f => f.actions === 'Combined').map(f => f.targetField).filter(Boolean);
+                const usedTargetFields = [...new Set([...usedByRegularFields, ...usedByCombinations, ...usedByManualCombined])];
+
                 return filteredFields.map((field, index) => (
-                  <FieldRow 
-                    key={field.id} 
-                    field={field} 
+                  <FieldRow
+                    key={field.id}
+                    field={field}
                     index={index}
                     fields={filteredFields}
                     onChangeField={handleFieldChange}
                     onDeleteField={handleDeleteField}
+                    onEditCombination={handleEditLegacyCombination}
                     availableTargetFields={availableTargetFields}
+                    usedTargetFields={usedTargetFields}
                     hasDefaultExportTemplate={!!defaultExportTemplate}
                     onTargetBlur={markTouched}
                     isTargetError={touchedTargetFields[field.id] && !field.targetField}
@@ -1060,40 +1132,25 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         <td className="pl-4 pr-0 py-4 text-sm align-middle border-0" rowSpan={groupFields.length}>
                           <div className="flex items-center">
                             <div className="flex gap-3 items-center">
-                              <button 
+                              <button
                                 className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                                 title="Edit combination"
-                                onClick={() => {
-                                  // Handle edit combination logic
-                                  console.log('Edit combination clicked for grouped fields');
-                                }}
+                                onClick={() => handleEditLegacyCombination(groupFields[0]?.targetField)}
                               >
                                 <FontAwesomeIcon icon={faPenToSquare} className="text-neutral-600 text-xs" />
                               </button>
-                              <button 
+                              <button
                                 className="p-1 hover:bg-neutral-100 rounded transition-all duration-200"
                                 title="Delete combination"
-                                                                 onClick={() => {
-                                   console.log('🗑️ Delete button clicked for manually combined field group');
-                                   console.log('📊 Group fields to reset:', groupFields.map((f: any) => ({ id: f.id, sourceField: f.sourceField, targetField: f.targetField })));
-                                   
-                                   // When deleting a manually combined field group, restore the individual fields
-                                   // by changing their actions back to empty (not combined)
-                                   const fieldIdsToUpdate = groupFields.map((f: any) => f.id);
-                                   console.log('🔄 Field IDs to update:', fieldIdsToUpdate);
-                                   
-                                   setFields(prevFields => {
-                                     const newFields = prevFields.map(field => 
-                                       fieldIdsToUpdate.includes(field.id) 
-                                         ? { ...field, actions: '', targetField: '' } // Reset to individual fields
-                                         : field
-                                     );
-                                     console.log('📊 Fields after reset:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions, targetField: f.targetField })));
-                                     return newFields;
-                                   });
-                                   
-                                   console.log('✅ Manual combination delete completed');
-                                 }}
+                                onClick={() => {
+                                  // Restore individual fields by resetting their actions
+                                  const fieldIdsToUpdate = groupFields.map((f: any) => f.id);
+                                  setFields(prevFields => prevFields.map(field =>
+                                    fieldIdsToUpdate.includes(field.id)
+                                      ? { ...field, actions: '', targetField: '' }
+                                      : field
+                                  ));
+                                }}
                               >
                                 <FontAwesomeIcon icon={faTrash} className="text-neutral-600 text-xs" />
                               </button>
@@ -1247,68 +1304,49 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                title="Delete combination"
                                data-testid="delete-combination-button"
                                                                onClick={() => {
-                                  console.log('🗑️ Delete button clicked for combination:', combination.id);
-                                  console.log('📊 Current fields:', fields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
-                                  console.log('🔗 Combination to delete:', combination);
-                                  
                                   // Set the deleting flag to prevent the useEffect from re-adding the combination
                                   setIsDeletingCombination(true);
-                                  
+
                                   // Track this combination as deleted to prevent it from being re-added
                                   deletedCombinationIds.current.add(combination.id);
-                                  console.log('🚫 Added combination ID to deleted set:', combination.id);
-                                  
+
                                   // When deleting a field combination, restore the individual source fields
                                   // back to the fields array so they "explode" back into single lines
                                   // But only if they don't already exist in the fields array
                                   const existingFieldNames = fields.map(f => f.sourceField);
-                                  console.log('📝 Existing field names:', existingFieldNames);
-                                  
-                                                                     const sourceFieldsToRestore = combination.sourceFields
-                                     .filter((sourceField: any) => !existingFieldNames.includes(sourceField.fieldName))
-                                     .map((sourceField: any) => {
-                                       // Try to find the actual field data from the parsed file
-                                       const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
-                                                                               const sampleData = actualField && actualField.sampleData 
-                                          ? actualField.sampleData 
-                                          : sourceField.fieldName; // Use the actual field name as fallback
-                                       
-                                       return {
-                                         id: `restored_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
-                                         sourceField: sourceField.fieldName,
-                                         dataType: actualField?.dataType || 'Text' as const,
-                                         sampleData,
-                                         targetField: '', // User will need to map this again
-                                         actions: '' // No longer combined
-                                       };
-                                     });
-                                  
-                                  console.log('🔄 Fields to restore:', sourceFieldsToRestore);
-                                  
+
+                                  const sourceFieldsToRestore = combination.sourceFields
+                                    .filter((sourceField: any) => !existingFieldNames.includes(sourceField.fieldName))
+                                    .map((sourceField: any) => {
+                                      // Try to find the actual field data from the parsed file
+                                      const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
+                                      const sampleData = actualField && actualField.sampleData
+                                        ? actualField.sampleData
+                                        : sourceField.fieldName; // Use the actual field name as fallback
+
+                                      return {
+                                        id: `restored_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
+                                        sourceField: sourceField.fieldName,
+                                        dataType: actualField?.dataType || 'Text' as const,
+                                        sampleData,
+                                        targetField: '', // User will need to map this again
+                                        actions: '' // No longer combined
+                                      };
+                                    });
+
                                   // Add the restored fields to the fields array (only if there are any to add)
                                   if (sourceFieldsToRestore.length > 0) {
-                                    console.log('➕ Adding restored fields to fields array');
-                                    setFields(prevFields => {
-                                      const newFields = [...prevFields, ...sourceFieldsToRestore];
-                                      console.log('📊 New fields array:', newFields.map(f => ({ sourceField: f.sourceField, actions: f.actions })));
-                                      return newFields;
-                                    });
-                                  } else {
-                                    console.log('⚠️ No fields to restore (all already exist)');
+                                    setFields(prevFields => [...prevFields, ...sourceFieldsToRestore]);
                                   }
-                                  
+
                                   // Remove the field combination from the state
-                                  console.log('🗑️ Removing combination from fieldCombinations');
-                                  setFieldCombinations(prevCombinations => {
-                                    const newCombinations = prevCombinations.filter(c => c.id !== combination.id);
-                                    console.log('📊 New fieldCombinations array:', newCombinations);
-                                    return newCombinations;
-                                  });
-                                  
+                                  setFieldCombinations(prevCombinations =>
+                                    prevCombinations.filter(c => c.id !== combination.id)
+                                  );
+
                                   // Reset the deleting flag after a short delay to allow state updates to complete
                                   setTimeout(() => {
                                     setIsDeletingCombination(false);
-                                    console.log('✅ Delete operation completed and flag reset');
                                   }, 100);
                                 }}
                              >

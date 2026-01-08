@@ -8,6 +8,8 @@ interface SearchAndFiltersProps {
   onAccountChange: (value: string) => void;
   selectedFileType: string;
   onFileTypeChange: (value: string) => void;
+  accounts?: string[];
+  fileTypes?: string[];
 }
 
 const SearchAndFilters: FC<SearchAndFiltersProps> = ({
@@ -16,10 +18,12 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
   selectedAccount,
   onAccountChange,
   selectedFileType,
-  onFileTypeChange
+  onFileTypeChange,
+  accounts = [],
+  fileTypes = []
 }) => {
-  const accounts = ['All Accounts', 'Account 1', 'Account 2'];
-  const fileTypes = ['All File Types', 'Sales Data', 'Customer Data'];
+  const accountOptions = ['All Accounts', ...accounts];
+  const fileTypeOptions = ['All File Types', ...fileTypes];
 
   return (
     <div className="flex gap-4 items-center">
@@ -51,17 +55,17 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
         onChange={(e) => onAccountChange(e.target.value)}
         className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors min-w-[140px]"
       >
-        {accounts.map(account => (
+        {accountOptions.map(account => (
           <option key={account} value={account}>{account}</option>
         ))}
       </select>
-      
+
       <select
         value={selectedFileType}
         onChange={(e) => onFileTypeChange(e.target.value)}
         className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors min-w-[140px]"
       >
-        {fileTypes.map(fileType => (
+        {fileTypeOptions.map(fileType => (
           <option key={fileType} value={fileType}>{fileType}</option>
         ))}
       </select>
