@@ -79,7 +79,7 @@ Copy and fill in for each new session:
 
 | Date | Feature | Branch | PR | Status |
 |------|---------|--------|----|----|
-| 2026-01-08 | Import Templates UX Round 4 | main | - | Pending commit |
+| 2026-01-08 | Import Templates UX Round 4 | main | 843c2ed | Pushed |
 | 2026-01-08 | Import Templates UX Fixes | feature/import-templates-ux-fixes | #1 | Merged |
 
 ---
