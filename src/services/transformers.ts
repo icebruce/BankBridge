@@ -23,13 +23,13 @@ export const flattenRow = (row: unknown, prefix = '', maxDepth = 5): ParsedRow =
   }
 
   if (Array.isArray(row)) {
-    // Handle arrays - either flatten each item or join as string
+    // Handle arrays - keep arrays for potential explosion, flatten objects
     const result: ParsedRow = {};
     if (row.length === 0) {
       result[prefix || 'array'] = [];
     } else if (row.every(item => typeof item !== 'object')) {
-      // Array of primitives - join as string
-      result[prefix || 'array'] = row.join(', ');
+      // Array of primitives - keep as array (for potential explosion later)
+      result[prefix || 'array'] = row;
     } else {
       // Array of objects - flatten each with index
       row.forEach((item, index) => {

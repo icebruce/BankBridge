@@ -31,23 +31,29 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
   const [delimiter, setDelimiter] = useState<string>('Space');
   const [customDelimiter, setCustomDelimiter] = useState<string>('');
   const [sourceFields, setSourceFields] = useState<SourceField[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Initialize state with editing combination data
+  // Initialize state with editing combination data (only on initial mount or when editingCombination changes)
   useEffect(() => {
     if (editingCombination) {
       setTargetField(editingCombination.targetField);
       setDelimiter(editingCombination.delimiter);
       setCustomDelimiter(editingCombination.customDelimiter || '');
       setSourceFields(editingCombination.sourceFields || []);
-    } else if (availableSourceFields.length > 0 && sourceFields.length === 0) {
-      // Add a default field using the first available field from the parsed file
+    }
+  }, [editingCombination]);
+
+  // Add a default field for new combination mode (only if no fields exist yet)
+  useEffect(() => {
+    if (!editingCombination && availableSourceFields.length > 0 && sourceFields.length === 0) {
       setSourceFields([{
         id: '1',
         fieldName: availableSourceFields[0],
         order: 1
       }]);
     }
-  }, [editingCombination, availableSourceFields, sourceFields.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingCombination, availableSourceFields]);
 
   const delimiterOptions = [
     { value: 'Space', label: 'Space', symbol: ' ' },
@@ -136,15 +142,21 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
 
   const handleSave = () => {
     if (!targetField.trim()) {
-      alert('Please select a target field');
+      setFormError('Target field is required');
       return;
     }
 
-    if (sourceFields.length === 0) {
-      alert('Please add at least one source field');
+    if (sourceFields.length < 2) {
+      setFormError('A combination requires at least 2 source fields');
       return;
     }
 
+    if (delimiter === 'Custom' && !customDelimiter.trim()) {
+      setFormError('Custom delimiter cannot be empty');
+      return;
+    }
+
+    setFormError(null);
     const combination: FieldCombination = {
       id: editingCombination?.id || `field_combination_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
       targetField,
@@ -202,13 +214,21 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
           </div>
         </div>
 
+        {/* Form Error Message */}
+        {formError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {formError}
+          </div>
+        )}
+
         {/* Combination Form */}
         <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
           {/* Target Field and Delimiter */}
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block mb-2 text-sm font-medium text-neutral-700">Target Field</label>
-              <select 
+              <label htmlFor="combination-target-field" className="block mb-2 text-sm font-medium text-neutral-700">Target Field</label>
+              <select
+                id="combination-target-field"
                 className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                 value={targetField}
                 onChange={(e) => setTargetField(e.target.value)}
@@ -220,9 +240,10 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
               </select>
             </div>
             <div>
-              <label className="block mb-2 text-sm font-medium text-neutral-700">Delimiter</label>
+              <label htmlFor="combination-delimiter" className="block mb-2 text-sm font-medium text-neutral-700">Delimiter</label>
               <div className="space-y-2">
-                <select 
+                <select
+                  id="combination-delimiter"
                   className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   value={delimiter}
                   onChange={(e) => setDelimiter(e.target.value)}

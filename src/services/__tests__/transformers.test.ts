@@ -36,10 +36,11 @@ describe('transformers', () => {
       };
 
       const result = flattenRow(input);
-      
+
+      // Arrays of primitives are kept as arrays for potential explosion
       expect(result).toEqual({
-        'tags': 'red, blue, green',
-        'numbers': '1, 2, 3'
+        'tags': ['red', 'blue', 'green'],
+        'numbers': [1, 2, 3]
       });
     });
 

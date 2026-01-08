@@ -7,7 +7,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import csv from '@fast-csv/parse';
 import StreamValues from 'stream-json/streamers/StreamValues';
-import parser from 'stream-json';
 import { fileTypeFromFile } from 'file-type';
 import winston from 'winston';
 
@@ -387,7 +386,6 @@ async function parseJson(
 
   return new Promise((resolve, reject) => {
     const stream = fs.createReadStream(filePath)
-      .pipe(parser())
       .pipe(StreamValues.withParser());
 
     onProgress?.({
@@ -399,60 +397,65 @@ async function parseJson(
 
     stream.on('data', (chunk: any) => {
       try {
-        if (rowCount >= maxRows) return;
+        const chunkValue = chunk.value;
 
-        rowCount++;
-        stats.totalRows++;
+        // Handle JSON arrays - process each element
+        const items = Array.isArray(chunkValue) ? chunkValue : [chunkValue];
 
-        const row = chunk.value;
-        
-        // Apply transformations
-        const flattenedRow = flattenRow(row);
-        const expandedRows = expandNestedLists(flattenedRow, opts.mapping);
+        for (const row of items) {
+          if (rowCount >= maxRows) return;
 
-        // Validate and convert each expanded row
-        for (const expandedRow of expandedRows) {
-          const validation = validateRow(expandedRow, opts.expectedFields);
-          
-          if (validation.isValid) {
-            // Convert values to appropriate types
-            const convertedRow: ParsedRow = {};
-            for (const [key, value] of Object.entries(expandedRow)) {
-              const fieldType = detectDataType([value]);
-              convertedRow[key] = convertValue(value, fieldType);
+          rowCount++;
+          stats.totalRows++;
+
+          // Apply transformations
+          const flattenedRow = flattenRow(row);
+          const expandedRows = expandNestedLists(flattenedRow, opts.mapping);
+
+          // Validate and convert each expanded row
+          for (const expandedRow of expandedRows) {
+            const validation = validateRow(expandedRow, opts.expectedFields);
+
+            if (validation.isValid) {
+              // Convert values to appropriate types
+              const convertedRow: ParsedRow = {};
+              for (const [key, value] of Object.entries(expandedRow)) {
+                const fieldType = detectDataType([value]);
+                convertedRow[key] = convertValue(value, fieldType);
+              }
+
+              data.push(convertedRow);
+              stats.validRows++;
+            } else {
+              rejectRows.push({
+                row: expandedRow,
+                errors: validation.errors,
+                rowNumber: rowCount
+              });
+              stats.rejectedRows++;
+
+              errors.push(new ParseError(
+                ParseErrorCodes.VALIDATION_FAILED,
+                `Row ${rowCount} validation failed: ${validation.errors.join(', ')}`,
+                { row: expandedRow, errors: validation.errors },
+                rowCount
+              ));
             }
-            
-            data.push(convertedRow);
-            stats.validRows++;
-          } else {
-            rejectRows.push({
-              row: expandedRow,
-              errors: validation.errors,
-              rowNumber: rowCount
-            });
-            stats.rejectedRows++;
-            
-            errors.push(new ParseError(
-              ParseErrorCodes.VALIDATION_FAILED,
-              `Row ${rowCount} validation failed: ${validation.errors.join(', ')}`,
-              { row: expandedRow, errors: validation.errors },
-              rowCount
-            ));
           }
-        }
 
-        // Progress update
-        if (rowCount % chunkSize === 0) {
-          onProgress?.({
-            processed: rowCount,
-            total: undefined,
-            phase: 'parsing',
-            currentFile: path.basename(filePath)
-          });
+          // Progress update
+          if (rowCount % chunkSize === 0) {
+            onProgress?.({
+              processed: rowCount,
+              total: undefined,
+              phase: 'parsing',
+              currentFile: path.basename(filePath)
+            });
 
-          // Force garbage collection if enabled
-          if (opts.enableGarbageCollection && global.gc) {
-            global.gc();
+            // Force garbage collection if enabled
+            if (opts.enableGarbageCollection && global.gc) {
+              global.gc();
+            }
           }
         }
 
