@@ -7,10 +7,10 @@ import { registerMasterDataHandlers } from './main/ipcHandlers/masterData';
 
 function createWindow(): void {
   const win = new BrowserWindow({
-    width: 1340,
-    height: 800,
-    minWidth: 1340,
-    minHeight: 700,
+    width: 1680,
+    height: 1210,
+    minWidth: 1680,
+    minHeight: 1210,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
