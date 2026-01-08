@@ -4,7 +4,7 @@ import {
   faFileImport,
   faFileArrowDown,
   faFileExport,
-  faTableList,
+  faGear,
 } from '@fortawesome/free-solid-svg-icons'
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
@@ -22,7 +22,7 @@ const navItems: NavItem[] = [
   { name: 'Process Files',    icon: faFileImport },
   { name: 'Import Templates', icon: faFileArrowDown },
   { name: 'Export Templates', icon: faFileExport },
-  { name: 'Master Data',      icon: faTableList },
+  { name: 'Settings',         icon: faGear },
 ]
 
 const SidebarMenu: React.FC<SidebarMenuProps> = ({ active, onSelect }) => {

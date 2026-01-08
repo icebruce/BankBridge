@@ -4,12 +4,12 @@ import DashboardLayout from './components/Layout/DashboardLayout'
 import ProcessFilesPage from './components/Process files/ProcessFilesPage'
 import ImportTemplatesPage from './components/ImportTemplates/ImportTemplatesPage'
 import ExportTemplatesPage from './components/ExportTemplates/ExportTemplatesPage'
-import MasterDataPage from './components/MasterData/MasterDataPage'
+import { SettingsPage } from './components/Settings'
 import ExampleComponent from './components/ExampleComponent'
 import { attachDebugToWindow } from './services/templateDebugUtils'
 import TemplateDebugPanel from './components/Debug/TemplateDebugPanel'
 
-type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Master Data';
+type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Settings';
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SectionType>('Process Files')
@@ -24,10 +24,10 @@ const App: React.FC = () => {
 
   // Handle sidebar navigation with type checking
   const handleSectionChange = (name: string) => {
-    if (name === 'Process Files' || 
-        name === 'Import Templates' || 
-        name === 'Export Templates' || 
-        name === 'Master Data') {
+    if (name === 'Process Files' ||
+        name === 'Import Templates' ||
+        name === 'Export Templates' ||
+        name === 'Settings') {
       setActiveSection(name);
     }
   };
@@ -87,8 +87,8 @@ const App: React.FC = () => {
               return <ImportTemplatesPage />
             case 'Export Templates':
               return <ExportTemplatesPage />
-            case 'Master Data':
-              return <MasterDataPage />
+            case 'Settings':
+              return <SettingsPage />
           }
         })()}
       </DashboardLayout>
