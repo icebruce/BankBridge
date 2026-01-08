@@ -345,14 +345,15 @@ describe('FileParserService', () => {
 
       // Mock FileReader to throw error
       const originalFileReader = global.FileReader;
-      global.FileReader = class MockFileReader {
-        onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).FileReader = class MockFileReader {
+        onerror: ((ev: ProgressEvent) => void) | null = null;
         readAsArrayBuffer() {
           if (this.onerror) {
             this.onerror(new ProgressEvent('error'));
           }
         }
-      } as any;
+      };
 
       const result = await fileParserService.parseFile(mockFileWithError);
 

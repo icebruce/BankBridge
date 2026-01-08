@@ -14,7 +14,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 import { useParseFile } from '../../ui/hooks/useParseFile';
-import { ParseOpts, ParseResult, ParseProgress } from '../../models/parse';
+import { ParseOpts, ParseResult } from '../../models/parse';
 
 export interface FileParserProps {
   /** Callback when parsing completes successfully */

@@ -96,7 +96,6 @@ class FileParserService {
       const hasQuotedFields = this.detectQuotedFields(lines, delimiter);
       
       // Parse header row
-      const _headerRowIndex = hasHeader ? 0 : -1;
       const headers = hasHeader ? this.parseCSVRow(lines[0], delimiter) : this.generateDefaultHeaders(lines, delimiter);
       
       if (headers.length === 0) {
@@ -422,7 +421,6 @@ class FileParserService {
       const hasHeader = options.hasHeader !== undefined ? options.hasHeader : this.detectHeaderRow(lines, delimiter);
       
       // Parse header row
-      const _headerRowIndex = hasHeader ? 0 : -1;
       const headers = hasHeader ? lines[0].split(delimiter).map(h => h.trim()).filter(h => h) : this.generateDefaultHeaders(lines, delimiter);
       
       if (headers.length === 0) {
@@ -665,7 +663,7 @@ class FileParserService {
     return result;
   }
 
-  private detectQuotedFields(lines: string[], delimiter: string): boolean {
+  private detectQuotedFields(lines: string[], _delimiter: string): boolean {
     // Check first few lines for quoted fields
     const checkLines = Math.min(5, lines.length);
     for (let i = 0; i < checkLines; i++) {

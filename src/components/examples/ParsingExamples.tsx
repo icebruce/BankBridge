@@ -66,7 +66,7 @@ export const BasicParsingExample: React.FC = () => {
  * Example 2: Programmatic Parsing with Quick Parse Hook
  */
 export const QuickParseExample: React.FC = () => {
-  const { parseFromDialog, parseFile } = useQuickParse();
+  const { parseFromDialog } = useQuickParse();
   const [result, setResult] = useState<ParseResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
