@@ -7,8 +7,10 @@ import { registerMasterDataHandlers } from './main/ipcHandlers/masterData';
 
 function createWindow(): void {
   const win = new BrowserWindow({
-    width: 1200,
-    height: 900,
+    width: 1340,
+    height: 800,
+    minWidth: 1340,
+    minHeight: 700,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -22,6 +24,7 @@ function createWindow(): void {
     // Performance optimizations for input responsiveness
     show: false, // Don't show until ready
     titleBarStyle: 'default',
+    center: true, // Center window on screen
   });
 
   // Show window when ready to prevent visual flash
@@ -37,8 +40,6 @@ function createWindow(): void {
   // In development, load from Vite dev server
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5174');
-    // Open DevTools in development
-    win.webContents.openDevTools();
   } else {
     // In production, load the built files
     win.loadFile(path.join(__dirname, '../index.html'));

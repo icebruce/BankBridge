@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faPencil, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faPlus } from '@fortawesome/free-solid-svg-icons';
 import { Account, AccountType } from '../../models/Settings';
 import {
   getAccounts,
@@ -12,6 +12,7 @@ import {
   checkAccountUsage
 } from '../../services/settingsService';
 import AccountFormModal from './AccountFormModal';
+import TableActions, { TableActionPresets } from '../common/TableActions';
 
 interface AccountConfigurationProps {
   onSuccess: (message: string) => void;
@@ -140,20 +141,14 @@ const AccountConfiguration: FC<AccountConfigurationProps> = ({ onSuccess, onErro
     }
   };
 
-  const getAccountTypeBadgeClass = (type?: string) => {
-    switch (type) {
-      case 'checking': return 'bg-blue-100 text-blue-700';
-      case 'savings': return 'bg-green-100 text-green-700';
-      case 'credit': return 'bg-purple-100 text-purple-700';
-      case 'investment': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-neutral-100 text-neutral-600';
-    }
+  const getAccountTypeBadgeClass = () => {
+    return 'bg-blue-100 text-blue-700';
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-neutral-200">
+    <div>
       {/* Section Header */}
-      <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-200">
+      <div className="flex justify-between items-center mb-4">
         <div>
           <h3 className="text-lg font-semibold text-neutral-900">Account Configuration</h3>
           <p className="text-sm text-neutral-500 mt-0.5">
@@ -161,7 +156,7 @@ const AccountConfiguration: FC<AccountConfigurationProps> = ({ onSuccess, onErro
           </p>
         </div>
         <button
-          className="px-4 py-2 bg-neutral-900 text-white rounded-lg flex items-center gap-2 hover:bg-neutral-800 transition-colors font-medium"
+          className="px-4 py-2 bg-neutral-900 text-white rounded-lg flex items-center gap-2 hover:bg-neutral-800 transition-colors font-medium text-sm"
           onClick={handleAddAccount}
         >
           <FontAwesomeIcon icon={faPlus} />
@@ -170,13 +165,13 @@ const AccountConfiguration: FC<AccountConfigurationProps> = ({ onSuccess, onErro
       </div>
 
       {/* Accounts Table */}
-      <div className="px-6 py-4">
+      <div className="border border-neutral-200 rounded-lg overflow-hidden">
         {loading ? (
-          <div className="text-center py-12 text-neutral-500">
+          <div className="py-12 text-center text-neutral-500">
             <div className="animate-pulse">Loading accounts...</div>
           </div>
         ) : accounts.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="py-12 text-center">
             <div className="text-neutral-400 mb-3">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -191,67 +186,56 @@ const AccountConfiguration: FC<AccountConfigurationProps> = ({ onSuccess, onErro
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-6">
-            <table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="bg-neutral-50 border-y border-neutral-200">
-                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                    Institution
-                  </th>
-                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                    Account
-                  </th>
-                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                    Export Display Name
-                  </th>
-                  <th className="text-right py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-neutral-50 border-b border-neutral-200">
+                <th className="text-left px-4 py-3 text-sm font-semibold text-neutral-600">
+                  Institution
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-neutral-600">
+                  Account
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-neutral-600">
+                  Type
+                </th>
+                <th className="text-left px-4 py-3 text-sm font-semibold text-neutral-600">
+                  Export Display Name
+                </th>
+                <th className="text-center px-4 py-3 text-sm font-semibold text-neutral-600">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200">
+              {accounts.map((account) => (
+                <tr key={account.id} className="hover:bg-neutral-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <span className="font-medium text-neutral-900">{account.institutionName}</span>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {account.accountName}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountTypeBadgeClass()}`}>
+                      {getAccountTypeLabel(account.accountType)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {account.exportDisplayName}
+                  </td>
+                  <td className="px-4 py-3">
+                    <TableActions
+                      actions={TableActionPresets.crud(
+                        () => handleEditAccount(account),
+                        () => handleDeleteClick(account)
+                      )}
+                      className="justify-center"
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {accounts.map((account) => (
-                  <tr key={account.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className="py-3.5 px-6 font-medium text-neutral-900">
-                      {account.institutionName}
-                    </td>
-                    <td className="py-3.5 px-6 text-neutral-700">
-                      {account.accountName}
-                    </td>
-                    <td className="py-3.5 px-6">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountTypeBadgeClass(account.accountType)}`}>
-                        {getAccountTypeLabel(account.accountType)}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-6 text-neutral-500 text-sm">
-                      {account.exportDisplayName}
-                    </td>
-                    <td className="py-3.5 px-6 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button
-                          className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
-                          onClick={() => handleEditAccount(account)}
-                          title="Edit account"
-                        >
-                          <FontAwesomeIcon icon={faPencil} className="w-4 h-4" />
-                        </button>
-                        <button
-                          className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          onClick={() => handleDeleteClick(account)}
-                          title="Delete account"
-                        >
-                          <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 

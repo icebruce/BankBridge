@@ -522,6 +522,15 @@ export async function hasMasterData(): Promise<boolean> {
 }
 
 /**
+ * Initialize master data with an empty file (for first-time setup)
+ */
+export async function initializeMasterData(): Promise<MasterDataFile> {
+  const defaultData = createDefaultMasterData();
+  await saveMasterData(defaultData);
+  return defaultData;
+}
+
+/**
  * Get transaction count
  */
 export async function getTransactionCount(): Promise<number> {

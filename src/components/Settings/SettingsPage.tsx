@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import AccountConfiguration from './AccountConfiguration';
+import MasterDataSection from './MasterDataSection';
 
 const SettingsPage: FC = () => {
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -58,21 +59,19 @@ const SettingsPage: FC = () => {
       )}
 
       {/* Account Configuration Section */}
-      <div className="mb-8">
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
         <AccountConfiguration
           onSuccess={handleSuccess}
           onError={handleError}
         />
       </div>
 
-      {/* Master Data Section - Placeholder for Phase 3 */}
+      {/* Master Data Section */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Master Data</h3>
-        </div>
-        <p className="text-neutral-500 text-sm">
-          Master data management coming soon...
-        </p>
+        <MasterDataSection
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
       </div>
     </div>
   );
