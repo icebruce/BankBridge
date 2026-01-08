@@ -12,6 +12,7 @@ export interface ImportTemplate {
   fieldMappings: ImportFieldMapping[];
   isDefault?: boolean;
   fieldCombinations?: FieldCombination[];
+  sourceFields?: string[];  // Store column headers from original file for edit mode
 }
 
 export interface FieldCombination {

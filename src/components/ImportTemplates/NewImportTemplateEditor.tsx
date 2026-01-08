@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -26,6 +26,14 @@ interface ImportFieldType {
   isOverridden?: boolean;
 }
 
+// Helper function to detect ID-like fields that should be hidden by default
+const isLikelyIdField = (fieldName: string): boolean => {
+  const idPatterns = /^(id|_id|key|uuid|guid|offset|index|cursor|token)$/i;
+  const idSuffixes = /(Id|_id|Key|Uuid|Guid|Token)$/;
+  const systemPrefixes = /^(__)/;
+  return idPatterns.test(fieldName) || idSuffixes.test(fieldName) || systemPrefixes.test(fieldName);
+};
+
 interface NewImportTemplateEditorProps {
   onSave: (templateData: any) => void;
   onCancel: () => void;
@@ -38,6 +46,7 @@ interface NewImportTemplateEditorProps {
     updateFieldCombinations: (combinations: FieldCombination[]) => void;
     getFieldCombinations: () => FieldCombination[];
   } | null>;
+  existingTemplates?: ImportTemplate[];
 }
 
 // Simple dropdown for target fields with support for disabled options
@@ -53,12 +62,12 @@ const TargetSelect: FC<{
   onBlur?: () => void;
 }> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, disabledOptions = [], isError, onChange, onBlur }) => (
   <select
-    className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput ${
+    className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput border-l-4 border-l-red-500 ${
       disabled
         ? 'opacity-60 cursor-not-allowed'
         : isError
           ? 'border-red-600 focus:border-red-600 focus:ring-0 focus:outline-none'
-          : 'border-neutral-200'
+          : 'border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none'
     }`}
     value={value}
     onChange={(e) => onChange(e.target.value)}
@@ -199,19 +208,19 @@ const FieldRow = React.memo(({
   // );
   
   return (
-    <tr className={isCombined ? "bg-blue-50 hover:bg-blue-100/50" : "bg-white hover:bg-neutral-50/30"}>
+    <tr className={isCombined ? "bg-neutral-100" : "bg-white hover:bg-neutral-50/30"}>
       <td className="px-4 py-4 text-sm font-medium text-neutral-900">
         <TruncatedText 
           text={field.sourceField} 
           maxLength={18} 
-          className={isCombined ? "font-medium text-blue-900" : "font-medium text-neutral-900"}
+          className="font-medium text-neutral-900"
         />
       </td>
       <td className="px-4 py-4 text-sm text-neutral-600">
         <div className="flex items-center gap-2">
           <select
             aria-label="Data type"
-            className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput"
+            className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             value={field.dataType}
             onChange={(e) => onChangeField(field.id, 'dataType', e.target.value)}
           >
@@ -237,7 +246,7 @@ const FieldRow = React.memo(({
         <TruncatedText 
           text={field.sampleData} 
           maxLength={22} 
-          className={isCombined ? "text-blue-700" : "text-neutral-600"}
+          className="text-neutral-600"
         />
       </td>
       <td className="px-4 py-4 align-middle">
@@ -254,13 +263,17 @@ const FieldRow = React.memo(({
               disabledOptions={usedTargetFields}
               placeholder="Select target field"
             />
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 pointer-events-none select-none" title="Required">*</span>
           </div>
         </div>
         {isCombined && (
           <div className="mt-2 text-sm text-neutral-500 flex items-center">
             <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
-            Concat with space
+            <span className="italic">
+              {fields
+                .filter(f => f.targetField === field.targetField && f.actions === 'Combined')
+                .map(f => f.sampleData || 'N/A')
+                .join(' ') || 'Combined preview'}
+            </span>
           </div>
         )}
       </td>
@@ -284,7 +297,7 @@ const FieldRow = React.memo(({
           </div>
           {field.actions === 'Combined' && (
             <div className="ml-4">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 Combined
               </span>
             </div>
@@ -295,14 +308,15 @@ const FieldRow = React.memo(({
   );
 });
 
-const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({ 
-  onSave, 
-  saveRef, 
+const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
+  onSave,
+  saveRef,
   initialTemplate,
   onAddFieldCombination,
   currentTemplateData,
   defaultExportTemplate,
-  fieldCombinationsRef
+  fieldCombinationsRef,
+  existingTemplates = []
 }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
@@ -322,12 +336,15 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     previewRows: string[][];
   } | null>(null);
 
-  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(true);
   const [fieldCombinations, setFieldCombinations] = useState<any[]>([]);
   const [isDeletingCombination, setIsDeletingCombination] = useState(false);
   const deletedCombinationIds = React.useRef<Set<string>>(new Set());
   const [formError, setFormError] = useState<string | null>(null);
-  
+  const [showHiddenFields, setShowHiddenFields] = useState(false);
+  const [storedSourceFields, setStoredSourceFields] = useState<string[]>([]);
+  const [showAddFieldDropdown, setShowAddFieldDropdown] = useState(false);
+
   // Fields state
   const [fields, setFields] = useState<ImportFieldType[]>([
     { 
@@ -381,6 +398,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const hasUserTypedTemplateName = React.useRef<boolean>(false);
   const templateNameRef = React.useRef<HTMLInputElement | null>(null);
   const accountRef = React.useRef<HTMLInputElement | null>(null);
+  const addFieldDropdownRef = useRef<HTMLDivElement | null>(null);
   const [nameTouched, setNameTouched] = useState<boolean>(false);
   const [accountTouched, setAccountTouched] = useState<boolean>(false);
 
@@ -392,7 +410,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       setSourceFileType(initialTemplate.fileType);
       setStatus(initialTemplate.status || 'Active');
       setFieldCombinations(initialTemplate.fieldCombinations || []);
-      
+
       // Convert field mappings to ImportFieldType format
       const convertedFields: ImportFieldType[] = initialTemplate.fieldMappings.map((mapping, index) => ({
         id: `${Date.now()}_${index}`,
@@ -402,8 +420,18 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         targetField: mapping.targetField,
         actions: ''
       }));
-      
+
       setFields(convertedFields.length > 0 ? convertedFields : []);
+
+      // Initialize stored source fields for edit mode
+      // Use stored sourceFields if available, otherwise extract from field mappings
+      if (initialTemplate.sourceFields && initialTemplate.sourceFields.length > 0) {
+        setStoredSourceFields(initialTemplate.sourceFields);
+      } else {
+        // Backwards compatibility: extract from field mappings
+        const extractedFields = initialTemplate.fieldMappings.map(m => m.sourceField);
+        setStoredSourceFields(extractedFields);
+      }
     } else {
       // Reset form for new template
       setTemplateName('');
@@ -411,13 +439,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       setSourceFileType('CSV File');
       setStatus('Active');
       setUploadedFile(null);
-             setParseError(null);
-       setParseWarnings([]);
-       setParseMetadata(null);
-       
-       setIsPreviewCollapsed(false);
-       setFieldCombinations([]);
-       setFields([]);
+      setParseError(null);
+      setParseWarnings([]);
+      setParseMetadata(null);
+      setIsPreviewCollapsed(true);
+      setFieldCombinations([]);
+      setFields([]);
+      setStoredSourceFields([]);
     }
   }, [initialTemplate]);
 
@@ -464,6 +492,26 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       }
     }
   }, [currentTemplateData, isDeletingCombination, templateName, account]);
+
+  // Click-outside handler for Add Field dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        addFieldDropdownRef.current &&
+        !addFieldDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowAddFieldDropdown(false);
+      }
+    };
+
+    if (showAddFieldDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAddFieldDropdown]);
 
   // No drag and drop needed for this page
   
@@ -513,6 +561,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         
         setFields(convertedFields);
         setFieldCombinations([]); // Clear any existing field combinations
+        // Store all source fields for edit mode (allows adding fields back later)
+        setStoredSourceFields(convertedFields.map(f => f.sourceField));
         
         // Store parse metadata for display
         setParseMetadata({
@@ -613,6 +663,20 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     });
   }, []);
 
+  // Handle adding a field from stored source fields (edit mode)
+  const handleAddFieldFromSource = useCallback((sourceFieldName: string) => {
+    const newField: ImportFieldType = {
+      id: `added_${Date.now()}`,
+      sourceField: sourceFieldName,
+      dataType: 'Text',
+      sampleData: '',
+      targetField: '',
+      actions: ''
+    };
+    setFields(prevFields => [...prevFields, newField]);
+    setShowAddFieldDropdown(false);
+  }, []);
+
   // Handle editing a legacy combined field group
   const handleEditLegacyCombination = useCallback((targetField: string) => {
     // Find all fields in this combined group
@@ -683,6 +747,19 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       return;
     }
 
+    // Duplicate account validation
+    const trimmedAccount = account.trim().toLowerCase();
+    const duplicateTemplate = existingTemplates.find(t =>
+      t.account.toLowerCase() === trimmedAccount &&
+      t.id !== initialTemplate?.id
+    );
+    if (duplicateTemplate) {
+      setAccountTouched(true);
+      setFormError('An import template with this account already exists. Please use a unique account name.');
+      setTimeout(() => accountRef.current?.focus(), 0);
+      return;
+    }
+
     if (fields.length === 0) {
       setFormError('At least one field mapping is required');
       return;
@@ -716,13 +793,19 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       return;
     }
     
+    // Build sourceFields array from current fields (to preserve all parsed fields)
+    const allSourceFields = storedSourceFields.length > 0
+      ? storedSourceFields
+      : fields.map(f => f.sourceField);
+
     const templateData = {
       name: templateName,
       account,
       sourceFileType,
       status,
       fields,
-      fieldCombinations
+      fieldCombinations,
+      sourceFields: allSourceFields
     };
     setFormError(null);
     onSave(templateData);
@@ -733,10 +816,31 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (saveRef) {
       saveRef.current = handleSave;
     }
-  }, [templateName, account, sourceFileType, status, fields, fieldCombinations, saveRef]);
+  }, [templateName, account, sourceFileType, status, fields, fieldCombinations, storedSourceFields, saveRef]);
   
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+      {/* Top-level Status Messages */}
+      {(formError || !defaultExportTemplate || defaultExportTemplate) && (
+        <div className="space-y-3">
+          {formError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{formError}</div>
+          )}
+          {!defaultExportTemplate && (
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-center">
+              <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 mr-3" />
+              <p className="text-sm text-amber-800">No default export template found. Please create and set a default export template to enable field combinations.</p>
+            </div>
+          )}
+          {defaultExportTemplate && (
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex items-center">
+              <span className="mr-2 text-blue-600">ℹ</span>
+              <p className="text-sm text-blue-800">Using default export template: <strong>{defaultExportTemplate.name}</strong></p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Template Configuration */}
       <div className="grid grid-cols-3 gap-4">
         <div>
@@ -744,7 +848,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           <input
             id="template-name"
             type="text"
-            className={`w-full px-3 py-2 border rounded-lg electronInput ${nameTouched && !templateName.trim() ? 'border-red-600' : 'border-neutral-200'}`}
+            className={`w-full px-3 py-2 border rounded-lg electronInput ${
+              nameTouched && !templateName.trim()
+                ? 'border-l-4 border-l-red-500 border-red-600'
+                : 'border-neutral-200'
+            }`}
             placeholder="Enter template name"
             value={templateName}
             onChange={(e) => { hasUserTypedTemplateName.current = true; setTemplateName(e.target.value); }}
@@ -758,7 +866,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           <input
             id="account"
             type="text"
-            className={`w-full px-3 py-2 border rounded-lg electronInput ${accountTouched && !account.trim() ? 'border-red-600' : 'border-neutral-200'}`}
+            className={`w-full px-3 py-2 border rounded-lg electronInput ${
+              accountTouched && !account.trim()
+                ? 'border-l-4 border-l-red-500 border-red-600'
+                : 'border-neutral-200'
+            }`}
             placeholder="Enter account name"
             value={account}
             onChange={(e) => setAccount(e.target.value)}
@@ -771,7 +883,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           <label htmlFor="source-file-type" className="block mb-2 text-sm font-semibold">Source File Type</label>
           <select
             id="source-file-type"
-            className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput"
+            className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
             value={sourceFileType}
             onChange={(e) => setSourceFileType(e.target.value)}
           >
@@ -811,45 +923,74 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           {isParsingFile ? 'Parsing...' : 'Browse Files'}
         </label>
         
-                          {/* File status messages */}
-          {uploadedFile && !isParsingFile && !parseError && (
-            <div className="mt-4 space-y-3">
-              {/* File info */}
+        {/* Consolidated status messages - ordered by severity */}
+        {(uploadedFile || parseError || parseWarnings.length > 0 || isParsingFile) && !isParsingFile && (
+          <div className="mt-4 space-y-3">
+            {/* Error messages first */}
+            {parseError && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start">
+                  <span className="mr-2 text-red-500" aria-hidden="true">❌</span>
+                  <div>
+                    <h4 className="text-sm font-medium text-red-800">Parse Error</h4>
+                    <p className="text-sm text-red-700 mt-1">{parseError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Warnings second */}
+            {parseWarnings.length > 0 && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left">
+                <div className="flex items-center mb-1">
+                  <span className="mr-2" aria-hidden="true">⚠️</span>
+                  <h4 className="text-sm font-medium text-yellow-800">Parse Warnings ({parseWarnings.length})</h4>
+                </div>
+                <div className="ml-8 mt-1 space-y-1">
+                  {parseWarnings.map((warning, index) => (
+                    <p key={index} className="text-sm text-yellow-700">• {warning}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Success info (only when no error) */}
+            {uploadedFile && !parseError && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-left">
                 <div className="flex items-center mb-2">
                   <span className="mr-2" aria-hidden="true">✅</span>
                   <p className="text-sm font-medium text-green-800">File uploaded successfully</p>
                 </div>
-                <div className="ml-10 mb-3">
+                <div className="ml-8 mb-3">
                   <p className="text-sm text-green-700">{uploadedFile.name}</p>
                 </div>
-                
+
                 {/* Parse metadata */}
                 {parseMetadata && (
-                  <div className="ml-10">
-                    <div className="grid grid-cols-2 w-fit gap-x-2 gap-y-0.5 text-xs">
-                      <div className="flex items-center">
-                        <span className="text-green-600 font-medium w-20">Encoding:</span>
+                  <div className="ml-8">
+                    <div className="grid grid-cols-2 w-fit gap-x-6 gap-y-0.5 text-xs">
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">Encoding:</span>
                         <span className="text-green-700">{parseMetadata.encoding}</span>
                       </div>
-                      <div className="flex items-center">
-                        <span className="text-green-600 font-medium w-20">Delimiter:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">Delimiter:</span>
                         <span className="text-green-700">{parseMetadata.delimiter}</span>
                       </div>
-                      <div className="flex items-center">
-                        <span className="text-green-600 font-medium w-20">Header Row:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">Header Row:</span>
                         <span className="text-green-700">
                           {parseMetadata.hasHeader === undefined ? 'Auto-detected' : parseMetadata.hasHeader ? 'Yes' : 'No'}
                         </span>
                       </div>
-                      <div className="flex items-center">
-                        <span className="text-green-600 font-medium w-20">Quoted Fields:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600 font-medium">Quoted Fields:</span>
                         <span className="text-green-700">{parseMetadata.hasQuotedFields ? 'Yes' : 'No'}</span>
                       </div>
                       {parseMetadata.hasBOM && (
                         <>
-                          <div className="flex items-center">
-                            <span className="text-green-600 font-medium w-20">BOM:</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-green-600 font-medium">BOM:</span>
                             <span className="text-green-700">Detected</span>
                           </div>
                           <div></div>
@@ -859,138 +1000,139 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                   </div>
                 )}
               </div>
+            )}
 
-              {/* Parse warnings directly after success box, left-aligned and single icon */}
-              {parseWarnings.length > 0 && (
-                <div className="mt-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left">
-                  <div className="flex items-center mb-1">
-                    <span className="mr-2" aria-hidden="true">⚠️</span>
-                    <h4 className="text-sm font-medium text-yellow-800">Parse Warnings</h4>
-                  </div>
-                  <div className="ml-10 mt-1 space-y-1">
-                    {parseWarnings.map((warning, index) => (
-                      <p key={index} className="text-sm text-yellow-700">• {warning}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Data preview */}
-              {parseMetadata?.previewRows && parseMetadata.previewRows.length > 0 && (
-                <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-                  <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex justify-between items-center">
-                    <h4 className="text-sm font-medium text-neutral-700">📊 Data Preview (First 50 rows)</h4>
-                    <button
-                      onClick={() => setIsPreviewCollapsed(!isPreviewCollapsed)}
-                      className="flex items-center gap-2 text-xs text-neutral-600 hover:text-neutral-800 transition-colors"
+            {/* Data preview (only when no error) */}
+            {!parseError && parseMetadata?.previewRows && parseMetadata.previewRows.length > 0 && (
+              <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex justify-between items-center">
+                  <h4 className="text-sm font-medium text-neutral-700">📊 Data Preview (First 50 rows)</h4>
+                  <button
+                    onClick={() => setIsPreviewCollapsed(!isPreviewCollapsed)}
+                    className="flex items-center gap-2 text-xs text-neutral-600 hover:text-neutral-800 transition-colors"
+                  >
+                    <span>{isPreviewCollapsed ? 'Show Preview' : 'Hide Preview'}</span>
+                    <svg
+                      className={`w-4 h-4 transition-transform ${isPreviewCollapsed ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <span>{isPreviewCollapsed ? 'Show Preview' : 'Hide Preview'}</span>
-                      <svg
-                        className={`w-4 h-4 transition-transform ${isPreviewCollapsed ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-                  {!isPreviewCollapsed && (
-                    <div className="overflow-x-auto max-h-64">
-                      <table className="w-full text-xs">
-                        <thead className="bg-neutral-50">
-                          <tr>
-                            {parseMetadata.previewRows[0]?.map((header, index) => (
-                              <th key={index} className="px-3 py-2 text-left text-neutral-600 font-medium border-b border-neutral-200">
-                                {header}
-                              </th>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {!isPreviewCollapsed && (
+                  <div className="overflow-x-auto max-h-64">
+                    <table className="w-full text-xs">
+                      <thead className="bg-neutral-50">
+                        <tr>
+                          {parseMetadata.previewRows[0]?.map((header, index) => (
+                            <th key={index} className="px-3 py-2 text-left text-neutral-600 font-medium border-b border-neutral-200">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100">
+                        {parseMetadata.previewRows.slice(1).map((row, rowIndex) => (
+                          <tr key={rowIndex} className="hover:bg-neutral-50">
+                            {row.map((cell, cellIndex) => (
+                              <td key={cellIndex} className="px-3 py-2 text-left text-neutral-700 border-b border-neutral-100">
+                                <div className="max-w-32 truncate" title={cell}>
+                                  {cell}
+                                </div>
+                              </td>
                             ))}
                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-neutral-100">
-                          {parseMetadata.previewRows.slice(1).map((row, rowIndex) => (
-                            <tr key={rowIndex} className="hover:bg-neutral-50">
-                              {row.map((cell, cellIndex) => (
-                                <td key={cellIndex} className="px-3 py-2 text-neutral-700 border-b border-neutral-100">
-                                  <div className="max-w-32 truncate" title={cell}>
-                                    {cell}
-                                  </div>
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-           </div>
-         )}
-         
-         {isParsingFile && (
-           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-             <div className="flex items-center">
-               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
-               <p className="text-sm text-blue-700">Parsing file structure...</p>
-             </div>
-           </div>
-         )}
-         
-         {parseError && (
-           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-             <div className="flex items-start">
-               <div className="flex-shrink-0">
-                 <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                   <span className="text-white text-xs font-bold">!</span>
-                 </div>
-               </div>
-               <div className="ml-3">
-                 <h4 className="text-sm font-medium text-red-800">Parse Error</h4>
-                 <p className="text-sm text-red-700 mt-1">{parseError}</p>
-               </div>
-             </div>
-           </div>
-         )}
-         
-         {false && parseWarnings.length > 0 && (
-           <div></div>
-         )}
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isParsingFile && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>
+              <p className="text-sm text-blue-700">Parsing file structure...</p>
+            </div>
+          </div>
+        )}
       </div>
-
-      {formError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{formError}</div>
-      )}
-
-      {/* Warning Message */}
-      {!defaultExportTemplate && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex items-center">
-          <FontAwesomeIcon icon={faExclamationTriangle} className="text-amber-600 mr-3" />
-          <p className="text-sm text-amber-800">No default export template found. Please create and set a default export template to enable field combinations.</p>
-        </div>
-      )}
-      
-      {defaultExportTemplate && (
-        <div className="bg-green-50 border border-green-200 p-4 rounded-lg flex items-center">
-          <FontAwesomeIcon icon={faExclamationTriangle} className="text-green-600 mr-3" />
-          <p className="text-sm text-green-800">Using default export template: <strong>{defaultExportTemplate.name}</strong> for field combinations.</p>
-        </div>
-      )}
 
       {/* Field Mapping Section */}
       <div className="border border-neutral-200 rounded-lg overflow-hidden">
         <div className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
           <h3 className="text-lg font-semibold text-neutral-900">Field Mapping</h3>
-          <Button 
-            variant="tertiary"
-            icon={faPlus}
-            onClick={handleAddFieldCombination}
-            disabled={!defaultExportTemplate || (!uploadedFile && fields.length === 0)}
-            title={!defaultExportTemplate ? "Set a default export template to enable field combinations" : (!uploadedFile && fields.length === 0) ? "Upload a file to enable field combinations" : "Add field combination"}
-          >
-            Add Field Combination
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Add Field button - only show if there are available source fields */}
+            {(() => {
+              const currentFieldNames = fields.map(f => f.sourceField);
+              const availableSourceFields = storedSourceFields.filter(sf => !currentFieldNames.includes(sf));
+              if (availableSourceFields.length === 0) return null;
+              return (
+                <div className="relative" ref={addFieldDropdownRef}>
+                  <Button
+                    variant="tertiary"
+                    icon={faPlus}
+                    onClick={() => setShowAddFieldDropdown(!showAddFieldDropdown)}
+                    title="Add a field from original source file"
+                  >
+                    Add Field ({availableSourceFields.length})
+                  </Button>
+                  {showAddFieldDropdown && (
+                    <div className="absolute right-0 mt-1 w-56 bg-white border border-neutral-200 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                      {availableSourceFields.map(sf => (
+                        <button
+                          key={sf}
+                          className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                          onClick={() => handleAddFieldFromSource(sf)}
+                        >
+                          {sf}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <Button
+              variant="tertiary"
+              icon={faPlus}
+              onClick={handleAddFieldCombination}
+              disabled={!defaultExportTemplate || (!uploadedFile && fields.length === 0)}
+              title={!defaultExportTemplate ? "Set a default export template to enable field combinations" : (!uploadedFile && fields.length === 0) ? "Upload a file to enable field combinations" : "Add field combination"}
+            >
+              Add Field Combination
+            </Button>
+          </div>
         </div>
+
+        {/* Hidden fields toggle */}
+        {(() => {
+          const hiddenFieldCount = fields.filter(field =>
+            field.actions !== 'Combined' && isLikelyIdField(field.sourceField)
+          ).length;
+          if (hiddenFieldCount === 0) return null;
+          return (
+            <div className="mb-2 flex items-center">
+              <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showHiddenFields}
+                  onChange={(e) => setShowHiddenFields(e.target.checked)}
+                  className="rounded border-neutral-300 text-blue-500 focus:ring-blue-500"
+                />
+                Show {hiddenFieldCount} hidden ID field{hiddenFieldCount !== 1 ? 's' : ''}
+              </label>
+            </div>
+          );
+        })()}
 
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[800px]">
@@ -1011,15 +1153,20 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200 bg-white">
-                            {/* Regular field mappings - exclude combined fields and fields used in combinations */}
+              {/* Regular field mappings - exclude combined fields and fields used in combinations */}
               {(() => {
                 // Get all field names that are used in field combinations
                 const fieldsInCombinations = fieldCombinations.flatMap((combination: any) =>
                   combination.sourceFields.map((sf: { fieldName: string }) => sf.fieldName)
                 );
 
-                // Filter out both manually combined fields and fields used in combinations
-                const filteredFields = fields.filter(field => field.actions !== 'Combined' && !fieldsInCombinations.includes(field.sourceField));
+                // Filter out combined fields, fields in combinations, and optionally hidden ID fields
+                const filteredFields = fields.filter(field => {
+                  if (field.actions === 'Combined') return false;
+                  if (fieldsInCombinations.includes(field.sourceField)) return false;
+                  if (!showHiddenFields && isLikelyIdField(field.sourceField)) return false;
+                  return true;
+                });
 
                 // Calculate used target fields (targets already selected by other fields or combinations)
                 const usedByRegularFields = filteredFields.map(f => f.targetField).filter(Boolean);
@@ -1059,19 +1206,19 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                 
                 return Object.entries(groupedCombined).map(([, groupFields]: [string, any]) => 
                   groupFields.map((field: any, index: number) => (
-                    <tr key={field.id} className="bg-blue-50 hover:bg-blue-100/50">
-                      <td className="px-4 py-4 text-sm font-medium text-blue-900">
-                        <TruncatedText 
-                          text={field.sourceField} 
-                          maxLength={18} 
-                          className="font-medium text-blue-900"
+                    <tr key={field.id} className="bg-neutral-100">
+                      <td className="px-4 py-4 text-sm font-medium text-neutral-900">
+                        <TruncatedText
+                          text={field.sourceField}
+                          maxLength={18}
+                          className="font-medium text-neutral-900"
                         />
                       </td>
-                      <td className="px-4 py-4 text-sm text-blue-700">
+                      <td className="px-4 py-4 text-sm text-neutral-600">
                         <div className="flex items-center gap-2">
                           <select
                             aria-label="Data type"
-                            className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput"
+                            className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                             value={field.dataType}
                             onChange={(e) => handleFieldChange(field.id, 'dataType', e.target.value)}
                           >
@@ -1093,11 +1240,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-sm text-blue-700">
-                        <TruncatedText 
-                          text={field.sampleData} 
-                          maxLength={22} 
-                          className="text-blue-700"
+                      <td className="px-4 py-4 text-sm text-neutral-600">
+                        <TruncatedText
+                          text={field.sampleData}
+                          maxLength={22}
+                          className="text-neutral-600"
                         />
                       </td>
                       {/* Target Field column - only render for first field in group */}
@@ -1116,12 +1263,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                   disabledReason={!defaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
                                   placeholder="Select target field"
                                 />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-red-600 pointer-events-none select-none" title="Required">*</span>
                               </div>
                             </div>
                             <div className="mt-6 text-sm text-neutral-500 flex items-center">
                               <FontAwesomeIcon icon={faCode} className="text-neutral-400 mr-2" />
-                              Concat with space
+                              <span className="italic">
+                                {groupFields.map((gf: any) => gf.sampleData || 'N/A').join(' ') || 'Combined preview'}
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -1156,7 +1304,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                               </button>
                             </div>
                             <div className="ml-4 flex items-center gap-2">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                 Combined
                               </span>
                               {(() => {
@@ -1189,15 +1337,15 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               {/* Field combinations created through Field Combination Editor */}
               {fieldCombinations.map((combination) => 
                 combination.sourceFields.map((sourceField: any, index: number) => (
-                  <tr key={`${combination.id}-${sourceField.fieldName}`} className="bg-blue-50 hover:bg-blue-100/50">
-                    <td className="px-4 py-4 text-sm font-medium text-blue-900">
-                      <TruncatedText 
-                        text={sourceField.fieldName} 
-                        maxLength={18} 
-                        className="font-medium text-blue-900"
+                  <tr key={`${combination.id}-${sourceField.fieldName}`} className="bg-neutral-100">
+                    <td className="px-4 py-4 text-sm font-medium text-neutral-900">
+                      <TruncatedText
+                        text={sourceField.fieldName}
+                        maxLength={18}
+                        className="font-medium text-neutral-900"
                       />
                     </td>
-                                         <td className="px-4 py-4 text-sm text-blue-700">
+                    <td className="px-4 py-4 text-sm text-neutral-600">
                       {(() => {
                         const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
                         if (!actualField) return <span>Text</span>;
@@ -1205,7 +1353,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                           <div className="flex items-center gap-2">
                             <select
                               aria-label="Data type"
-                              className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput"
+                              className="w-auto min-w-[110px] px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
                               value={actualField.dataType}
                               onChange={(e) => handleFieldChange(actualField.id, 'dataType', e.target.value)}
                             >
@@ -1229,42 +1377,58 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         );
                       })()}
                     </td>
-                                         <td className="px-4 py-4 text-sm text-blue-700">
-                                               <TruncatedText 
-                          text={(() => {
-                            // Try to find the actual field data from the parsed file
-                            const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
-                            if (actualField && actualField.sampleData) {
-                              return actualField.sampleData;
-                            }
-                            
-                            // If no actual field found, just use the field name itself
-                            // This ensures we show the actual field name from the parsed file
-                            return sourceField.fieldName;
-                          })()} 
-                          maxLength={22} 
-                          className="text-blue-700"
-                        />
-                     </td>
+                    <td className="px-4 py-4 text-sm text-neutral-600">
+                      <TruncatedText
+                        text={(() => {
+                          // Try to find the actual field data from the parsed file
+                          const actualField = fields.find(f => f.sourceField === sourceField.fieldName);
+                          if (actualField && actualField.sampleData) {
+                            return actualField.sampleData;
+                          }
+                          // If no actual field found, just use the field name itself
+                          return sourceField.fieldName;
+                        })()}
+                        maxLength={22}
+                        className="text-neutral-600"
+                      />
+                    </td>
                     {/* Target Field column - only render for first field in combination */}
                     {index === 0 && (
                       <td className="px-4 py-4 align-middle border-0" rowSpan={combination.sourceFields.length}>
                         <div className="h-full flex flex-col justify-center">
                           <div style={{transform: 'translateY(20px)'}}>
-                            <select 
-                              className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                            <select
+                              className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput border-l-4 border-l-red-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
                               value={combination.targetField}
-                              disabled
+                              disabled={!defaultExportTemplate}
+                              title={!defaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
+                              onChange={(e) => {
+                                setFieldCombinations(prevCombinations =>
+                                  prevCombinations.map(c =>
+                                    c.id === combination.id
+                                      ? { ...c, targetField: e.target.value }
+                                      : c
+                                  )
+                                );
+                              }}
                             >
-                              <option value={combination.targetField}>{combination.targetField}</option>
+                              <option value="">Select target field</option>
+                              {availableTargetFields.map(field => (
+                                <option key={field} value={field}>{field}</option>
+                              ))}
                             </select>
                           </div>
                           <div className="mt-6 text-sm text-neutral-500">
-                            <span className="text-xs">
-                              Concat with {combination.delimiter === 'Custom' ? combination.customDelimiter : 
-                                combination.delimiter === 'Space' ? 'space' :
-                                combination.delimiter === 'Comma' ? 'comma' :
-                                combination.delimiter === 'Semicolon' ? 'semicolon' : 'space'}
+                            <span className="text-xs italic">
+                              {(() => {
+                                const delimiter = combination.delimiter === 'Custom' ? combination.customDelimiter :
+                                  combination.delimiter === 'Comma' ? ', ' :
+                                  combination.delimiter === 'Semicolon' ? '; ' : ' ';
+                                return combination.sourceFields.map((sf: any) => {
+                                  const actualField = fields.find(f => f.sourceField === sf.fieldName);
+                                  return actualField?.sampleData || sf.fieldName;
+                                }).join(delimiter) || 'Combined preview';
+                              })()}
                             </span>
                           </div>
                         </div>

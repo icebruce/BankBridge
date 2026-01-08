@@ -776,7 +776,8 @@ describe('NewImportTemplateEditor', () => {
 
       // Should show combination details
       expect(screen.getByText('Combined')).toBeInTheDocument()
-      expect(screen.getByText(/concat with/i)).toBeInTheDocument()
+      // Preview shows concatenated sample values (falls back to field names if no sample data)
+      expect(screen.getByText(/email, phone/i)).toBeInTheDocument()
     })
   })
 }) 

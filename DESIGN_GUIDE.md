@@ -267,11 +267,11 @@ className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral
 <div className="flex items-center space-x-4">
   <div className="flex-1">
     <label className="block text-sm font-semibold text-neutral-600 mb-1">Label</label>
-    <input className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" />
+    <input className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors" />
   </div>
   <div className="flex-1">
     <label className="block text-sm font-semibold text-neutral-600 mb-1">Label</label>
-    <input className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" />
+    <input className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors" />
   </div>
 </div>
 ```
@@ -281,7 +281,7 @@ className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral
 <div className="space-y-4">
   <div>
     <label className="block text-sm font-semibold text-neutral-600 mb-1">Label</label>
-    <input className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" />
+    <input className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors" />
   </div>
 </div>
 ```
@@ -290,19 +290,31 @@ className="px-4 py-2 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral
 
 #### Standard Input
 ```tsx
-className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
 ```
 
 #### Select Dropdown
 ```tsx
-className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
 ```
+
+#### Required Field Indicator
+Use a red left border to indicate required fields (not asterisks). The indicator should only appear when the field is empty/invalid:
+```tsx
+// Conditional red left border - only shows when field is empty after user interaction
+className={`w-full px-3 py-2 border rounded-lg electronInput ${
+  touched && !value.trim()
+    ? 'border-l-4 border-l-red-500 border-red-600'
+    : 'border-neutral-200'
+}`}
+```
+Note: The red left border appears only after the user has interacted with the field (touched) and left it empty. This provides a clear visual indicator without overwhelming new users.
 
 #### Search Input with Icon
 ```tsx
 <div className="relative">
   <input 
-    className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+    className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
     placeholder="Search..."
   />
   <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" width="16" height="16">
@@ -445,12 +457,12 @@ For tables with drag and drop or custom functionality:
     <SearchInput value={searchTerm} onChange={setSearchTerm} />
   </div>
   <div className="w-48">
-    <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+    <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors">
       <option>All Categories</option>
     </select>
   </div>
   <div className="w-48">
-    <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+    <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors">
       <option>All Types</option>
     </select>
   </div>
@@ -604,5 +616,121 @@ All pages should use the `DashboardLayout` component:
 - ✅ Form inside white container
 - ✅ Proper form field styling
 - ✅ Consistent button styling
+
+## Status Messages
+
+### Message Types
+Use these four message types consistently:
+
+| Type | Use Case | Colors |
+|------|----------|--------|
+| **Error** (red) | Validation failures, parse errors, blocking issues | `bg-red-50`, `border-red-200`, `text-red-700/800` |
+| **Warning** (yellow/amber) | Non-blocking issues, cautions | `bg-yellow-50`, `border-yellow-200`, `text-yellow-700/800` |
+| **Success** (green) | Completed actions (file upload, save completed) | `bg-green-50`, `border-green-200`, `text-green-700/800` |
+| **Info** (blue) | Informational messages, current state, help text | `bg-blue-50`, `border-blue-200`, `text-blue-700/800` |
+
+### Consolidated Status Area
+Group status messages in a single container, ordered by severity:
+
+```tsx
+<div className="mt-4 space-y-3">
+  {/* Error messages first */}
+  {error && (
+    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+      <div className="flex items-start">
+        <span className="mr-2 text-red-500">❌</span>
+        <div>
+          <h4 className="text-sm font-medium text-red-800">Error Title</h4>
+          <p className="text-sm text-red-700 mt-1">{error}</p>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Warnings second */}
+  {warnings.length > 0 && (
+    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left">
+      <div className="flex items-center mb-1">
+        <span className="mr-2">⚠️</span>
+        <h4 className="text-sm font-medium text-yellow-800">Warnings ({warnings.length})</h4>
+      </div>
+      <div className="ml-8 mt-1 space-y-1">
+        {warnings.map((w, i) => (
+          <p key={i} className="text-sm text-yellow-700">• {w}</p>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {/* Info messages (current state, helpful information) */}
+  {info && (
+    <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex items-center">
+      <span className="mr-2 text-blue-600">ℹ</span>
+      <p className="text-sm text-blue-800">{info}</p>
+    </div>
+  )}
+
+  {/* Success messages (completed actions) */}
+  {success && (
+    <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-left">
+      <div className="flex items-center mb-2">
+        <span className="mr-2">✅</span>
+        <p className="text-sm font-medium text-green-800">Success message</p>
+      </div>
+    </div>
+  )}
+</div>
+```
+
+## Hidden Field Toggle
+
+### Pattern for Hiding ID Fields
+Auto-hide fields matching ID patterns and provide toggle:
+
+```tsx
+// Helper function to detect ID-like fields
+const isLikelyIdField = (fieldName: string): boolean => {
+  const idPatterns = /^(id|_id|key|uuid|guid|offset|index|cursor|token)$/i;
+  const idSuffixes = /(Id|_id|Key|Uuid|Guid|Token)$/;
+  const systemPrefixes = /^(__)/;
+  return idPatterns.test(fieldName) || idSuffixes.test(fieldName) || systemPrefixes.test(fieldName);
+};
+
+// Toggle UI
+{hiddenFieldCount > 0 && (
+  <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={showHiddenFields}
+      onChange={(e) => setShowHiddenFields(e.target.checked)}
+      className="rounded border-neutral-300 text-blue-500 focus:ring-blue-500"
+    />
+    Show {hiddenFieldCount} hidden ID field{hiddenFieldCount !== 1 ? 's' : ''}
+  </label>
+)}
+```
+
+## Combined Field Rows
+
+### Styling for Combined Fields
+Use neutral background for rows and blue pill style for the "Combined" badge:
+
+```tsx
+// Combined field row - neutral background, no hover effect
+<tr className="bg-neutral-100">
+  <td className="px-4 py-4 text-sm font-medium text-neutral-900">...</td>
+  <td className="px-4 py-4 text-sm text-neutral-600">...</td>
+</tr>
+
+// Combined badge - blue pill style for visual distinction
+<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+  Combined
+</span>
+
+// Real preview (concatenated sample values with delimiter)
+<span className="italic">
+  {fields.map(f => f.sampleData || 'N/A').join(delimiter)}
+</span>
+```
 
 This comprehensive design guide ensures consistency across all pages and components in the BankBridge application. All new pages and components should follow these established patterns. 
