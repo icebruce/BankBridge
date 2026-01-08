@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faPencil, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { Account } from '../../models/Settings';
+import { Account, AccountType } from '../../models/Settings';
 import {
   getAccounts,
   createAccount,
@@ -102,8 +103,7 @@ const AccountConfiguration: FC<AccountConfigurationProps> = ({ onSuccess, onErro
   const handleSaveAccount = useCallback(async (data: {
     institutionName: string;
     accountName: string;
-    exportDisplayName?: string;
-    accountType?: 'checking' | 'savings' | 'credit' | 'investment';
+    accountType: AccountType;
   }) => {
     try {
       if (editingAccount) {
@@ -125,144 +125,199 @@ const AccountConfiguration: FC<AccountConfigurationProps> = ({ onSuccess, onErro
     }
   }, [editingAccount, onSuccess, onError]);
 
-  const handleCancelModal = () => {
+  const handleCancelModal = useCallback(() => {
     setShowModal(false);
     setEditingAccount(null);
-  };
+  }, []);
 
   const getAccountTypeLabel = (type?: string) => {
     switch (type) {
       case 'checking': return 'Checking';
       case 'savings': return 'Savings';
-      case 'credit': return 'Credit';
+      case 'credit': return 'Credit Card';
       case 'investment': return 'Investment';
       default: return '-';
     }
   };
 
+  const getAccountTypeBadgeClass = (type?: string) => {
+    switch (type) {
+      case 'checking': return 'bg-blue-100 text-blue-700';
+      case 'savings': return 'bg-green-100 text-green-700';
+      case 'credit': return 'bg-purple-100 text-purple-700';
+      case 'investment': return 'bg-amber-100 text-amber-700';
+      default: return 'bg-neutral-100 text-neutral-600';
+    }
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-sm border border-neutral-200">
       {/* Section Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Account Configuration</h3>
+      <div className="flex justify-between items-center px-6 py-4 border-b border-neutral-200">
+        <div>
+          <h3 className="text-lg font-semibold text-neutral-900">Account Configuration</h3>
+          <p className="text-sm text-neutral-500 mt-0.5">
+            Manage your financial accounts for importing and exporting transactions
+          </p>
+        </div>
         <button
-          className="px-4 py-2 bg-neutral-900 text-white rounded-lg flex items-center hover:bg-neutral-800 hover:shadow-sm transition-all duration-200"
+          className="px-4 py-2 bg-neutral-900 text-white rounded-lg flex items-center gap-2 hover:bg-neutral-800 transition-colors font-medium"
           onClick={handleAddAccount}
         >
-          <FontAwesomeIcon icon={faPlus} className="mr-2" />
+          <FontAwesomeIcon icon={faPlus} />
           Add Account
         </button>
       </div>
 
       {/* Accounts Table */}
-      {loading ? (
-        <div className="text-center py-8 text-neutral-500">Loading accounts...</div>
-      ) : accounts.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-neutral-500 mb-4">No accounts configured yet.</p>
-          <button
-            className="text-blue-600 hover:text-blue-700 font-medium"
-            onClick={handleAddAccount}
-          >
-            Add your first account
-          </button>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-200">
-                <th className="text-left py-3 px-4 font-medium text-neutral-600">Institution</th>
-                <th className="text-left py-3 px-4 font-medium text-neutral-600">Account</th>
-                <th className="text-left py-3 px-4 font-medium text-neutral-600">Export Display Name</th>
-                <th className="text-left py-3 px-4 font-medium text-neutral-600">Type</th>
-                <th className="text-right py-3 px-4 font-medium text-neutral-600">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.map((account) => (
-                <tr key={account.id} className="border-b border-neutral-100 hover:bg-neutral-50">
-                  <td className="py-3 px-4">{account.institutionName}</td>
-                  <td className="py-3 px-4">{account.accountName}</td>
-                  <td className="py-3 px-4 text-neutral-600">{account.exportDisplayName}</td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-neutral-500">
-                      {getAccountTypeLabel(account.accountType)}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded transition-colors"
-                      onClick={() => handleEditAccount(account)}
-                      title="Edit account"
-                    >
-                      <FontAwesomeIcon icon={faPencil} />
-                    </button>
-                    <button
-                      className="p-2 text-neutral-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors ml-1"
-                      onClick={() => handleDeleteClick(account)}
-                      title="Delete account"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </td>
+      <div className="px-6 py-4">
+        {loading ? (
+          <div className="text-center py-12 text-neutral-500">
+            <div className="animate-pulse">Loading accounts...</div>
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-neutral-400 mb-3">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <p className="text-neutral-600 mb-4">No accounts configured yet</p>
+            <button
+              className="text-blue-600 hover:text-blue-700 font-medium hover:underline"
+              onClick={handleAddAccount}
+            >
+              Add your first account
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-6">
+            <table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="bg-neutral-50 border-y border-neutral-200">
+                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    Institution
+                  </th>
+                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    Account
+                  </th>
+                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="text-left py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    Export Display Name
+                  </th>
+                  <th className="text-right py-3 px-6 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {accounts.map((account) => (
+                  <tr key={account.id} className="hover:bg-neutral-50 transition-colors">
+                    <td className="py-3.5 px-6 font-medium text-neutral-900">
+                      {account.institutionName}
+                    </td>
+                    <td className="py-3.5 px-6 text-neutral-700">
+                      {account.accountName}
+                    </td>
+                    <td className="py-3.5 px-6">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountTypeBadgeClass(account.accountType)}`}>
+                        {getAccountTypeLabel(account.accountType)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-6 text-neutral-500 text-sm">
+                      {account.exportDisplayName}
+                    </td>
+                    <td className="py-3.5 px-6 text-right">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          className="p-2 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors"
+                          onClick={() => handleEditAccount(account)}
+                          title="Edit account"
+                        >
+                          <FontAwesomeIcon icon={faPencil} className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={() => handleDeleteClick(account)}
+                          title="Delete account"
+                        >
+                          <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-      {/* Account Form Modal */}
-      {showModal && (
+      {/* Account Form Modal - Rendered via Portal */}
+      {showModal && createPortal(
         <AccountFormModal
           account={editingAccount}
           onSave={handleSaveAccount}
           onCancel={handleCancelModal}
-        />
+        />,
+        document.body
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deletingAccount && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              {deleteWarning ? 'Cannot Delete Account' : 'Delete Account'}
-            </h3>
+      {/* Delete Confirmation Modal - Rendered via Portal */}
+      {deletingAccount && createPortal(
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-neutral-900 bg-opacity-50 transition-opacity"
+            onClick={handleCancelDelete}
+          />
 
-            {deleteWarning ? (
-              <div className="mb-6">
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4">
-                  {deleteWarning}
-                </div>
-                <p className="text-neutral-600 text-sm">
-                  Please remove or reassign the associated items before deleting this account.
-                </p>
+          {/* Modal Container */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white shadow-2xl">
+              <div className="px-6 py-5">
+                <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+                  {deleteWarning ? 'Cannot Delete Account' : 'Delete Account'}
+                </h3>
+
+                {deleteWarning ? (
+                  <div>
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4 text-sm">
+                      {deleteWarning}
+                    </div>
+                    <p className="text-neutral-600 text-sm">
+                      Please remove or reassign the associated items before deleting this account.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-neutral-600">
+                    Are you sure you want to delete <span className="font-medium">{deletingAccount.institutionName} - {deletingAccount.accountName}</span>? This action cannot be undone.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-neutral-600 mb-6">
-                Are you sure you want to delete the account "{deletingAccount.institutionName} - {deletingAccount.accountName}"? This action cannot be undone.
-              </p>
-            )}
 
-            <div className="flex justify-end gap-3">
-              <button
-                className="px-4 py-2 border border-neutral-200 text-neutral-600 rounded-lg hover:bg-neutral-50 transition-colors"
-                onClick={handleCancelDelete}
-              >
-                {deleteWarning ? 'Close' : 'Cancel'}
-              </button>
-              {!deleteWarning && (
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-neutral-200 bg-neutral-50">
                 <button
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  onClick={handleConfirmDelete}
+                  className="px-4 py-2.5 border border-neutral-300 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors"
+                  onClick={handleCancelDelete}
                 >
-                  Delete
+                  {deleteWarning ? 'Close' : 'Cancel'}
                 </button>
-              )}
+                {!deleteWarning && (
+                  <button
+                    className="px-4 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
+                    onClick={handleConfirmDelete}
+                  >
+                    Delete Account
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
