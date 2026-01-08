@@ -216,7 +216,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
 
         {/* Form Error Message */}
         {formError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
             {formError}
           </div>
         )}
@@ -226,10 +226,10 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
           {/* Target Field and Delimiter */}
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label htmlFor="combination-target-field" className="block mb-2 text-sm font-medium text-neutral-700">Target Field</label>
+              <label htmlFor="combination-target-field" className="block mb-1 text-sm font-semibold text-neutral-600">Target Field</label>
               <select
                 id="combination-target-field"
-                className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full px-3 py-2 border border-neutral-200 rounded-lg border-l-4 border-l-red-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
                 value={targetField}
                 onChange={(e) => setTargetField(e.target.value)}
               >
@@ -240,11 +240,11 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
               </select>
             </div>
             <div>
-              <label htmlFor="combination-delimiter" className="block mb-2 text-sm font-medium text-neutral-700">Delimiter</label>
+              <label htmlFor="combination-delimiter" className="block mb-1 text-sm font-semibold text-neutral-600">Delimiter</label>
               <div className="space-y-2">
                 <select
                   id="combination-delimiter"
-                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
                   value={delimiter}
                   onChange={(e) => setDelimiter(e.target.value)}
                 >
@@ -255,7 +255,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
                 {delimiter === 'Custom' && (
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
                     placeholder="Enter custom delimiter"
                     value={customDelimiter}
                     onChange={(e) => setCustomDelimiter(e.target.value)}
@@ -283,8 +283,8 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
                   <div className="flex items-center justify-center w-8 h-8 bg-neutral-100 rounded-full text-sm font-medium text-neutral-600">
                     {field.order}
                   </div>
-                  <select 
-                    className="flex-1 px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  <select
+                    className="flex-1 px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
                     value={field.fieldName}
                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
                   >

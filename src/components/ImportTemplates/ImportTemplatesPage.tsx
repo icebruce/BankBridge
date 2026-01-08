@@ -311,6 +311,7 @@ const ImportTemplatesPage: FC = () => {
             currentTemplateData={currentTemplateData}
             defaultExportTemplate={defaultExportTemplate}
             fieldCombinationsRef={fieldCombinationsRef}
+            existingTemplates={templates}
           />
         </div>
       ) : (
