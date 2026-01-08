@@ -30,9 +30,21 @@ import Button from '../common/Button';
 interface FieldType {
   id: string;
   name: string;
-  type: 'Text' | 'Number' | 'Date' | 'Currency';
-  format: string;
+  type: 'Text' | 'Date' | 'Currency';
 }
+
+// Helper function to get sample text based on field type
+const getSampleText = (type: FieldType['type']): string => {
+  switch (type) {
+    case 'Date':
+      return '2023-10-16';
+    case 'Currency':
+      return '-58.12';
+    case 'Text':
+    default:
+      return 'Sample text';
+  }
+};
 
 interface NewTemplateEditorProps {
   onSave: (templateData: any) => void;
@@ -42,13 +54,14 @@ interface NewTemplateEditorProps {
 }
 
 // SortableRow component for drag and drop functionality
-const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteField, onMoveField }: { 
+const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteField, onMoveField, showValidation }: {
   field: FieldType;
   index: number;
   fields: FieldType[];
   onChangeField: (id: string, property: keyof FieldType, value: string) => void;
   onDeleteField: (id: string) => void;
   onMoveField: (index: number, direction: 'up' | 'down') => void;
+  showValidation: boolean;
 }) => {
   const {
     attributes,
@@ -68,7 +81,7 @@ const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteF
   };
   
   return (
-    <tr ref={setNodeRef} style={style} className={`${isDragging ? "bg-neutral-50" : "bg-white hover:bg-neutral-50/50"} transition-colors duration-150`}>
+    <tr ref={setNodeRef} style={style} className={`${isDragging ? "bg-neutral-50" : "bg-white hover:bg-neutral-50"} transition-colors duration-150`}>
       <td className="px-4 py-3 text-sm">
         <div {...attributes} {...listeners} className="cursor-move flex justify-center">
           <FontAwesomeIcon 
@@ -78,34 +91,31 @@ const SortableRow = React.memo(({ field, index, fields, onChangeField, onDeleteF
         </div>
       </td>
       <td className="px-4 py-3 text-sm">
-        <input 
-          type="text" 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+        <input
+          type="text"
+          className={`w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
+            showValidation && !field.name.trim() ? 'border-l-4 border-l-red-500' : ''
+          }`}
           value={field.name}
           onChange={(e) => onChangeField(field.id, 'name', e.target.value)}
           placeholder="Field name"
         />
       </td>
       <td className="px-4 py-3 text-sm">
-        <select 
+        <select
           className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           value={field.type}
           onChange={(e) => onChangeField(field.id, 'type', e.target.value as any)}
         >
           <option value="Text">Text</option>
-          <option value="Number">Number</option>
           <option value="Date">Date</option>
           <option value="Currency">Currency</option>
         </select>
       </td>
       <td className="px-4 py-3 text-sm">
-        <input 
-          type="text" 
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-          placeholder="Format pattern"
-          value={field.format}
-          onChange={(e) => onChangeField(field.id, 'format', e.target.value)}
-        />
+        <span className="text-neutral-500 italic">
+          {getSampleText(field.type)}
+        </span>
       </td>
       <td className="px-4 py-3 text-sm text-center">
         <div className="flex justify-center gap-1">
@@ -140,39 +150,58 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
   // Template form state
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
+  const [formError, setFormError] = useState('');
+  const [templateNameTouched, setTemplateNameTouched] = useState(false);
+  const [showFieldValidation, setShowFieldValidation] = useState(false);
   
-  // Fields state
+  // Fields state - Default to Monarch Money's 8 required fields
   const [fields, setFields] = useState<FieldType[]>([
-    { id: '1', name: 'Customer ID', type: 'Text', format: '' },
-    { id: '2', name: 'Transaction Date', type: 'Date', format: 'YYYY-MM-DD' }
+    { id: '1', name: 'Date', type: 'Date' },
+    { id: '2', name: 'Merchant', type: 'Text' },
+    { id: '3', name: 'Category', type: 'Text' },
+    { id: '4', name: 'Account', type: 'Text' },
+    { id: '5', name: 'Original Statement', type: 'Text' },
+    { id: '6', name: 'Notes', type: 'Text' },
+    { id: '7', name: 'Amount', type: 'Currency' },
+    { id: '8', name: 'Tags', type: 'Text' }
   ]);
+
+  // Default Monarch Money fields
+  const defaultMonarchFields: FieldType[] = [
+    { id: '1', name: 'Date', type: 'Date' },
+    { id: '2', name: 'Merchant', type: 'Text' },
+    { id: '3', name: 'Category', type: 'Text' },
+    { id: '4', name: 'Account', type: 'Text' },
+    { id: '5', name: 'Original Statement', type: 'Text' },
+    { id: '6', name: 'Notes', type: 'Text' },
+    { id: '7', name: 'Amount', type: 'Currency' },
+    { id: '8', name: 'Tags', type: 'Text' }
+  ];
 
   // Initialize form with template data when editing
   React.useEffect(() => {
+    // Reset validation state when switching modes
+    setTemplateNameTouched(false);
+    setFormError('');
+    setShowFieldValidation(false);
+
     if (initialTemplate) {
       setTemplateName(initialTemplate.name);
       setDescription(initialTemplate.description);
-      
+
       // Convert field mappings to FieldType format
       const convertedFields: FieldType[] = initialTemplate.fieldMappings.map((mapping, index) => ({
         id: `${Date.now()}_${index}`,
         name: mapping.sourceField,
-        type: 'Text', // Default type, could be enhanced to store actual type
-        format: mapping.transform || ''
+        type: (mapping.dataType as FieldType['type']) || 'Text'
       }));
-      
-      setFields(convertedFields.length > 0 ? convertedFields : [
-        { id: '1', name: 'Customer ID', type: 'Text', format: '' },
-        { id: '2', name: 'Transaction Date', type: 'Date', format: 'YYYY-MM-DD' }
-      ]);
+
+      setFields(convertedFields.length > 0 ? convertedFields : defaultMonarchFields);
     } else {
       // Reset form for new template
       setTemplateName('');
       setDescription('');
-      setFields([
-        { id: '1', name: 'Customer ID', type: 'Text', format: '' },
-        { id: '2', name: 'Transaction Date', type: 'Date', format: 'YYYY-MM-DD' }
-      ]);
+      setFields(defaultMonarchFields);
     }
   }, [initialTemplate]);
   
@@ -189,8 +218,7 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
     const newField: FieldType = {
       id: Date.now().toString(),
       name: '',
-      type: 'Text',
-      format: ''
+      type: 'Text'
     };
     setFields([...fields, newField]);
   };
@@ -238,24 +266,29 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
   
   // Save template
   const handleSave = () => {
+    // Clear any previous error
+    setFormError('');
+
     // Basic validation
     if (!templateName.trim()) {
-      alert('Please enter a template name');
+      setTemplateNameTouched(true);
+      setFormError('Please enter a template name');
       return;
     }
-    
+
     if (fields.length === 0) {
-      alert('Please add at least one field');
+      setFormError('Please add at least one field');
       return;
     }
-    
+
     // Check if all fields have names
     const emptyFields = fields.filter(field => !field.name.trim());
     if (emptyFields.length > 0) {
-      alert('Please fill in all field names');
+      setShowFieldValidation(true);
+      setFormError('Please fill in all field names');
       return;
     }
-    
+
     const templateData = {
       name: templateName,
       description,
@@ -293,7 +326,7 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
               <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 text-center">#</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Field Name</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Type</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Format</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600">Sample</th>
               <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-600 text-center">Actions</th>
             </tr>
           </thead>
@@ -303,14 +336,15 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
               strategy={verticalListSortingStrategy}
             >
               {fields.map((field, index) => (
-                <SortableRow 
-                  key={field.id} 
-                  field={field} 
+                <SortableRow
+                  key={field.id}
+                  field={field}
                   index={index}
                   fields={fields}
                   onChangeField={handleFieldChange}
                   onDeleteField={handleDeleteField}
                   onMoveField={handleMoveField}
+                  showValidation={showFieldValidation}
                 />
               ))}
             </SortableContext>
@@ -322,16 +356,25 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
   
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+      {formError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {formError}
+        </div>
+      )}
+
       <div id="template-config" className="space-y-6">
         <div className="flex items-center space-x-4">
           <div className="flex-1">
             <label className="block text-sm font-semibold text-neutral-600 mb-1">Template Name</label>
-            <input 
-              type="text" 
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" 
+            <input
+              type="text"
+              className={`w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
+                templateNameTouched && !templateName.trim() ? 'border-l-4 border-l-red-500' : ''
+              }`}
               placeholder="Enter template name"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
+              onBlur={() => setTemplateNameTouched(true)}
             />
           </div>
           <div className="flex-1">

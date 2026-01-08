@@ -16,7 +16,16 @@ const ExportTemplatesPage: FC = () => {
   const [filter, setFilter] = useState<string>('');
   const [showNewTemplateEditor, setShowNewTemplateEditor] = useState<boolean>(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const saveTemplateRef = useRef<(() => void) | null>(null);
+
+  // Auto-clear success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   useEffect(() => {
     // Load templates from service
@@ -53,7 +62,7 @@ const ExportTemplatesPage: FC = () => {
       const fieldMappings = templateData.fields.map((field: any) => ({
         sourceField: field.name,
         targetField: field.name,
-        transform: field.format
+        dataType: field.type
       }));
 
       console.log('📋 Field mappings created:', fieldMappings);
@@ -93,7 +102,8 @@ const ExportTemplatesPage: FC = () => {
       // Close the editor and reset editing state
       setShowNewTemplateEditor(false);
       setEditingTemplate(null);
-      
+      setSuccessMessage(editingTemplate ? 'Template updated successfully' : 'Template created successfully');
+
       console.log('🎉 Template saved and UI updated');
     } catch (error) {
       console.error('❌ Error saving template:', error);
@@ -124,10 +134,11 @@ const ExportTemplatesPage: FC = () => {
       const duplicatedTemplate = await duplicateTemplate(template.id);
       
       console.log('✅ Template duplicated successfully:', duplicatedTemplate);
-      
+
       // Add the duplicated template to the list
       setTemplates(prev => [duplicatedTemplate, ...prev]);
-      
+      setSuccessMessage('Template duplicated successfully');
+
     } catch (error) {
       console.error('❌ Error duplicating template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -143,10 +154,11 @@ const ExportTemplatesPage: FC = () => {
       await deleteTemplate(templateId);
       
       console.log('✅ Template deleted successfully');
-      
+
       // Remove the template from the list
       setTemplates(prev => prev.filter(t => t.id !== templateId));
-      
+      setSuccessMessage('Template deleted successfully');
+
     } catch (error) {
       console.error('❌ Error deleting template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -162,13 +174,14 @@ const ExportTemplatesPage: FC = () => {
       await setDefaultTemplate(templateId);
       
       console.log('✅ Default template set successfully');
-      
+
       // Update all templates in the list
       setTemplates(prev => prev.map(t => ({
         ...t,
         isDefault: t.id === templateId
       })));
-      
+      setSuccessMessage('Default template updated successfully');
+
     } catch (error) {
       console.error('❌ Error setting default template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -238,7 +251,13 @@ const ExportTemplatesPage: FC = () => {
       <div id="header" className="mb-8">
         <PageHeader onNew={handleNew} />
       </div>
-      
+
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+          {successMessage}
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
         <SearchInput value={filter} onChange={setFilter} />
         <TemplatesList 

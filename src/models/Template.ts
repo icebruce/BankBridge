@@ -12,5 +12,6 @@ export interface Template {
 export interface FieldMapping {
   sourceField: string;
   targetField: string;
+  dataType?: 'Text' | 'Date' | 'Currency';
   transform?: string;
 } 
