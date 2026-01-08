@@ -12,6 +12,7 @@ Before making changes, read these docs in order:
 3. `TESTING_GUIDE.md` - Test structure, coverage requirements, patterns
 4. `TEMPLATE_STORAGE.md` - How templates are persisted
 5. `ELECTRON_INPUT_FIXES.md` - Electron-specific performance considerations
+6. `docs/DATA_ARCHITECTURE.md` - Data models, storage formats, internal/export field mappings
 
 ## Core Principles
 
@@ -215,5 +216,6 @@ npm run test:coverage # Coverage report
 ## Additional Documentation
 
 - **Full Architecture**: See `CODEBASE_CONTEXT.md` for detailed codebase structure
+- **Data Architecture**: See `docs/DATA_ARCHITECTURE.md` for data models, storage formats, and field mappings
 - **Session History**: See `SESSION_LOG.md` for recent changes and decisions
 - **Design Patterns**: See `DESIGN_GUIDE.md` for UI/UX patterns

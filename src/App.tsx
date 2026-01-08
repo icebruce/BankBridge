@@ -1,33 +1,22 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import SidebarMenu from './components/Layout/SidebarMenu'
 import DashboardLayout from './components/Layout/DashboardLayout'
 import ProcessFilesPage from './components/Process files/ProcessFilesPage'
 import ImportTemplatesPage from './components/ImportTemplates/ImportTemplatesPage'
 import ExportTemplatesPage from './components/ExportTemplates/ExportTemplatesPage'
-import MasterDataPage from './components/MasterData/MasterDataPage'
-import ExampleComponent from './components/ExampleComponent'
-import { attachDebugToWindow } from './services/templateDebugUtils'
-import TemplateDebugPanel from './components/Debug/TemplateDebugPanel'
+import { SettingsPage } from './components/Settings'
 
-type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Master Data';
+type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Settings';
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SectionType>('Process Files')
-  const [showCssTest, setShowCssTest] = useState(true)
-
-  // Initialize debug utilities in development
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      attachDebugToWindow();
-    }
-  }, []);
 
   // Handle sidebar navigation with type checking
   const handleSectionChange = (name: string) => {
-    if (name === 'Process Files' || 
-        name === 'Import Templates' || 
-        name === 'Export Templates' || 
-        name === 'Master Data') {
+    if (name === 'Process Files' ||
+        name === 'Import Templates' ||
+        name === 'Export Templates' ||
+        name === 'Settings') {
       setActiveSection(name);
     }
   };
@@ -62,40 +51,23 @@ const App: React.FC = () => {
   ) : undefined
 
   return (
-    <>
-      <DashboardLayout
-        sidebar={<SidebarMenu active={activeSection} onSelect={handleSectionChange} />}
-        stickyBar={stickyBarContent}
-      >
-        {showCssTest && (
-          <div className="mb-6">
-            <ExampleComponent />
-            <button 
-              onClick={() => setShowCssTest(false)}
-              className="mt-4 px-3 py-1 bg-red-500 text-white rounded"
-            >
-              Hide Test Component
-            </button>
-          </div>
-        )}
-
-        {(() => {
-          switch (activeSection) {
-            case 'Process Files':
-              return <ProcessFilesPage />
-            case 'Import Templates':
-              return <ImportTemplatesPage />
-            case 'Export Templates':
-              return <ExportTemplatesPage />
-            case 'Master Data':
-              return <MasterDataPage />
-          }
-        })()}
-      </DashboardLayout>
-      
-      {/* Debug Panel - only in development */}
-      {process.env.NODE_ENV === 'development' && <TemplateDebugPanel />}
-    </>
+    <DashboardLayout
+      sidebar={<SidebarMenu active={activeSection} onSelect={handleSectionChange} />}
+      stickyBar={stickyBarContent}
+    >
+      {(() => {
+        switch (activeSection) {
+          case 'Process Files':
+            return <ProcessFilesPage />
+          case 'Import Templates':
+            return <ImportTemplatesPage />
+          case 'Export Templates':
+            return <ExportTemplatesPage />
+          case 'Settings':
+            return <SettingsPage />
+        }
+      })()}
+    </DashboardLayout>
   )
 }
 
