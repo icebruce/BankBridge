@@ -112,7 +112,8 @@ describe('NewImportTemplateEditor', () => {
       )
 
       expect(screen.getByLabelText(/template name/i)).toBeInTheDocument()
-      expect(screen.getByLabelText(/source file type/i)).toBeInTheDocument()
+      // Source file type is now read-only text display, not an input
+      expect(screen.getByText(/source file type/i)).toBeInTheDocument()
       expect(screen.getByText('Field Mapping')).toBeInTheDocument()
     })
 
@@ -203,7 +204,8 @@ describe('NewImportTemplateEditor', () => {
       )
 
       expect(screen.getByDisplayValue('Test Import Template')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('CSV File')).toBeInTheDocument()
+      // Source file type is now read-only text, not a select input
+      expect(screen.getByText('CSV File')).toBeInTheDocument()
     })
 
     it('should display existing field combinations', () => {
@@ -332,7 +334,8 @@ describe('NewImportTemplateEditor', () => {
 
       // Should update to show currentTemplateData
       expect(screen.getByDisplayValue('Updated Template')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('JSON File')).toBeInTheDocument()
+      // Source file type is now read-only text, not a select input
+      expect(screen.getByText('JSON File')).toBeInTheDocument()
     })
 
     it('should update field combinations when currentTemplateData changes', () => {

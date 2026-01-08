@@ -240,6 +240,23 @@ className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-80
 className="px-2 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800" // Inactive
 ```
 
+### Scrollable Tables (Fixed Width with Horizontal Scroll)
+```tsx
+// Use this pattern when table has many columns and shouldn't expand the page
+// Outer container - CSS containment prevents size expansion from content
+<div style={{ contain: 'inline-size' }}>
+  {/* Scroll container - width: 0 trick forces respecting parent bounds */}
+  <div style={{ width: '0', minWidth: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: '256px' }}>
+    <table style={{ tableLayout: 'fixed', width: `${columns * 150}px` }}>
+      {/* Fixed column widths */}
+      <th style={{ width: '150px', minWidth: '150px', maxWidth: '150px' }}>
+        <div className="truncate">{header}</div>
+      </th>
+    </table>
+  </div>
+</div>
+```
+
 ## Testing Patterns
 
 ### Structure

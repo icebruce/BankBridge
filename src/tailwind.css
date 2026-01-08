@@ -915,6 +915,10 @@ video {
   table-layout: fixed !important;
 }
 
+.border-collapse {
+  border-collapse: collapse !important;
+}
+
 .-translate-x-1\/2 {
   --tw-translate-x: -50% !important;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y)) !important;
@@ -970,6 +974,10 @@ video {
 
 .items-start {
   align-items: flex-start !important;
+}
+
+.items-end {
+  align-items: flex-end !important;
 }
 
 .items-center {
@@ -1606,6 +1614,10 @@ video {
 
 .italic {
   font-style: italic !important;
+}
+
+.leading-none {
+  line-height: 1 !important;
 }
 
 .text-amber-500 {

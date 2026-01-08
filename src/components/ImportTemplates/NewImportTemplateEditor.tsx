@@ -26,12 +26,28 @@ interface ImportFieldType {
   isOverridden?: boolean;
 }
 
-// Helper function to detect ID-like fields that should be hidden by default
-const isLikelyIdField = (fieldName: string): boolean => {
-  const idPatterns = /^(id|_id|key|uuid|guid|offset|index|cursor|token)$/i;
-  const idSuffixes = /(Id|_id|Key|Uuid|Guid|Token)$/;
-  const systemPrefixes = /^(__)/;
-  return idPatterns.test(fieldName) || idSuffixes.test(fieldName) || systemPrefixes.test(fieldName);
+// Helper function to detect file type from extension
+const detectFileTypeFromExtension = (filename: string): string => {
+  const extension = filename.toLowerCase().split('.').pop() || '';
+  switch (extension) {
+    case 'csv':
+    case 'txt':
+      return 'CSV File';
+    case 'xlsx':
+    case 'xls':
+      return 'Excel File';
+    case 'json':
+      return 'JSON File';
+    case 'xml':
+      return 'XML File';
+    default:
+      return 'CSV File'; // Default fallback
+  }
+};
+
+// Helper function to check if a field has empty sample data
+const isEmptyField = (field: ImportFieldType): boolean => {
+  return !field.sampleData || field.sampleData.trim() === '';
 };
 
 interface NewImportTemplateEditorProps {
@@ -62,7 +78,9 @@ const TargetSelect: FC<{
   onBlur?: () => void;
 }> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, disabledOptions = [], isError, onChange, onBlur }) => (
   <select
-    className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput border-l-4 border-l-red-500 ${
+    className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput ${
+      !value ? 'border-l-4 border-l-red-500' : ''
+    } ${
       disabled
         ? 'opacity-60 cursor-not-allowed'
         : isError
@@ -381,9 +399,6 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     }
   ]);
 
-  // Available file types
-  const fileTypes = ['CSV File', 'Excel File', 'JSON File', 'XML File'];
-
   // Derive available target fields from the selected export template
   const availableTargetFields: string[] = (defaultExportTemplate?.fieldMappings || [])
     .map(m => m.targetField)
@@ -530,6 +545,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     setParseError(null);
     setParseWarnings([]);
     setUploadedFile(file);
+
+    // Auto-detect file type from extension
+    const detectedFileType = detectFileTypeFromExtension(file.name);
+    setSourceFileType(detectedFileType);
 
     // Check file size limit
     const maxSizeBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -819,7 +838,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   }, [templateName, account, sourceFileType, status, fields, fieldCombinations, storedSourceFields, saveRef]);
   
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+    <div className="bg-white rounded-lg shadow-sm p-6 space-y-6 overflow-hidden">
       {/* Top-level Status Messages */}
       {(formError || !defaultExportTemplate || defaultExportTemplate) && (
         <div className="space-y-3">
@@ -880,32 +899,40 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           />
         </div>
         <div>
-          <label htmlFor="source-file-type" className="block mb-2 text-sm font-semibold">Source File Type</label>
-          <select
-            id="source-file-type"
-            className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
-            value={sourceFileType}
-            onChange={(e) => setSourceFileType(e.target.value)}
-          >
-            {fileTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
+          <label className="block mb-2 text-sm font-semibold">Source File Type</label>
+          <div className="w-full px-3 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-700">
+            {sourceFileType || <span className="text-neutral-400 italic">Auto-detected from file</span>}
+          </div>
         </div>
       </div>
 
-      {/* File Upload Section */}
-      <div 
-        className="border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center"
+      {/* File Upload Section - Hidden in edit mode */}
+      {initialTemplate ? (
+        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-neutral-100 rounded-lg">
+              <FontAwesomeIcon icon={faCloudArrowUp} className="text-xl text-neutral-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-neutral-700">Source File Configuration</p>
+              <p className="text-sm text-neutral-500">
+                {sourceFileType} • {fields.length} field{fields.length !== 1 ? 's' : ''} mapped
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+      <div
+        className="border-2 border-dashed border-neutral-200 rounded-lg p-8 text-center overflow-hidden"
         onDrop={handleFileDrop}
         onDragOver={handleDragOver}
       >
         <FontAwesomeIcon icon={faCloudArrowUp} className="text-4xl text-neutral-400 mb-3" />
         <p className="mb-2">Drag and drop your file here, or click to browse</p>
-                 <p className="text-sm text-neutral-500 mb-4">Supported formats: .csv, .txt</p>
-         
+                 <p className="text-sm text-neutral-500 mb-4">Supported formats: .csv, .txt, .json</p>
 
-         
+
+
          <input
            type="file"
            accept=".csv,.txt,.json"
@@ -925,7 +952,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         
         {/* Consolidated status messages - ordered by severity */}
         {(uploadedFile || parseError || parseWarnings.length > 0 || isParsingFile) && !isParsingFile && (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-3 w-full overflow-hidden">
             {/* Error messages first */}
             {parseError && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -1004,9 +1031,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
 
             {/* Data preview (only when no error) */}
             {!parseError && parseMetadata?.previewRows && parseMetadata.previewRows.length > 0 && (
-              <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+              <div className="bg-white border border-neutral-200 rounded-lg text-left" style={{ contain: 'inline-size' }}>
                 <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex justify-between items-center">
-                  <h4 className="text-sm font-medium text-neutral-700">📊 Data Preview (First 50 rows)</h4>
+                  <h4 className="text-sm font-medium text-neutral-700">Data Preview (First 50 rows)</h4>
                   <button
                     onClick={() => setIsPreviewCollapsed(!isPreviewCollapsed)}
                     className="flex items-center gap-2 text-xs text-neutral-600 hover:text-neutral-800 transition-colors"
@@ -1023,13 +1050,20 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                   </button>
                 </div>
                 {!isPreviewCollapsed && (
-                  <div className="overflow-x-auto max-h-64">
-                    <table className="w-full text-xs">
-                      <thead className="bg-neutral-50">
+                  <div style={{ width: '0', minWidth: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: '256px' }}>
+                    <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: `${(parseMetadata.previewRows[0]?.length || 1) * 150}px` }}>
+                      <thead className="bg-neutral-50 sticky top-0">
                         <tr>
                           {parseMetadata.previewRows[0]?.map((header, index) => (
-                            <th key={index} className="px-3 py-2 text-left text-neutral-600 font-medium border-b border-neutral-200">
-                              {header}
+                            <th
+                              key={index}
+                              className="px-3 py-2 text-left text-neutral-600 font-medium border-b border-neutral-200 bg-neutral-50"
+                              style={{ width: '150px', minWidth: '150px', maxWidth: '150px' }}
+                              title={header}
+                            >
+                              <div className="truncate">
+                                {header}
+                              </div>
                             </th>
                           ))}
                         </tr>
@@ -1038,8 +1072,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         {parseMetadata.previewRows.slice(1).map((row, rowIndex) => (
                           <tr key={rowIndex} className="hover:bg-neutral-50">
                             {row.map((cell, cellIndex) => (
-                              <td key={cellIndex} className="px-3 py-2 text-left text-neutral-700 border-b border-neutral-100">
-                                <div className="max-w-32 truncate" title={cell}>
+                              <td
+                                key={cellIndex}
+                                className="px-3 py-2 text-left text-neutral-700 border-b border-neutral-100"
+                                style={{ width: '150px', minWidth: '150px', maxWidth: '150px' }}
+                                title={cell}
+                              >
+                                <div className="truncate">
                                   {cell}
                                 </div>
                               </td>
@@ -1064,11 +1103,32 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Field Mapping Section */}
       <div className="border border-neutral-200 rounded-lg overflow-hidden">
         <div className="px-4 py-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-neutral-900">Field Mapping</h3>
+          <div className="flex items-end gap-4">
+            <h3 className="text-lg font-semibold text-neutral-900 leading-none">Field Mapping</h3>
+            {/* Empty fields toggle - inline with title */}
+            {(() => {
+              const emptyFieldCount = fields.filter(field =>
+                field.actions !== 'Combined' && isEmptyField(field)
+              ).length;
+              if (emptyFieldCount === 0) return null;
+              return (
+                <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer leading-none">
+                  <input
+                    type="checkbox"
+                    checked={showHiddenFields}
+                    onChange={(e) => setShowHiddenFields(e.target.checked)}
+                    className="rounded border-neutral-300 text-blue-500 focus:ring-blue-500"
+                  />
+                  Show {emptyFieldCount} empty field{emptyFieldCount !== 1 ? 's' : ''}
+                </label>
+              );
+            })()}
+          </div>
           <div className="flex items-center gap-2">
             {/* Add Field button - only show if there are available source fields */}
             {(() => {
@@ -1113,26 +1173,6 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           </div>
         </div>
 
-        {/* Hidden fields toggle */}
-        {(() => {
-          const hiddenFieldCount = fields.filter(field =>
-            field.actions !== 'Combined' && isLikelyIdField(field.sourceField)
-          ).length;
-          if (hiddenFieldCount === 0) return null;
-          return (
-            <div className="mb-2 flex items-center">
-              <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showHiddenFields}
-                  onChange={(e) => setShowHiddenFields(e.target.checked)}
-                  className="rounded border-neutral-300 text-blue-500 focus:ring-blue-500"
-                />
-                Show {hiddenFieldCount} hidden ID field{hiddenFieldCount !== 1 ? 's' : ''}
-              </label>
-            </div>
-          );
-        })()}
 
         <div className="overflow-x-auto">
           <table className="w-full table-fixed min-w-[800px]">
@@ -1160,11 +1200,11 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                   combination.sourceFields.map((sf: { fieldName: string }) => sf.fieldName)
                 );
 
-                // Filter out combined fields, fields in combinations, and optionally hidden ID fields
+                // Filter out combined fields, fields in combinations, and optionally empty fields
                 const filteredFields = fields.filter(field => {
                   if (field.actions === 'Combined') return false;
                   if (fieldsInCombinations.includes(field.sourceField)) return false;
-                  if (!showHiddenFields && isLikelyIdField(field.sourceField)) return false;
+                  if (!showHiddenFields && isEmptyField(field)) return false;
                   return true;
                 });
 
@@ -1398,7 +1438,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                         <div className="h-full flex flex-col justify-center">
                           <div style={{transform: 'translateY(20px)'}}>
                             <select
-                              className="w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput border-l-4 border-l-red-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors"
+                              className={`w-full px-3 py-1.5 text-sm border border-neutral-200 rounded-lg electronInput ${
+                                !combination.targetField ? 'border-l-4 border-l-red-500' : ''
+                              } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors`}
                               value={combination.targetField}
                               disabled={!defaultExportTemplate}
                               title={!defaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}

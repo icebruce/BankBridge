@@ -31,10 +31,17 @@ Do this BEFORE starting implementation.
 - Only build what's requested
 
 ### Documentation Must Stay Current
-When implementing features or making design changes:
-- Update relevant documentation files
-- Add new docs for new features
-- Keep examples accurate and working
+After completing a full implementation (not after every small change):
+1. **Ask the user** when the right time is to update documentation
+2. **Update these files as needed:**
+   - `SESSION_LOG.md` - Add entry with changes, decisions, and any new patterns discovered
+   - `CODEBASE_CONTEXT.md` - Update if new UI/UX patterns, CSS tricks, or architectural patterns were used
+   - `DESIGN_GUIDE.md` - Update if new styling conventions were established
+   - Test files - Ensure tests reflect the new behavior
+3. **For UI/UX changes specifically:**
+   - Document any new CSS patterns (e.g., scrollable tables, form validation styles)
+   - Update styling quick reference if new reusable patterns emerged
+   - Ensure component tests cover the new UI behavior
 
 ## Code Standards
 

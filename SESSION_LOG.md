@@ -4,6 +4,35 @@ Track changes and decisions made across Claude Code sessions.
 
 ---
 
+## 2026-01-08 - Import Templates UX Round 4
+
+**Changes:**
+- `NewImportTemplateEditor.tsx`: Multiple UX improvements
+  - Red indicator now conditional (only shows when target field is empty)
+  - Source file type auto-detected from file extension (dropdown replaced with read-only display)
+  - File upload section hidden in edit mode (shows summary instead)
+  - Data preview table fixed width with horizontal scroll (uses `contain: inline-size` and `width: 0; min-width: 100%` CSS trick)
+  - "Show ID fields" toggle replaced with "Show empty fields" toggle, moved inline with Field Mapping title
+- `NewImportTemplateEditor.test.tsx`: Updated tests for read-only file type display
+
+**Decisions Made:**
+- Credit/debit sign inversion should be handled in processing phase, not field mapping
+- Empty fields toggle more useful than ID fields toggle for JSON files with sparse data
+- Used CSS containment (`contain: inline-size`) to prevent table from expanding page
+
+**CSS Pattern for Contained Scrollable Tables:**
+```tsx
+// Outer container - prevents size expansion from content
+<div style={{ contain: 'inline-size' }}>
+  // Scroll container - width: 0 trick forces respecting parent bounds
+  <div style={{ width: '0', minWidth: '100%', overflowX: 'auto' }}>
+    <table style={{ width: `${columns * 150}px` }}>...</table>
+  </div>
+</div>
+```
+
+---
+
 ## 2026-01-08 - Workflow Optimization
 
 **Changes:**
@@ -50,6 +79,7 @@ Copy and fill in for each new session:
 
 | Date | Feature | Branch | PR | Status |
 |------|---------|--------|----|----|
+| 2026-01-08 | Import Templates UX Round 4 | main | - | Pending commit |
 | 2026-01-08 | Import Templates UX Fixes | feature/import-templates-ux-fixes | #1 | Merged |
 
 ---
