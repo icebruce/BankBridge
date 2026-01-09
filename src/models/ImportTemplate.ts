@@ -3,7 +3,10 @@ export interface ImportTemplate {
   name: string;
   description?: string;
   fieldCount: number;
+  /** @deprecated Use accountId instead. Kept for backward compatibility. */
   account: string;
+  /** References Account.id from Settings - the primary way to link to an account */
+  accountId?: string;
   fileType: string;
   createdAt: string;
   updatedAt: string;

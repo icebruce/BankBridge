@@ -1,36 +1,10 @@
-import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import AccountConfiguration from './AccountConfiguration';
 import MasterDataSection from './MasterDataSection';
+import { useToast, ToastContainer } from '../common/Toast';
 
 const SettingsPage: FC = () => {
-  const [successMessage, setSuccessMessage] = useState<string>('');
-  const [errorMessage, setErrorMessage] = useState<string>('');
-
-  // Auto-clear messages after 5 seconds
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(''), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  useEffect(() => {
-    if (errorMessage) {
-      const timer = setTimeout(() => setErrorMessage(''), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [errorMessage]);
-
-  const handleSuccess = (message: string) => {
-    setSuccessMessage(message);
-    setErrorMessage('');
-  };
-
-  const handleError = (message: string) => {
-    setErrorMessage(message);
-    setSuccessMessage('');
-  };
+  const { toasts, removeToast, showSuccess, showError } = useToast();
 
   return (
     <div>
@@ -44,35 +18,24 @@ const SettingsPage: FC = () => {
         </div>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Error Message */}
-      {errorMessage && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-          {errorMessage}
-        </div>
-      )}
-
       {/* Account Configuration Section */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
         <AccountConfiguration
-          onSuccess={handleSuccess}
-          onError={handleError}
+          onSuccess={showSuccess}
+          onError={showError}
         />
       </div>
 
       {/* Master Data Section */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <MasterDataSection
-          onSuccess={handleSuccess}
-          onError={handleError}
+          onSuccess={showSuccess}
+          onError={showError}
         />
       </div>
+
+      {/* Fixed-position Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };

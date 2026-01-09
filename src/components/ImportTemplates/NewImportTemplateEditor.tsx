@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faPlus, 
+import {
+  faPlus,
   faTrash,
   faCloudArrowUp,
   faExclamationTriangle,
   faPenToSquare,
-  faCode
+  faCode,
+  faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate, FieldCombination } from '../../models/ImportTemplate';
 import { Template } from '../../models/Template';
+import { Account } from '../../models/Settings';
 import { fileParserService } from '../../services/fileParserService';
 import Button from '../common/Button';
 
@@ -63,6 +65,7 @@ interface NewImportTemplateEditorProps {
     getFieldCombinations: () => FieldCombination[];
   } | null>;
   existingTemplates?: ImportTemplate[];
+  accounts?: Account[];
 }
 
 // Simple dropdown for target fields with support for disabled options
@@ -334,11 +337,12 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   currentTemplateData,
   defaultExportTemplate,
   fieldCombinationsRef,
-  existingTemplates = []
+  existingTemplates = [],
+  accounts = []
 }) => {
   // Template form state
   const [templateName, setTemplateName] = useState('');
-  const [account, setAccount] = useState('');
+  const [accountId, setAccountId] = useState('');
   const [sourceFileType, setSourceFileType] = useState('CSV File');
   const [status, setStatus] = useState<'Active' | 'Inactive' | 'Draft'>('Active');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -421,7 +425,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   useEffect(() => {
     if (initialTemplate) {
       setTemplateName(initialTemplate.name);
-      setAccount(initialTemplate.account || '');
+      // Use accountId if available, otherwise leave empty (legacy templates)
+      setAccountId(initialTemplate.accountId || '');
       setSourceFileType(initialTemplate.fileType);
       setStatus(initialTemplate.status || 'Active');
       setFieldCombinations(initialTemplate.fieldCombinations || []);
@@ -450,7 +455,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     } else {
       // Reset form for new template
       setTemplateName('');
-      setAccount('');
+      setAccountId('');
       setSourceFileType('CSV File');
       setStatus('Active');
       setUploadedFile(null);
@@ -490,9 +495,9 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       if (!hasUserTypedTemplateName.current && (templateName ?? '').trim() === '' && (currentTemplateData.name ?? '') !== '') {
         setTemplateName(currentTemplateData.name);
       }
-      // Sync account if provided
-      if (currentTemplateData.account && account.trim() === '') {
-        setAccount(currentTemplateData.account);
+      // Sync accountId if provided
+      if (currentTemplateData.accountId && accountId.trim() === '') {
+        setAccountId(currentTemplateData.accountId);
       }
       // Always keep file type and fields in sync when returning from editor
       setSourceFileType(currentTemplateData.sourceFileType || 'CSV File');
@@ -506,7 +511,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         setFieldCombinations(filteredCombinations);
       }
     }
-  }, [currentTemplateData, isDeletingCombination, templateName, account]);
+  }, [currentTemplateData, isDeletingCombination, templateName, accountId]);
 
   // Click-outside handler for Add Field dropdown
   useEffect(() => {
@@ -684,17 +689,26 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
 
   // Handle adding a field from stored source fields (edit mode)
   const handleAddFieldFromSource = useCallback((sourceFieldName: string) => {
-    const newField: ImportFieldType = {
-      id: `added_${Date.now()}`,
-      sourceField: sourceFieldName,
-      dataType: 'Text',
-      sampleData: '',
-      targetField: '',
-      actions: ''
-    };
-    setFields(prevFields => [...prevFields, newField]);
+    // Check if this field already exists in the fields array (but is hidden)
+    const existingField = fields.find(f => f.sourceField === sourceFieldName);
+
+    if (existingField && isEmptyField(existingField)) {
+      // Field exists but is hidden - show hidden fields to make it visible
+      setShowHiddenFields(true);
+    } else if (!existingField) {
+      // Field doesn't exist - add it
+      const newField: ImportFieldType = {
+        id: `added_${Date.now()}`,
+        sourceField: sourceFieldName,
+        dataType: 'Text',
+        sampleData: '',
+        targetField: '',
+        actions: ''
+      };
+      setFields(prevFields => [...prevFields, newField]);
+    }
     setShowAddFieldDropdown(false);
-  }, []);
+  }, [fields]);
 
   // Handle editing a legacy combined field group
   const handleEditLegacyCombination = useCallback((targetField: string) => {
@@ -721,7 +735,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (onAddFieldCombination) {
       const templateData: any = {
         name: templateName,
-        account,
+        accountId,
         sourceFileType,
         status,
         fields: fields.filter(f => !(f.targetField === targetField && f.actions === 'Combined')),
@@ -731,7 +745,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       const uploadedFields = fields.map(f => f.sourceField).filter(Boolean);
       onAddFieldCombination(templateData, uploadedFields);
     }
-  }, [fields, fieldCombinations, templateName, account, sourceFileType, status, onAddFieldCombination]);
+  }, [fields, fieldCombinations, templateName, accountId, sourceFileType, status, onAddFieldCombination]);
 
   // No field reordering needed for this page
 
@@ -759,22 +773,22 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     }
 
     // Account validation
-    if (!account.trim()) {
+    if (!accountId) {
       setAccountTouched(true);
-      setFormError('Account is required');
+      setFormError('Account is required. Please select an account from the dropdown.');
       setTimeout(() => accountRef.current?.focus(), 0);
       return;
     }
 
-    // Duplicate account validation
-    const trimmedAccount = account.trim().toLowerCase();
+    // Duplicate template validation (accountId + fileType)
     const duplicateTemplate = existingTemplates.find(t =>
-      t.account.toLowerCase() === trimmedAccount &&
+      t.accountId === accountId &&
+      t.fileType === sourceFileType &&
       t.id !== initialTemplate?.id
     );
     if (duplicateTemplate) {
       setAccountTouched(true);
-      setFormError('An import template with this account already exists. Please use a unique account name.');
+      setFormError(`An import template for this account and file type already exists: "${duplicateTemplate.name}"`);
       setTimeout(() => accountRef.current?.focus(), 0);
       return;
     }
@@ -785,11 +799,17 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     }
 
     // Required target mapping validation for visible/added fields
-    // 1) regular visible fields (exclude fields used in combinations)
+    // 1) regular visible fields (exclude fields used in combinations AND hidden empty fields)
     const fieldsInCombinations = fieldCombinations.flatMap((combination: any) =>
       combination.sourceFields.map((sf: { fieldName: string }) => sf.fieldName)
     );
-    const regularVisibleFields = fields.filter(f => f.actions !== 'Combined' && !fieldsInCombinations.includes(f.sourceField));
+    const regularVisibleFields = fields.filter(f => {
+      if (f.actions === 'Combined') return false;
+      if (fieldsInCombinations.includes(f.sourceField)) return false;
+      // If "show hidden fields" is off, don't require mapping for empty fields
+      if (!showHiddenFields && isEmptyField(f)) return false;
+      return true;
+    });
     const missingRegular = regularVisibleFields.filter(f => !f.targetField);
 
     // 2) grouped/legacy combined fields (require a target on the group; mark any with empty target)
@@ -817,9 +837,16 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
       ? storedSourceFields
       : fields.map(f => f.sourceField);
 
+    // Get account info for legacy account field (backward compatibility)
+    const selectedAccount = accounts.find(a => a.id === accountId);
+    const legacyAccountName = selectedAccount
+      ? `${selectedAccount.institutionName} - ${selectedAccount.accountName}`
+      : '';
+
     const templateData = {
       name: templateName,
-      account,
+      accountId,
+      account: legacyAccountName, // Keep for backward compatibility
       sourceFileType,
       status,
       fields,
@@ -835,7 +862,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
     if (saveRef) {
       saveRef.current = handleSave;
     }
-  }, [templateName, account, sourceFileType, status, fields, fieldCombinations, storedSourceFields, saveRef]);
+  }, [templateName, accountId, sourceFileType, status, fields, fieldCombinations, storedSourceFields, saveRef, accounts, showHiddenFields]);
   
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-6 overflow-hidden">
@@ -882,21 +909,33 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
         </div>
         <div>
           <label htmlFor="account" className="block mb-2 text-sm font-semibold">Account</label>
-          <input
-            id="account"
-            type="text"
-            className={`w-full px-3 py-2 border rounded-lg electronInput ${
-              accountTouched && !account.trim()
-                ? 'border-l-4 border-l-red-500 border-red-600'
-                : 'border-neutral-200'
-            }`}
-            placeholder="Enter account name"
-            value={account}
-            onChange={(e) => setAccount(e.target.value)}
-            onBlur={() => setAccountTouched(true)}
-            aria-invalid={accountTouched && !account.trim() ? true : undefined}
-            ref={accountRef}
-          />
+          {accounts.length === 0 ? (
+            <div className="w-full px-3 py-2 border border-amber-300 bg-amber-50 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+              <FontAwesomeIcon icon={faInfoCircle} className="text-amber-500" />
+              No accounts configured. Please add accounts in Settings first.
+            </div>
+          ) : (
+            <select
+              id="account"
+              className={`w-full px-3 py-2 border rounded-lg electronInput ${
+                accountTouched && !accountId
+                  ? 'border-l-4 border-l-red-500 border-red-600'
+                  : 'border-neutral-200'
+              }`}
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              onBlur={() => setAccountTouched(true)}
+              aria-invalid={accountTouched && !accountId ? true : undefined}
+              ref={accountRef as React.RefObject<HTMLSelectElement>}
+            >
+              <option value="">Select an account</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.institutionName} - {acc.accountName}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div>
           <label className="block mb-2 text-sm font-semibold">Source File Type</label>
@@ -1132,8 +1171,13 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
           <div className="flex items-center gap-2">
             {/* Add Field button - only show if there are available source fields */}
             {(() => {
-              const currentFieldNames = fields.map(f => f.sourceField);
-              const availableSourceFields = storedSourceFields.filter(sf => !currentFieldNames.includes(sf));
+              // A field is "available" if it's either:
+              // 1. Not in the fields array at all (was deleted)
+              // 2. In the fields array but hidden (empty field when showHiddenFields is false)
+              const currentVisibleFieldNames = fields
+                .filter(f => showHiddenFields || !isEmptyField(f))
+                .map(f => f.sourceField);
+              const availableSourceFields = storedSourceFields.filter(sf => !currentVisibleFieldNames.includes(sf));
               if (availableSourceFields.length === 0) return null;
               return (
                 <div className="relative" ref={addFieldDropdownRef}>

@@ -269,24 +269,21 @@ describe('ExportTemplatesPage', () => {
 
     it('should handle duplication errors', async () => {
       const user = userEvent.setup()
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-      
+
       vi.mocked(templateService.duplicateTemplate).mockRejectedValue(new Error('Duplication failed'))
-      
+
       render(<ExportTemplatesPage />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Test Template 1')).toBeInTheDocument()
       })
-      
+
       const cloneButtons = screen.getAllByTitle('Duplicate')
       await user.click(cloneButtons[0])
-      
+
       await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith('Failed to duplicate template: Duplication failed')
+        expect(screen.getByText('Failed to duplicate template: Duplication failed')).toBeInTheDocument()
       })
-      
-      alertSpy.mockRestore()
     })
   })
 
@@ -361,24 +358,21 @@ describe('ExportTemplatesPage', () => {
 
     it('should handle set default errors', async () => {
       const user = userEvent.setup()
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-      
+
       vi.mocked(templateService.setDefaultTemplate).mockRejectedValue(new Error('Set default failed'))
-      
+
       render(<ExportTemplatesPage />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Set as Default')).toBeInTheDocument()
       })
-      
+
       const setDefaultButton = screen.getByText('Set as Default')
       await user.click(setDefaultButton)
-      
+
       await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith('Failed to set default template: Set default failed')
+        expect(screen.getByText('Failed to set default template: Set default failed')).toBeInTheDocument()
       })
-      
-      alertSpy.mockRestore()
     })
   })
 

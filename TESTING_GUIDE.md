@@ -1,6 +1,6 @@
-# Testing Guide for Export Templates
+# Testing Guide for BankBridge
 
-This document provides comprehensive information about testing the Export Templates functionality in the BankBridge application.
+This document provides comprehensive information about testing the BankBridge application, including Export Templates and Import Templates functionality.
 
 ## Testing Framework
 
@@ -27,16 +27,24 @@ The project uses **Vitest** as the testing framework with **React Testing Librar
 ```
 src/
 ├── components/
-│   └── ExportTemplates/
+│   ├── ExportTemplates/
+│   │   ├── __tests__/
+│   │   │   ├── ExportTemplatesPage.test.tsx
+│   │   │   └── TemplatesList.test.tsx
+│   │   ├── ExportTemplatesPage.tsx
+│   │   └── TemplatesList.tsx
+│   └── ImportTemplates/
 │       ├── __tests__/
-│       │   ├── ExportTemplatesPage.test.tsx
-│       │   └── TemplatesList.test.tsx
-│       ├── ExportTemplatesPage.tsx
-│       └── TemplatesList.tsx
+│       │   ├── ImportTemplatesPage.test.tsx
+│       │   └── NewImportTemplateEditor.test.tsx
+│       ├── ImportTemplatesPage.tsx
+│       └── NewImportTemplateEditor.tsx
 └── services/
     ├── __tests__/
-    │   └── templateService.test.ts
-    └── templateService.ts
+    │   ├── templateService.test.ts
+    │   └── importTemplateService.test.ts
+    ├── templateService.ts
+    └── importTemplateService.ts
 ```
 
 ### Test Categories
@@ -108,7 +116,7 @@ npm run test:ui
 - ✅ Accessibility features
 - ✅ Edge cases and error handling
 
-#### Template Service
+#### Template Service (Export)
 - ✅ CRUD operations (Create, Read, Update, Delete)
 - ✅ Template duplication
 - ✅ Default template management
@@ -116,6 +124,38 @@ npm run test:ui
 - ✅ Error handling
 - ✅ Schema version management
 - ✅ Storage integration
+
+#### ImportTemplatesPage Component
+- ✅ Initial loading and template display
+- ✅ Template creation flow
+- ✅ Template editing with pre-populated data
+- ✅ Template duplication
+- ✅ Template deletion with confirmation
+- ✅ Search and filtering by account/file type
+- ✅ Field combination navigation
+- ✅ Setup incomplete warnings (no accounts configured)
+- ✅ Error handling
+
+#### NewImportTemplateEditor Component
+- ✅ New template form rendering
+- ✅ Edit mode with initial template data
+- ✅ File upload and parsing
+- ✅ Field mapping table
+- ✅ Field combination management (add, edit, delete)
+- ✅ Add Field dropdown for unmapped sourceFields
+- ✅ Form validation
+- ✅ Account dropdown (linked to Settings)
+- ✅ Target field validation
+
+#### Import Template Service
+- ✅ CRUD operations (Create, Read, Update, Delete)
+- ✅ Template duplication with all fields preserved
+- ✅ sourceFields persistence (critical for partial mapping)
+- ✅ fieldCombinations persistence
+- ✅ accountId persistence
+- ✅ Round-trip testing (create → load → update cycle)
+- ✅ Schema version management
+- ✅ Error handling
 
 ### Coverage Goals
 
@@ -198,10 +238,41 @@ const mockTemplate: Template = {
 }
 ```
 
+### Import Template Mock Structure
+
+```typescript
+const mockImportTemplate: ImportTemplate = {
+  id: 'import_template_123',
+  name: 'TD Bank CSV Template',
+  description: 'Template for TD Bank CSV exports',
+  account: 'TD Bank - Checking',
+  accountId: 'acc_123',
+  fileType: 'CSV File',
+  fieldCount: 3,
+  createdAt: '2023-01-01T00:00:00Z',
+  updatedAt: '2023-01-01T00:00:00Z',
+  schemaVersion: '1.0.0',
+  status: 'Active',
+  fieldMappings: [
+    { sourceField: 'date', targetField: 'Date', dataType: 'Date', required: false, validation: '' },
+    { sourceField: 'amount', targetField: 'Amount', dataType: 'Currency', required: false, validation: '' }
+  ],
+  fieldCombinations: [],
+  // IMPORTANT: Include sourceFields for all mock templates
+  // This enables Add Field functionality in edit mode
+  sourceFields: ['date', 'amount', 'description', 'category', 'memo', 'reference', 'balance']
+}
+```
+
+**Important**: Always include `sourceFields` in mock Import Templates. This array contains all original column names from the source file and is critical for:
+- Testing the Add Field dropdown shows unmapped fields
+- Testing partial mapping → edit → add field workflow
+- Verifying round-trip persistence
+
 ### Service Mocking
 
 ```typescript
-// Mock template service
+// Mock export template service
 vi.mock('../../../services/templateService', () => ({
   fetchTemplates: vi.fn(),
   createTemplate: vi.fn(),
@@ -209,6 +280,15 @@ vi.mock('../../../services/templateService', () => ({
   deleteTemplate: vi.fn(),
   duplicateTemplate: vi.fn(),
   setDefaultTemplate: vi.fn()
+}))
+
+// Mock import template service
+vi.mock('../../../services/importTemplateService', () => ({
+  fetchImportTemplates: vi.fn(),
+  createImportTemplate: vi.fn(),
+  updateImportTemplate: vi.fn(),
+  deleteImportTemplate: vi.fn(),
+  duplicateImportTemplate: vi.fn()
 }))
 ```
 

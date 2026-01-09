@@ -4,20 +4,46 @@ import userEvent from '@testing-library/user-event'
 import ImportTemplatesPage from '../ImportTemplatesPage'
 import * as importTemplateService from '../../../services/importTemplateService'
 import * as templateService from '../../../services/templateService'
+import * as settingsService from '../../../services/settingsService'
 import { ImportTemplate } from '../../../models/ImportTemplate'
 import { Template } from '../../../models/Template'
+import { Account } from '../../../models/Settings'
 
 // Mock the services
 vi.mock('../../../services/importTemplateService')
 vi.mock('../../../services/templateService')
+vi.mock('../../../services/settingsService')
 vi.mock('../../../services/fileParserService')
+
+// Mock accounts for testing
+const mockAccounts: Account[] = [
+  {
+    id: 'acc_1',
+    institutionName: 'TD Bank',
+    accountName: 'Checking',
+    exportDisplayName: 'TD Bank - Checking',
+    accountType: 'checking',
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z'
+  },
+  {
+    id: 'acc_2',
+    institutionName: 'Chase',
+    accountName: 'Savings',
+    exportDisplayName: 'Chase - Savings',
+    accountType: 'savings',
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z'
+  }
+]
 
 const mockImportTemplates: ImportTemplate[] = [
   {
     id: 'import_template_1',
     name: 'Test Import Template 1',
     description: 'Test description 1',
-    account: 'Test Account',
+    account: 'TD Bank - Checking',
+    accountId: 'acc_1',
     fileType: 'CSV File',
     fieldCount: 3,
     createdAt: '2023-01-01T00:00:00Z',
@@ -38,13 +64,16 @@ const mockImportTemplates: ImportTemplate[] = [
           { id: 'sf_2', fieldName: 'last_name', order: 2 }
         ]
       }
-    ]
+    ],
+    // All source fields from the original file (includes unmapped fields)
+    sourceFields: ['first_name', 'last_name', 'email', 'phone', 'address', 'city', 'state']
   },
   {
     id: 'import_template_2',
     name: 'Test Import Template 2',
     description: 'Test description 2',
-    account: 'Another Account',
+    account: 'Chase - Savings',
+    accountId: 'acc_2',
     fileType: 'JSON File',
     fieldCount: 2,
     createdAt: '2023-01-02T00:00:00Z',
@@ -54,7 +83,9 @@ const mockImportTemplates: ImportTemplate[] = [
     fieldMappings: [
       { sourceField: 'customer_id', targetField: 'Customer ID', dataType: 'Text', required: false, validation: '' }
     ],
-    fieldCombinations: []
+    fieldCombinations: [],
+    // All source fields from the original file (includes unmapped fields)
+    sourceFields: ['customer_id', 'customer_name', 'balance', 'last_transaction']
   }
 ]
 
@@ -76,9 +107,10 @@ const mockDefaultExportTemplate: Template = {
 describe('ImportTemplatesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Mock successful template fetching by default
+    // Mock successful data fetching by default
     vi.mocked(importTemplateService.fetchImportTemplates).mockResolvedValue(mockImportTemplates)
     vi.mocked(templateService.getDefaultTemplate).mockResolvedValue(mockDefaultExportTemplate)
+    vi.mocked(settingsService.getAccounts).mockResolvedValue(mockAccounts)
   })
 
   describe('Initial Loading', () => {
@@ -109,10 +141,15 @@ describe('ImportTemplatesPage', () => {
   describe('Template Creation', () => {
     it('should show new template editor when "New Template" is clicked', async () => {
       render(<ImportTemplatesPage />)
-      
+
+      // Wait for accounts to load so button is enabled
+      await waitFor(() => {
+        expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
+      })
+
       const newTemplateButton = screen.getByRole('button', { name: /new template/i })
       fireEvent.click(newTemplateButton)
-      
+
       await waitFor(() => {
         expect(screen.getByText('New Import Template')).toBeInTheDocument()
         expect(screen.getByText('Create a new template from source file')).toBeInTheDocument()
@@ -121,19 +158,24 @@ describe('ImportTemplatesPage', () => {
 
     it('should cancel template creation and return to main page', async () => {
       render(<ImportTemplatesPage />)
-      
+
+      // Wait for accounts to load so button is enabled
+      await waitFor(() => {
+        expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
+      })
+
       // Go to new template editor
       const newTemplateButton = screen.getByRole('button', { name: /new template/i })
       fireEvent.click(newTemplateButton)
-      
+
       await waitFor(() => {
         expect(screen.getByText('New Import Template')).toBeInTheDocument()
       })
-      
+
       // Cancel and return
       const cancelButton = screen.getByRole('button', { name: /cancel/i })
       fireEvent.click(cancelButton)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Import Templates')).toBeInTheDocument()
         expect(screen.queryByText('New Import Template')).not.toBeInTheDocument()
@@ -227,6 +269,11 @@ describe('ImportTemplatesPage', () => {
     it('should show disabled Add Field Combination button in new template mode without file', async () => {
       render(<ImportTemplatesPage />)
 
+      // Wait for data to load
+      await waitFor(() => {
+        expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
+      })
+
       // Navigate to new template editor first
       const newTemplateButton = screen.getByRole('button', { name: /new template/i })
       fireEvent.click(newTemplateButton)
@@ -314,21 +361,26 @@ describe('ImportTemplatesPage', () => {
 
     it('should handle template creation errors', async () => {
       vi.mocked(importTemplateService.createImportTemplate).mockRejectedValue(new Error('Failed to create template'))
-      
+
       render(<ImportTemplatesPage />)
-      
+
+      // Wait for data to load
+      await waitFor(() => {
+        expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
+      })
+
       // Navigate to new template editor
       const newTemplateButton = screen.getByRole('button', { name: /new template/i })
       fireEvent.click(newTemplateButton)
-      
+
       await waitFor(() => {
         expect(screen.getByText('New Import Template')).toBeInTheDocument()
       })
-      
+
       // Try to save template (this would trigger the error)
       const saveButton = screen.getByRole('button', { name: /save template/i })
       fireEvent.click(saveButton)
-      
+
       // Should handle the error gracefully without crashing
       await waitFor(() => {
         expect(screen.getByText('New Import Template')).toBeInTheDocument()

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import SidebarMenu from './components/Layout/SidebarMenu'
 import DashboardLayout from './components/Layout/DashboardLayout'
 import ProcessFilesPage from './components/Process files/ProcessFilesPage'
@@ -7,6 +7,14 @@ import ExportTemplatesPage from './components/ExportTemplates/ExportTemplatesPag
 import { SettingsPage } from './components/Settings'
 
 type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Settings';
+
+// Map page names to section types for navigation events
+const PAGE_TO_SECTION: Record<string, SectionType> = {
+  'settings': 'Settings',
+  'import-templates': 'Import Templates',
+  'export-templates': 'Export Templates',
+  'process-files': 'Process Files'
+};
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SectionType>('Process Files')
@@ -20,6 +28,21 @@ const App: React.FC = () => {
       setActiveSection(name);
     }
   };
+
+  // Listen for navigation events from child components
+  useEffect(() => {
+    const handleNavigate = (event: CustomEvent<{ page: string }>) => {
+      const section = PAGE_TO_SECTION[event.detail.page];
+      if (section) {
+        setActiveSection(section);
+      }
+    };
+
+    window.addEventListener('navigate', handleNavigate as EventListener);
+    return () => {
+      window.removeEventListener('navigate', handleNavigate as EventListener);
+    };
+  }, []);
 
   // Create sticky bar content
   const stickyBarContent = activeSection === 'Process Files' ? (

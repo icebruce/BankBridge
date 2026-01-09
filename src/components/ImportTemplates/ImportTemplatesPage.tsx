@@ -2,18 +2,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faArrowLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faArrowLeft, faChevronRight, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate, FieldCombination } from '../../models/ImportTemplate';
+import { Account } from '../../models/Settings';
 import { fetchImportTemplates, createImportTemplate, updateImportTemplate, deleteImportTemplate, duplicateImportTemplate } from '../../services/importTemplateService';
 import { getDefaultTemplate } from '../../services/templateService';
+import { getAccounts } from '../../services/settingsService';
 import { Template } from '../../models/Template';
 import ImportTemplatesList from './ImportTemplatesList';
 import SearchAndFilters from './SearchAndFilters';
 import NewImportTemplateEditor from './NewImportTemplateEditor';
 import FieldCombinationEditor from './FieldCombinationEditor';
+import { useToast, ToastContainer } from '../common/Toast';
 
 const ImportTemplatesPage: FC = () => {
   const [templates, setTemplates] = useState<ImportTemplate[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [defaultExportTemplate, setDefaultExportTemplate] = useState<Template | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedAccount, setSelectedAccount] = useState<string>('All Accounts');
@@ -25,36 +29,38 @@ const ImportTemplatesPage: FC = () => {
   const [currentTemplateData, setCurrentTemplateData] = useState<any>(null);
   const [uploadedFileFields, setUploadedFileFields] = useState<string[]>([]);
   const [editingFieldCombination, setEditingFieldCombination] = useState<FieldCombination | null>(null);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const saveTemplateRef = useRef<(() => void) | null>(null);
   const fieldCombinationsRef = useRef<{
     updateFieldCombinations: (combinations: FieldCombination[]) => void;
     getFieldCombinations: () => FieldCombination[];
   } | null>(null);
+  const { toasts, removeToast, showSuccess, showError } = useToast();
 
   useEffect(() => {
-    // Load import templates and default export template
-    const loadTemplates = async () => {
+    // Load import templates, accounts, and default export template
+    const loadData = async () => {
       try {
         setLoading(true);
-        const [importTemplates, defaultTemplate] = await Promise.all([
+        const [importTemplates, defaultTemplate, loadedAccounts] = await Promise.all([
           fetchImportTemplates(),
-          getDefaultTemplate()
+          getDefaultTemplate(),
+          getAccounts()
         ]);
         setTemplates(importTemplates);
         setDefaultExportTemplate(defaultTemplate || null);
+        setAccounts(loadedAccounts);
       } catch (error) {
-        console.error('Error loading templates:', error);
+        console.error('Error loading data:', error);
         setTemplates([]);
         setDefaultExportTemplate(null);
+        setAccounts([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadTemplates();
+    loadData();
   }, []);
 
   const handleNewTemplate = () => {
@@ -70,28 +76,24 @@ const ImportTemplatesPage: FC = () => {
 
   const handleDuplicateTemplate = async (template: ImportTemplate) => {
     try {
-      setPageError(null);
       const duplicatedTemplate = await duplicateImportTemplate(template.id);
       setTemplates(prev => [duplicatedTemplate, ...prev]);
-      setSuccessMessage(`Template "${duplicatedTemplate.name}" created`);
-      setTimeout(() => setSuccessMessage(null), 3000);
+      showSuccess(`Template "${duplicatedTemplate.name}" created`);
     } catch (error) {
       console.error('Error duplicating template:', error);
-      setPageError('Failed to duplicate template');
+      showError('Failed to duplicate template');
     }
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
     if (window.confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
       try {
-        setPageError(null);
         await deleteImportTemplate(templateId);
         setTemplates(prev => prev.filter(t => t.id !== templateId));
-        setSuccessMessage('Template deleted successfully');
-        setTimeout(() => setSuccessMessage(null), 3000);
+        showSuccess('Template deleted successfully');
       } catch (error) {
         console.error('Error deleting template:', error);
-        setPageError('Failed to delete template');
+        showError('Failed to delete template');
       }
     }
   };
@@ -104,15 +106,15 @@ const ImportTemplatesPage: FC = () => {
       if (!templateData) {
         throw new Error('No template data provided');
       }
-      
+
       if (!templateData.name || !templateData.name.trim()) {
         throw new Error('Template name is required');
       }
-      
+
       if (!templateData.fields || templateData.fields.length === 0) {
         throw new Error('At least one field is required');
       }
-      
+
       // Create field mappings from the form data (excluding combined fields)
       const fieldMappings = templateData.fields
         .filter((field: any) => field.actions !== 'Combined')
@@ -131,15 +133,17 @@ const ImportTemplatesPage: FC = () => {
           name: templateData.name,
           description: templateData.description || '',
           account: templateData.account || '',
+          accountId: templateData.accountId || '',
           fileType: templateData.sourceFileType,
           status: templateData.status || 'Active',
           fieldCount: fieldMappings.length,
           fieldMappings,
-          fieldCombinations: templateData.fieldCombinations || []
+          fieldCombinations: templateData.fieldCombinations || [],
+          sourceFields: templateData.sourceFields || []
         });
 
         // Update the template in the list
-        setTemplates(prev => prev.map(t => 
+        setTemplates(prev => prev.map(t =>
           t.id === editingTemplate.id ? updatedTemplate : t
         ));
       } else {
@@ -148,32 +152,32 @@ const ImportTemplatesPage: FC = () => {
           name: templateData.name,
           description: templateData.description || '',
           account: templateData.account || '',
+          accountId: templateData.accountId || '',
           fileType: templateData.sourceFileType,
           status: templateData.status || 'Active',
           fieldMappings,
-          fieldCombinations: templateData.fieldCombinations || []
+          fieldCombinations: templateData.fieldCombinations || [],
+          sourceFields: templateData.sourceFields || []
         });
 
         // Add the new template to the list
         setTemplates(prev => [newTemplate, ...prev]);
       }
-      
+
       // Close the editor and reset editing state
       setShowNewTemplateEditor(false);
       setEditingTemplate(null);
       setCurrentTemplateData(null);
-      setPageError(null);
-      setSuccessMessage('Template saved successfully');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      showSuccess('Template saved successfully');
     } catch (error) {
       console.error('❌ Error saving template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setPageError(`Failed to save template: ${errorMessage}`);
+      showError(`Failed to save template: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
-  }, [editingTemplate]);
-  
+  }, [editingTemplate, showSuccess, showError]);
+
   const handleCancelTemplate = () => {
     setShowNewTemplateEditor(false);
     setShowFieldCombinationEditor(false);
@@ -191,21 +195,21 @@ const ImportTemplatesPage: FC = () => {
   const handleSaveFieldCombination = (combination: FieldCombination) => {
     // Get current field combinations from the template editor
     const currentCombinations = fieldCombinationsRef.current?.getFieldCombinations() || [];
-    
+
     let updatedCombinations;
     if (editingFieldCombination) {
       // Update existing combination
-      updatedCombinations = currentCombinations.map((c: FieldCombination) => 
+      updatedCombinations = currentCombinations.map((c: FieldCombination) =>
         c.id === combination.id ? combination : c
       );
     } else {
       // Add new combination
       updatedCombinations = [...currentCombinations, combination];
     }
-    
+
     // Update field combinations directly in the template editor
     fieldCombinationsRef.current?.updateFieldCombinations(updatedCombinations);
-    
+
     // Also update currentTemplateData for consistency
     if (currentTemplateData) {
       const updatedTemplateData = {
@@ -214,7 +218,7 @@ const ImportTemplatesPage: FC = () => {
       };
       setCurrentTemplateData(updatedTemplateData);
     }
-    
+
     setShowFieldCombinationEditor(false);
     setEditingFieldCombination(null);
   };
@@ -229,7 +233,7 @@ const ImportTemplatesPage: FC = () => {
       };
       setCurrentTemplateData(updatedTemplateData);
     }
-    
+
     setShowFieldCombinationEditor(false);
     setEditingFieldCombination(null);
   };
@@ -240,7 +244,7 @@ const ImportTemplatesPage: FC = () => {
                          (template.description && template.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesAccount = selectedAccount === 'All Accounts' || template.account === selectedAccount;
     const matchesFileType = selectedFileType === 'All File Types' || template.fileType === selectedFileType;
-    
+
     return matchesSearch && matchesAccount && matchesFileType;
   });
 
@@ -263,7 +267,7 @@ const ImportTemplatesPage: FC = () => {
           <div id="header" className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
-                <button 
+                <button
                   className="mr-3 text-neutral-600"
                   onClick={handleCancelTemplate}
                 >
@@ -271,7 +275,7 @@ const ImportTemplatesPage: FC = () => {
                 </button>
                 <div>
                   <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">
-                    <button 
+                    <button
                       className="hover:text-neutral-700 transition-colors duration-200"
                       onClick={handleCancelTemplate}
                     >
@@ -285,7 +289,7 @@ const ImportTemplatesPage: FC = () => {
                 </div>
               </div>
               <div className="flex gap-3">
-                <button 
+                <button
                   className="px-4 py-2 border border-neutral-200 rounded-lg hover:bg-neutral-50 hover:border-neutral-300 transition-all duration-200"
                   onClick={handleCancelTemplate}
                 >
@@ -312,6 +316,7 @@ const ImportTemplatesPage: FC = () => {
             defaultExportTemplate={defaultExportTemplate}
             fieldCombinationsRef={fieldCombinationsRef}
             existingTemplates={templates}
+            accounts={accounts}
           />
         </div>
       ) : (
@@ -323,9 +328,15 @@ const ImportTemplatesPage: FC = () => {
                 <h2 className="text-2xl font-semibold">Import Templates</h2>
                 <p className="text-neutral-600">Manage your import templates</p>
               </div>
-              <button 
-                className="px-4 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 flex items-center"
+              <button
+                className={`px-4 py-2 rounded-lg flex items-center ${
+                  accounts.length === 0
+                    ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                    : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                }`}
                 onClick={handleNewTemplate}
+                disabled={accounts.length === 0}
+                title={accounts.length === 0 ? 'Configure accounts in Settings first' : undefined}
               >
                 <FontAwesomeIcon icon={faPlus} className="mr-2" />
                 New Template
@@ -333,17 +344,19 @@ const ImportTemplatesPage: FC = () => {
             </div>
           </div>
 
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-              {successMessage}
-            </div>
-          )}
-
-          {/* Error Message */}
-          {pageError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-              {pageError}
+          {/* Setup incomplete warning */}
+          {accounts.length === 0 && !loading && (
+            <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+              <FontAwesomeIcon icon={faExclamationTriangle} className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-amber-800">
+                <span className="font-medium">No accounts configured.</span>{' '}
+                Please configure accounts in Settings before creating import templates.{' '}
+                <a href="#" className="text-amber-900 underline hover:no-underline" onClick={(e) => {
+                  e.preventDefault();
+                  // Navigate to Settings - this would be handled by parent/router
+                  window.dispatchEvent(new CustomEvent('navigate', { detail: { page: 'settings' } }));
+                }}>Go to Settings</a>
+              </div>
             </div>
           )}
 
@@ -361,6 +374,7 @@ const ImportTemplatesPage: FC = () => {
 
             <ImportTemplatesList
               templates={filteredTemplates}
+              accounts={accounts}
               loading={loading}
               onEdit={handleEditTemplate}
               onDuplicate={handleDuplicateTemplate}
@@ -369,6 +383,8 @@ const ImportTemplatesPage: FC = () => {
           </div>
         </div>
       )}
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };

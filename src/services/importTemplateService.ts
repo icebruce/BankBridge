@@ -99,10 +99,12 @@ export const createImportTemplate = (templateData: {
   name: string;
   description?: string;
   account: string;
+  accountId?: string;
   fileType: string;
   status?: 'Active' | 'Inactive' | 'Draft';
   fieldMappings: ImportFieldMapping[];
   fieldCombinations?: FieldCombination[];
+  sourceFields?: string[];
 }): Promise<ImportTemplate> => {
   return new Promise((resolve, reject) => {
     try {
@@ -122,6 +124,7 @@ export const createImportTemplate = (templateData: {
         description: templateData.description?.trim() || '',
         fieldCount: templateData.fieldMappings.length,
         account: templateData.account?.trim() || '',
+        accountId: templateData.accountId || '',
         fileType: templateData.fileType,
         createdAt: now,
         updatedAt: now,
@@ -129,7 +132,8 @@ export const createImportTemplate = (templateData: {
         status: templateData.status || 'Active',
         fieldMappings: templateData.fieldMappings,
         isDefault: false,
-        fieldCombinations: templateData.fieldCombinations || []
+        fieldCombinations: templateData.fieldCombinations || [],
+        sourceFields: templateData.sourceFields || []
       };
 
       const existingTemplates = loadImportTemplatesFromStorage();
@@ -234,6 +238,8 @@ export const duplicateImportTemplate = (id: string): Promise<ImportTemplate> => 
         ...originalTemplate,
         id: generateImportTemplateId(),
         name: `${originalTemplate.name} (Copy)`,
+        // Preserve accountId from original template
+        accountId: originalTemplate.accountId,
         createdAt: now,
         updatedAt: now,
         schemaVersion: CURRENT_SCHEMA_VERSION,

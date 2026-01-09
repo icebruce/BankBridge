@@ -629,6 +629,46 @@ Use these four message types consistently:
 | **Success** (green) | Completed actions (file upload, save completed) | `bg-green-50`, `border-green-200`, `text-green-700/800` |
 | **Info** (blue) | Informational messages, current state, help text | `bg-blue-50`, `border-blue-200`, `text-blue-700/800` |
 
+### Toast Notifications (for transient feedback)
+
+Use the reusable Toast component for action feedback that should auto-dismiss:
+
+```tsx
+import { useToast, ToastContainer } from '../common/Toast';
+
+const MyComponent: FC = () => {
+  const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useToast();
+
+  const handleSave = async () => {
+    try {
+      await saveData();
+      showSuccess('Data saved successfully');
+    } catch (error) {
+      showError('Failed to save data');
+    }
+  };
+
+  return (
+    <div>
+      {/* Your component content */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </div>
+  );
+};
+```
+
+**Toast Features:**
+- Fixed position (top-right corner)
+- Slide-in animation from right
+- Auto-dismiss after 4 seconds
+- Manual dismiss with X button
+- Uses Status Message color palette
+- Stacks multiple toasts with gap
+
+**When to use Toasts vs Inline Messages:**
+- **Toasts**: Transient feedback after user actions (save, delete, duplicate, etc.)
+- **Inline Messages**: Persistent state information, validation errors that need fixing, warnings about current data
+
 ### Consolidated Status Area
 Group status messages in a single container, ordered by severity:
 

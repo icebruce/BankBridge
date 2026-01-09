@@ -349,12 +349,51 @@ Define how bank-specific file formats are parsed into the internal format.
 interface ImportTemplate {
   id: string;
   name: string;
+  description?: string;
   accountId: string;            // References Account (not freeform)
+  account: string;              // Display name (denormalized for list display)
   fileType: 'CSV' | 'Excel' | 'JSON';
-  fieldMappings: FieldMapping[];
-  // ... other existing fields
+  fieldCount: number;           // Number of mapped fields
+  status: 'Active' | 'Inactive' | 'Draft';
+  fieldMappings: ImportFieldMapping[];
+  fieldCombinations: FieldCombination[];  // For combining multiple source fields
+  sourceFields: string[];       // All original fields from source file (for Add Field feature)
+  createdAt: string;
+  updatedAt: string;
+  schemaVersion: string;
+}
+
+interface ImportFieldMapping {
+  sourceField: string;          // Column name in source file
+  targetField: string;          // Internal field name
+  dataType: string;             // Text, Date, Currency, etc.
+  required: boolean;
+  validation: string;
+}
+
+interface FieldCombination {
+  id: string;
+  targetField: string;          // Combined field maps to this target
+  delimiter: string;            // How to join fields (Space, Comma, etc.)
+  sourceFields: CombinedSourceField[];
+}
+
+interface CombinedSourceField {
+  id: string;
+  fieldName: string;
+  order: number;
 }
 ```
+
+### Key Fields Explained
+
+#### sourceFields
+Stores all original column names from the uploaded source file. This is critical for:
+- **Add Field feature**: When editing a template, allows adding back fields that weren't initially mapped
+- **Partial mapping**: User can map only 3 of 7 fields initially, then add more later
+- **Persistence**: Survives create → save → edit cycle
+
+Without `sourceFields`, editing a partially-mapped template would lose track of unmapped columns.
 
 ### Import Template Editor Changes
 - Account is selected from dropdown (not freeform text)

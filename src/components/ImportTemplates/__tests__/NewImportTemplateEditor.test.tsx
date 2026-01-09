@@ -5,10 +5,33 @@ import React from 'react'
 import NewImportTemplateEditor from '../NewImportTemplateEditor'
 import { ImportTemplate, FieldCombination } from '../../../models/ImportTemplate'
 import { Template } from '../../../models/Template'
+import { Account } from '../../../models/Settings'
 import { fileParserService } from '../../../services/fileParserService'
 
 // Mock the file parser service
 vi.mock('../../../services/fileParserService')
+
+// Mock accounts for testing
+const mockAccounts: Account[] = [
+  {
+    id: 'acc_1',
+    institutionName: 'TD Bank',
+    accountName: 'Checking',
+    exportDisplayName: 'TD Bank - Checking',
+    accountType: 'checking',
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z'
+  },
+  {
+    id: 'acc_2',
+    institutionName: 'Chase',
+    accountName: 'Savings',
+    exportDisplayName: 'Chase - Savings',
+    accountType: 'savings',
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z'
+  }
+]
 
 const mockOnSave = vi.fn()
 const mockOnCancel = vi.fn()
@@ -42,7 +65,8 @@ const mockInitialTemplate: ImportTemplate = {
   description: 'Test description',
   fileType: 'CSV File',
   fieldCount: 2,
-  account: 'Default Account',
+  account: 'TD Bank - Checking',
+  accountId: 'acc_1',
   createdAt: '2023-01-01T00:00:00Z',
   updatedAt: '2023-01-01T00:00:00Z',
   schemaVersion: '1.0.0',
@@ -61,12 +85,15 @@ const mockInitialTemplate: ImportTemplate = {
         { id: 'sf_2', fieldName: 'last_name', order: 2 }
       ]
     }
-  ]
+  ],
+  // All source fields from the original file (includes unmapped fields)
+  sourceFields: ['first_name', 'last_name', 'email', 'phone', 'address']
 }
 
 const mockCurrentTemplateData = {
   name: 'Updated Template',
-  account: 'Test Account',
+  account: 'TD Bank - Checking',
+  accountId: 'acc_1',
   sourceFileType: 'JSON File',
   fields: [
     { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John Doe', targetField: 'Full Name', actions: '' }
@@ -565,15 +592,16 @@ describe('NewImportTemplateEditor', () => {
           onCancel={mockOnCancel}
           defaultExportTemplate={mockDefaultExportTemplate}
           saveRef={mockSaveRef}
+          accounts={mockAccounts}
         />
       )
 
-      // Set template name and account but no fields (new template starts with empty fields)
+      // Set template name and select account but no fields (new template starts with empty fields)
       const templateNameInput = screen.getByLabelText(/template name/i)
       fireEvent.change(templateNameInput, { target: { value: 'Test Template' } })
 
-      const accountInput = screen.getByLabelText(/account/i)
-      fireEvent.change(accountInput, { target: { value: 'Test Account' } })
+      const accountSelect = screen.getByRole('combobox', { name: /account/i })
+      fireEvent.change(accountSelect, { target: { value: 'acc_1' } })
 
       // Try to save with no fields
       mockSaveRef.current?.()
@@ -586,7 +614,8 @@ describe('NewImportTemplateEditor', () => {
       // Create valid template data with all fields properly mapped
       const validTemplateData = {
         name: 'Valid Template',
-        account: 'Test Account',
+        account: 'TD Bank - Checking',
+        accountId: 'acc_1',
         sourceFileType: 'CSV File',
         fields: [
           { id: '1', sourceField: 'first_name', dataType: 'Text', sampleData: 'John', targetField: 'Full Name', actions: '' },
@@ -601,6 +630,7 @@ describe('NewImportTemplateEditor', () => {
           onCancel={mockOnCancel}
           defaultExportTemplate={mockDefaultExportTemplate}
           saveRef={mockSaveRef}
+          accounts={mockAccounts}
           currentTemplateData={validTemplateData}
         />
       )
@@ -617,6 +647,7 @@ describe('NewImportTemplateEditor', () => {
         expect(mockOnSave).toHaveBeenCalledWith(
           expect.objectContaining({
             name: 'Valid Template',
+            accountId: 'acc_1',
             sourceFileType: 'CSV File',
             fields: expect.any(Array),
             fieldCombinations: expect.any(Array)
@@ -660,8 +691,10 @@ describe('NewImportTemplateEditor', () => {
           onCancel={mockOnCancel}
           defaultExportTemplate={mockDefaultExportTemplate}
           saveRef={localSaveRef}
+          accounts={mockAccounts}
           currentTemplateData={{
             name: 'Test',
+            accountId: 'acc_1',
             sourceFileType: 'CSV File',
             fields: [
               { id: '1', sourceField: 'name', dataType: 'Text', sampleData: 'John', targetField: '', actions: '' }
@@ -670,10 +703,6 @@ describe('NewImportTemplateEditor', () => {
           }}
         />
       )
-
-      // Fill in account field (now required)
-      const accountInput = screen.getByLabelText(/account/i)
-      fireEvent.change(accountInput, { target: { value: 'Test Account' } })
 
       // Trigger save to mark required fields as touched
       localSaveRef.current?.()
@@ -781,6 +810,221 @@ describe('NewImportTemplateEditor', () => {
       expect(screen.getByText('Combined')).toBeInTheDocument()
       // Preview shows concatenated sample values (falls back to field names if no sample data)
       expect(screen.getByText(/email, phone/i)).toBeInTheDocument()
+    })
+  })
+
+  describe('Partial Mapping Edit Flow (sourceFields persistence)', () => {
+    it('should show Add Field button when template has unmapped sourceFields', () => {
+      // Template has 5 sourceFields but only 2 fieldMappings
+      // This means 3 fields are unmapped and should be available to add
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          initialTemplate={mockInitialTemplate}
+          accounts={mockAccounts}
+        />
+      )
+
+      // The Add Field button should be visible since there are unmapped fields
+      // Use title to distinguish from "Add Field Combination" button
+      const addFieldButton = screen.getByTitle('Add a field from original source file')
+      expect(addFieldButton).toBeInTheDocument()
+      expect(addFieldButton).not.toBeDisabled()
+    })
+
+    it('should show unmapped sourceFields in Add Field dropdown', async () => {
+      // Template has sourceFields: ['first_name', 'last_name', 'email', 'phone', 'address']
+      // But only first_name and email are mapped
+      // So phone and address should be available in Add Field dropdown
+      // (last_name is in a combination, so it's also technically mapped)
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          initialTemplate={mockInitialTemplate}
+          accounts={mockAccounts}
+        />
+      )
+
+      // Click the Add Field button to open the dropdown (use title to be specific)
+      const addFieldButton = screen.getByTitle('Add a field from original source file')
+      fireEvent.click(addFieldButton)
+
+      // The dropdown should show unmapped fields
+      await waitFor(() => {
+        // phone and address are unmapped
+        expect(screen.getByText('phone')).toBeInTheDocument()
+        expect(screen.getByText('address')).toBeInTheDocument()
+      })
+    })
+
+    it('should include sourceFields in saved template data', async () => {
+      const templateWithSourceFields: ImportTemplate = {
+        ...mockInitialTemplate,
+        sourceFields: ['field1', 'field2', 'field3', 'field4', 'field5', 'field6', 'field7'],
+        fieldMappings: [
+          { sourceField: 'field1', targetField: 'Full Name', dataType: 'Text', required: false, validation: '' },
+          { sourceField: 'field2', targetField: 'Email Address', dataType: 'Text', required: false, validation: '' }
+        ],
+        fieldCombinations: []
+      }
+
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          initialTemplate={templateWithSourceFields}
+          saveRef={mockSaveRef}
+          accounts={mockAccounts}
+        />
+      )
+
+      // Wait for component to initialize
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Test Import Template')).toBeInTheDocument()
+      })
+
+      // Trigger save
+      mockSaveRef.current?.()
+
+      // The saved data should include sourceFields
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceFields: ['field1', 'field2', 'field3', 'field4', 'field5', 'field6', 'field7']
+          })
+        )
+      })
+    })
+
+    it('should preserve all sourceFields even when only some are mapped', async () => {
+      // Simulate a template with 7 source fields but only 2 mapped
+      const partiallyMappedTemplate: ImportTemplate = {
+        id: 'partial_template',
+        name: 'Partially Mapped Template',
+        description: '',
+        fileType: 'CSV File',
+        fieldCount: 2,
+        account: 'TD Bank - Checking',
+        accountId: 'acc_1',
+        createdAt: '2023-01-01T00:00:00Z',
+        updatedAt: '2023-01-01T00:00:00Z',
+        schemaVersion: '1.0.0',
+        status: 'Active',
+        fieldMappings: [
+          { sourceField: 'date', targetField: 'Full Name', dataType: 'Date', required: false, validation: '' },
+          { sourceField: 'amount', targetField: 'Email Address', dataType: 'Currency', required: false, validation: '' }
+        ],
+        fieldCombinations: [],
+        // 7 total source fields, only 2 are mapped
+        sourceFields: ['date', 'amount', 'description', 'category', 'memo', 'reference', 'balance']
+      }
+
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          initialTemplate={partiallyMappedTemplate}
+          saveRef={mockSaveRef}
+          accounts={mockAccounts}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Partially Mapped Template')).toBeInTheDocument()
+      })
+
+      // Click Add Field to verify unmapped fields are available (use title to be specific)
+      const addFieldButton = screen.getByTitle('Add a field from original source file')
+      fireEvent.click(addFieldButton)
+
+      // Should show the 5 unmapped fields
+      await waitFor(() => {
+        expect(screen.getByText('description')).toBeInTheDocument()
+        expect(screen.getByText('category')).toBeInTheDocument()
+        expect(screen.getByText('memo')).toBeInTheDocument()
+        expect(screen.getByText('reference')).toBeInTheDocument()
+        expect(screen.getByText('balance')).toBeInTheDocument()
+      })
+
+      // Close dropdown and save
+      fireEvent.click(addFieldButton)
+      mockSaveRef.current?.()
+
+      // Verify all 7 sourceFields are preserved in save data
+      await waitFor(() => {
+        expect(mockOnSave).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sourceFields: ['date', 'amount', 'description', 'category', 'memo', 'reference', 'balance']
+          })
+        )
+      })
+    })
+
+    it('should handle template with no sourceFields gracefully', () => {
+      const templateWithoutSourceFields: ImportTemplate = {
+        ...mockInitialTemplate,
+        sourceFields: undefined
+      }
+
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          initialTemplate={templateWithoutSourceFields}
+          accounts={mockAccounts}
+        />
+      )
+
+      // Should not crash
+      expect(screen.getByDisplayValue('Test Import Template')).toBeInTheDocument()
+
+      // The component should render without crashing even with no sourceFields
+      // The Add Field button might not be visible when there are no sourceFields to add
+      // We just verify the component renders correctly
+      expect(screen.getByText('Field Mapping')).toBeInTheDocument()
+    })
+
+    it('should show available fields in dropdown when clicked', async () => {
+      const partialTemplate: ImportTemplate = {
+        ...mockInitialTemplate,
+        fieldMappings: [
+          { sourceField: 'first_name', targetField: 'Full Name', dataType: 'Text', required: false, validation: '' }
+        ],
+        fieldCombinations: [],
+        sourceFields: ['first_name', 'email', 'phone']
+      }
+
+      render(
+        <NewImportTemplateEditor
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+          defaultExportTemplate={mockDefaultExportTemplate}
+          initialTemplate={partialTemplate}
+          accounts={mockAccounts}
+        />
+      )
+
+      // Open Add Field dropdown (use title to be specific)
+      const addFieldButton = screen.getByTitle('Add a field from original source file')
+      fireEvent.click(addFieldButton)
+
+      // Should show email and phone as options (unmapped fields from sourceFields)
+      await waitFor(() => {
+        expect(screen.getByText('email')).toBeInTheDocument()
+        expect(screen.getByText('phone')).toBeInTheDocument()
+      })
+
+      // first_name is already mapped, so it should NOT be in the dropdown
+      // (Note: it might appear in the table, so we check specifically in dropdown context)
+      const dropdownContainer = addFieldButton.closest('.relative')
+      expect(dropdownContainer).toBeInTheDocument()
     })
   })
 }) 

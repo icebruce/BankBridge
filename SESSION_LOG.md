@@ -4,6 +4,53 @@ Track changes and decisions made across Claude Code sessions.
 
 ---
 
+## 2026-01-08 - Phase 6 Complete: Import Templates Integration
+
+**Changes:**
+- `src/services/importTemplateService.ts`: Added `sourceFields` and `accountId` to createImportTemplate function signature
+- `src/components/ImportTemplates/ImportTemplatesPage.tsx`:
+  - Updated to pass `sourceFields` when creating/updating templates
+  - Added navigation event listener for "Go to Settings" link
+- `src/components/ImportTemplates/NewImportTemplateEditor.tsx`:
+  - Fixed validation to exclude hidden empty fields from required check
+  - Fixed Add Field dropdown to show hidden fields that can be re-added
+  - Fixed `handleAddFieldFromSource` to handle hidden fields properly
+- `src/components/ImportTemplates/ImportTemplatesList.tsx`: Added Institution/Account columns with account lookup
+- `src/App.tsx`: Added navigation event listener for cross-component navigation
+- `src/models/ImportTemplate.ts`: Already had `accountId` and `sourceFields` properties
+- `docs/DATA_ARCHITECTURE.md`: Updated with complete ImportTemplate model including sourceFields explanation
+- `TESTING_GUIDE.md`: Added Import Template testing coverage and mock patterns
+
+**New Files:**
+- `src/services/__tests__/importTemplateService.test.ts`: 36 comprehensive unit tests for service layer
+
+**Bug Fixes:**
+1. **sourceFields persistence**: When creating a template with only 3 of 7 fields mapped, the remaining 4 fields were being lost. Fixed by persisting `sourceFields` array.
+2. **Empty fields validation**: Fields hidden via "Show empty fields" toggle were incorrectly counted as required.
+3. **Add Field button**: Hidden fields were not available in the Add Field dropdown when editing.
+4. **Institution column blank**: `accountId` wasn't being passed to createImportTemplate.
+5. **Settings link not working**: Custom navigation event wasn't being handled.
+
+**Decisions Made:**
+- `sourceFields` is critical for partial mapping → edit → add fields workflow
+- All mock templates in tests must include `sourceFields` property
+- Round-trip testing (create → load → update) validates data persistence
+
+**Test Results:**
+- Total: 276 tests (up from 240)
+- All passing
+
+**Implementation Status:**
+- Phase 6 (Import Templates Integration): COMPLETE
+- Phase 7 (Polish & Testing): In Progress
+
+**Next Steps:**
+- Additional UI polish
+- Manual E2E testing in Electron
+- Consider accessibility audit
+
+---
+
 ## 2026-01-08 - Export Templates Alignment
 
 **Changes:**
@@ -106,9 +153,23 @@ Copy and fill in for each new session:
 
 | Date | Feature | Branch | PR | Status |
 |------|---------|--------|----|----|
+| 2026-01-08 | Phase 6: Import Templates Integration | main | pending | Ready to commit |
 | 2026-01-08 | Export Templates Alignment | main | 0951df8 | Committed |
 | 2026-01-08 | Import Templates UX Round 4 | main | 843c2ed | Pushed |
 | 2026-01-08 | Import Templates UX Fixes | feature/import-templates-ux-fixes | #1 | Merged |
+
+## Implementation Progress
+
+| Phase | Status | Key Changes |
+|-------|--------|-------------|
+| Phase 0: Documentation | Complete | DATA_ARCHITECTURE.md |
+| Phase 1: Core Infrastructure | Complete | Settings models, services |
+| Phase 2: Account Configuration | Complete | SettingsPage, AccountConfiguration |
+| Phase 3: Master Data Section | Complete | MasterDataSection, file ops |
+| Phase 4: Import/Export | Complete | CSV/Excel export, import diff |
+| Phase 5: Export Template Updates | Complete | Internal field mapping |
+| **Phase 6: Import Templates** | **Complete** | Account dropdown, sourceFields |
+| Phase 7: Polish & Testing | In Progress | Tests added, more polish needed |
 
 ---
 

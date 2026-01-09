@@ -10,7 +10,7 @@ import {
   getFileInfo,
   initializeMasterData
 } from '../../services/masterDataService';
-import type { MasterDataFile, MasterDataFileInfo } from '../../models/MasterData';
+import type { MasterDataFile, MasterDataFileInfo, Transaction } from '../../models/MasterData';
 
 interface MasterDataSectionProps {
   onSuccess: (message: string) => void;
@@ -71,11 +71,6 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
     onSuccess('Master data reloaded');
   }, [onSuccess]);
 
-  const handleDataChange = useCallback(() => {
-    // Refresh data after changes
-    loadData();
-  }, []);
-
   // Handle "Start Fresh" from wizard - create empty master data file
   const handleStartFresh = useCallback(async () => {
     try {
@@ -90,20 +85,102 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
 
   // Handle "Import Existing" from wizard - open file picker
   const handleImportExisting = useCallback(async () => {
-    try {
-      // TODO: Open file picker and parse file
-      // For now, show a message that this is coming soon
-      onError('Import functionality coming soon. Please use "Start Fresh" for now.');
+    if (!window.electronAPI) {
+      onError('This feature is only available in the desktop app');
+      return;
+    }
 
-      // When implemented:
-      // const result = await pickAndParseFile();
-      // if (result) {
-      //   setImportData({
-      //     sourceColumns: result.columns,
-      //     sampleData: result.data
-      //   });
-      //   setSetupMode('mapping');
-      // }
+    try {
+      const result = await window.electronAPI.masterData.importFile();
+      if (!result) return; // User cancelled
+
+      let columns: string[] = [];
+      let data: Record<string, string>[] = [];
+
+      if (result.type === 'csv' && result.content) {
+        const lines = result.content.split('\n').filter(line => line.trim());
+        if (lines.length > 0) {
+          columns = lines[0].split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+          data = lines.slice(1).map(line => {
+            const values = line.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
+            return columns.reduce((obj, col, i) => {
+              obj[col] = values[i] || '';
+              return obj;
+            }, {} as Record<string, string>);
+          });
+        }
+      } else if (result.type === 'excel' && result.data) {
+        if (result.data.length > 0) {
+          columns = Object.keys(result.data[0]);
+          data = result.data.map(row => {
+            return columns.reduce((obj, col) => {
+              obj[col] = String(row[col] ?? '');
+              return obj;
+            }, {} as Record<string, string>);
+          });
+        }
+      }
+
+      if (columns.length === 0) {
+        onError('No data found in file');
+        return;
+      }
+
+      setImportData({ sourceColumns: columns, sampleData: data });
+      setSetupMode('mapping');
+    } catch (error) {
+      console.error('Error importing file:', error);
+      onError('Failed to import file');
+    }
+  }, [onError]);
+
+  // Handle import button click - open file picker and parse
+  const handleImportClick = useCallback(async () => {
+    if (!window.electronAPI) {
+      onError('This feature is only available in the desktop app');
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.masterData.importFile();
+      if (!result) return; // User cancelled
+
+      let columns: string[] = [];
+      let data: Record<string, string>[] = [];
+
+      if (result.type === 'csv' && result.content) {
+        // Parse CSV content
+        const lines = result.content.split('\n').filter(line => line.trim());
+        if (lines.length > 0) {
+          columns = lines[0].split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+          data = lines.slice(1).map(line => {
+            const values = line.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
+            return columns.reduce((obj, col, i) => {
+              obj[col] = values[i] || '';
+              return obj;
+            }, {} as Record<string, string>);
+          });
+        }
+      } else if (result.type === 'excel' && result.data) {
+        // Excel data is already parsed as array of objects
+        if (result.data.length > 0) {
+          columns = Object.keys(result.data[0]);
+          data = result.data.map(row => {
+            return columns.reduce((obj, col) => {
+              obj[col] = String(row[col] ?? '');
+              return obj;
+            }, {} as Record<string, string>);
+          });
+        }
+      }
+
+      if (columns.length === 0) {
+        onError('No data found in file');
+        return;
+      }
+
+      setImportData({ sourceColumns: columns, sampleData: data });
+      setSetupMode('mapping');
     } catch (error) {
       console.error('Error importing file:', error);
       onError('Failed to import file');
@@ -111,12 +188,63 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
   }, [onError]);
 
   // Handle column mapping import
-  const handleMappingImport = useCallback(async (_mappings: ColumnMapping[]) => {
+  const handleMappingImport = useCallback(async (mappings: ColumnMapping[]) => {
+    if (!importData) return;
+
     try {
-      // TODO: Transform data using mappings and save to master data
-      // For now, just initialize empty and show success
-      await initializeMasterData();
-      onSuccess('Data imported successfully');
+      // Transform data using mappings
+      const transactions: Transaction[] = importData.sampleData.map(row => {
+        const mappedData: Partial<Transaction> = {};
+
+        mappings.forEach(mapping => {
+          if (mapping.targetField && mapping.sourceColumn) {
+            const value = row[mapping.sourceColumn] || '';
+
+            // Handle amount conversion
+            if (mapping.targetField === 'amount') {
+              mappedData.amount = parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
+            } else if (mapping.targetField === 'tags') {
+              mappedData.tags = value ? value.split(',').map(t => t.trim()) : [];
+            } else {
+              (mappedData as any)[mapping.targetField] = value;
+            }
+          }
+        });
+
+        // Create full transaction with defaults
+        const transaction: Transaction = {
+          id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          date: mappedData.date || new Date().toISOString().split('T')[0],
+          merchant: mappedData.merchant || '',
+          category: mappedData.category || '',
+          institutionName: mappedData.institutionName || '',
+          accountName: mappedData.accountName || '',
+          originalStatement: mappedData.originalStatement || '',
+          notes: mappedData.notes || '',
+          amount: mappedData.amount ?? 0,
+          tags: mappedData.tags || [],
+          sourceFile: 'manual_import',
+          importedAt: new Date().toISOString(),
+        };
+
+        return transaction;
+      });
+
+      // Load existing master data or create new
+      let data = await loadMasterData();
+      if (!data || !data.transactions) {
+        data = await initializeMasterData();
+      }
+
+      // Add new transactions
+      data.transactions = [...data.transactions, ...transactions];
+
+      // Save
+      if (window.electronAPI) {
+        await window.electronAPI.masterData.save(data);
+      }
+
+      onSuccess(`Imported ${transactions.length} transactions successfully`);
       setSetupMode('none');
       setImportData(null);
       await loadData();
@@ -124,13 +252,18 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
       console.error('Error importing mapped data:', error);
       onError('Failed to import data');
     }
-  }, [onSuccess, onError]);
+  }, [importData, onSuccess, onError]);
 
   // Handle cancel from column mapping
   const handleMappingCancel = useCallback(() => {
-    setSetupMode('wizard');
+    // If master data exists, go back to normal view; otherwise show wizard
+    if (masterData && masterData.transactions.length > 0) {
+      setSetupMode('none');
+    } else {
+      setSetupMode('wizard');
+    }
     setImportData(null);
-  }, []);
+  }, [masterData]);
 
   // Show setup wizard for first-time users
   if (setupMode === 'wizard') {
@@ -195,40 +328,37 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
         <FileLocationSection
           fileInfo={fileInfo}
           lastUpdated={masterData?.lastUpdated}
+          transactions={masterData?.transactions || []}
           onReload={handleReload}
+          onImportClick={handleImportClick}
           onSuccess={onSuccess}
           onError={onError}
         />
       </div>
 
       {/* Master Data Table */}
-      <div className="border border-neutral-200 rounded-lg overflow-hidden">
-        {loading ? (
-          <div className="text-center py-12 text-neutral-500">
-            <div className="animate-pulse">Loading master data...</div>
+      {loading ? (
+        <div className="border border-neutral-200 rounded-lg text-center py-12 text-neutral-500">
+          <div className="animate-pulse">Loading master data...</div>
+        </div>
+      ) : !masterData || masterData.transactions.length === 0 ? (
+        <div className="border border-neutral-200 rounded-lg text-center py-12">
+          <div className="text-neutral-400 mb-3">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
           </div>
-        ) : !masterData || masterData.transactions.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-neutral-400 mb-3">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-            </div>
-            <p className="text-neutral-600 mb-4">No transactions in master data</p>
-            <p className="text-neutral-500 text-sm">
-              Import transactions from the Process Files page or use the Import button above
-            </p>
-          </div>
-        ) : (
-          <MasterDataTable
-            transactions={masterData.transactions}
-            totalTransactions={masterData.metadata.totalTransactions}
-            onDelete={handleDataChange}
-            onSuccess={onSuccess}
-            onError={onError}
-          />
-        )}
-      </div>
+          <p className="text-neutral-600 mb-4">No transactions in master data</p>
+          <p className="text-neutral-500 text-sm">
+            Import transactions from the Process Files page or use the Import button above
+          </p>
+        </div>
+      ) : (
+        <MasterDataTable
+          transactions={masterData.transactions}
+          totalTransactions={masterData.metadata.totalTransactions}
+        />
+      )}
     </div>
   );
 };

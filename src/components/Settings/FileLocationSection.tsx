@@ -8,12 +8,14 @@ import {
   faRotate,
   faChevronDown
 } from '@fortawesome/free-solid-svg-icons';
-import type { MasterDataFileInfo } from '../../models/MasterData';
+import type { MasterDataFileInfo, Transaction } from '../../models/MasterData';
 
 interface FileLocationSectionProps {
   fileInfo: MasterDataFileInfo | null;
   lastUpdated?: string;
+  transactions: Transaction[];
   onReload: () => void;
+  onImportClick: () => void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -21,12 +23,15 @@ interface FileLocationSectionProps {
 const FileLocationSection: FC<FileLocationSectionProps> = ({
   fileInfo,
   lastUpdated,
+  transactions,
   onReload,
-  onSuccess: _onSuccess,
+  onImportClick,
+  onSuccess,
   onError
 }) => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -58,25 +63,80 @@ const FileLocationSection: FC<FileLocationSectionProps> = ({
   };
 
   const handleChangeFolder = async () => {
-    // TODO: Implement folder picker dialog
-    onError('Change folder functionality coming soon');
+    if (!window.electronAPI) {
+      onError('This feature is only available in the desktop app');
+      return;
+    }
+
+    try {
+      const newPath = await window.electronAPI.masterData.pickFolder();
+      if (newPath) {
+        await window.electronAPI.settings.setMasterDataPath(newPath);
+        onSuccess('Master data folder changed successfully');
+        onReload();
+      }
+    } catch (error) {
+      console.error('Error changing folder:', error);
+      onError('Failed to change folder');
+    }
   };
 
   const handleImport = async () => {
-    // TODO: Implement file import
-    onError('Import functionality coming soon');
+    onImportClick();
   };
 
   const handleExportCSV = async () => {
     setShowExportDropdown(false);
-    // TODO: Implement CSV export
-    onError('CSV export functionality coming soon');
+
+    if (!window.electronAPI) {
+      onError('This feature is only available in the desktop app');
+      return;
+    }
+
+    if (transactions.length === 0) {
+      onError('No transactions to export');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const filePath = await window.electronAPI.masterData.exportCSV(transactions);
+      if (filePath) {
+        onSuccess(`Exported ${transactions.length} transactions to CSV`);
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      onError('Failed to export CSV');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleExportExcel = async () => {
     setShowExportDropdown(false);
-    // TODO: Implement Excel export
-    onError('Excel export functionality coming soon');
+
+    if (!window.electronAPI) {
+      onError('This feature is only available in the desktop app');
+      return;
+    }
+
+    if (transactions.length === 0) {
+      onError('No transactions to export');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const filePath = await window.electronAPI.masterData.exportExcel(transactions);
+      if (filePath) {
+        onSuccess(`Exported ${transactions.length} transactions to Excel`);
+      }
+    } catch (error) {
+      console.error('Error exporting Excel:', error);
+      onError('Failed to export Excel');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleReload = async () => {
@@ -140,12 +200,17 @@ const FileLocationSection: FC<FileLocationSectionProps> = ({
           {/* Export Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
-              className="px-3 py-2 text-sm text-neutral-700 hover:bg-white rounded-lg transition-colors flex items-center gap-2"
-              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              className={`px-3 py-2 text-sm text-neutral-700 hover:bg-white rounded-lg transition-colors flex items-center gap-2 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => !isExporting && setShowExportDropdown(!showExportDropdown)}
+              disabled={isExporting}
             >
-              <FontAwesomeIcon icon={faFileExport} className="w-4 h-4" />
-              Export
-              <FontAwesomeIcon icon={faChevronDown} className="w-3 h-3" />
+              {isExporting ? (
+                <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FontAwesomeIcon icon={faFileExport} className="w-4 h-4" />
+              )}
+              {isExporting ? 'Exporting...' : 'Export'}
+              {!isExporting && <FontAwesomeIcon icon={faChevronDown} className="w-3 h-3" />}
             </button>
 
             {/* Dropdown Menu */}

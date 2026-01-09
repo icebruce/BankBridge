@@ -1,25 +1,20 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { FC } from 'react';
-import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faTrash,
   faMagnifyingGlass,
   faSort,
   faSortUp,
   faSortDown,
   faChevronLeft,
-  faChevronRight
+  faChevronRight,
+  faXmark
 } from '@fortawesome/free-solid-svg-icons';
 import type { Transaction } from '../../models/MasterData';
-import { deleteTransaction } from '../../services/masterDataService';
 
 interface MasterDataTableProps {
   transactions: Transaction[];
   totalTransactions: number;
-  onDelete: () => void;
-  onSuccess: (message: string) => void;
-  onError: (message: string) => void;
 }
 
 type SortField = 'date' | 'merchant' | 'amount' | 'institutionName' | 'accountName' | 'category';
@@ -38,10 +33,7 @@ const PAGE_SIZE = 50;
 
 const MasterDataTable: FC<MasterDataTableProps> = ({
   transactions,
-  totalTransactions,
-  onDelete,
-  onSuccess,
-  onError
+  totalTransactions
 }) => {
   // Search and filter state
   const [globalSearch, setGlobalSearch] = useState('');
@@ -61,13 +53,36 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Delete confirmation state
-  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null);
+  // Helper to get formatted date for filtering
+  const getFormattedDate = useCallback((dateString: string): string => {
+    if (!dateString) return '';
+    const numericDate = Number(dateString);
+    if (!isNaN(numericDate) && numericDate > 30000 && numericDate < 60000) {
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + numericDate * 24 * 60 * 60 * 1000);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      dateString = `${year}-${month}-${day}`;
+    }
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    return `${parts[1]}/${parts[2]}/${parts[0].slice(2)}`;
+  }, []);
+
+  // Helper to get formatted amount for filtering
+  const getFormattedAmount = useCallback((amount: number): string => {
+    const formatted = Math.abs(amount).toFixed(2);
+    return amount < 0 ? `-$${formatted}` : `$${formatted}`;
+  }, []);
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter(txn => {
-      // Global search - matches merchant, originalStatement, notes, category
+      const formattedDate = getFormattedDate(txn.date);
+      const formattedAmount = getFormattedAmount(txn.amount);
+
+      // Global search - matches merchant, originalStatement, notes, category, amount, date
       if (globalSearch) {
         const searchLower = globalSearch.toLowerCase();
         const matchesMerchant = txn.merchant.toLowerCase().includes(searchLower);
@@ -76,24 +91,43 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
         const matchesCategory = txn.category.toLowerCase().includes(searchLower);
         const matchesInstitution = txn.institutionName.toLowerCase().includes(searchLower);
         const matchesAccount = txn.accountName.toLowerCase().includes(searchLower);
+        // Search amount (both raw number and formatted)
+        const matchesAmount = txn.amount.toString().includes(searchLower) ||
+                             formattedAmount.toLowerCase().includes(searchLower);
+        // Search date (both raw and formatted)
+        const matchesDate = txn.date.toLowerCase().includes(searchLower) ||
+                           formattedDate.toLowerCase().includes(searchLower);
 
         if (!matchesMerchant && !matchesStatement && !matchesNotes &&
-            !matchesCategory && !matchesInstitution && !matchesAccount) {
+            !matchesCategory && !matchesInstitution && !matchesAccount &&
+            !matchesAmount && !matchesDate) {
           return false;
         }
       }
 
       // Per-column filters
-      if (columnFilters.date && !txn.date.includes(columnFilters.date)) return false;
+      // Date filter - check both raw format (YYYY-MM-DD) and display format (MM/DD/YY)
+      if (columnFilters.date) {
+        const filterLower = columnFilters.date.toLowerCase();
+        if (!txn.date.includes(filterLower) && !formattedDate.toLowerCase().includes(filterLower)) {
+          return false;
+        }
+      }
       if (columnFilters.merchant && !txn.merchant.toLowerCase().includes(columnFilters.merchant.toLowerCase())) return false;
-      if (columnFilters.amount && !txn.amount.toString().includes(columnFilters.amount)) return false;
+      // Amount filter - check both raw number and formatted
+      if (columnFilters.amount) {
+        const filterVal = columnFilters.amount.toLowerCase();
+        if (!txn.amount.toString().includes(filterVal) && !formattedAmount.toLowerCase().includes(filterVal)) {
+          return false;
+        }
+      }
       if (columnFilters.institutionName && !txn.institutionName.toLowerCase().includes(columnFilters.institutionName.toLowerCase())) return false;
       if (columnFilters.accountName && !txn.accountName.toLowerCase().includes(columnFilters.accountName.toLowerCase())) return false;
       if (columnFilters.category && !txn.category.toLowerCase().includes(columnFilters.category.toLowerCase())) return false;
 
       return true;
     });
-  }, [transactions, globalSearch, columnFilters]);
+  }, [transactions, globalSearch, columnFilters, getFormattedDate, getFormattedAmount]);
 
   // Sort transactions
   const sortedTransactions = useMemo(() => {
@@ -141,30 +175,6 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
     setCurrentPage(1); // Reset to first page on filter change
   }, []);
 
-  // Handle delete
-  const handleDeleteClick = (transaction: Transaction) => {
-    setDeletingTransaction(transaction);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deletingTransaction) return;
-
-    try {
-      await deleteTransaction(deletingTransaction.id);
-      onSuccess('Transaction deleted successfully');
-      onDelete();
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      onError('Failed to delete transaction');
-    } finally {
-      setDeletingTransaction(null);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setDeletingTransaction(null);
-  };
-
   // Get sort icon for a column
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
@@ -181,9 +191,30 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
     return amount < 0 ? `-$${formatted}` : `$${formatted}`;
   };
 
+  // Convert Excel serial date to ISO date string
+  const excelSerialToDate = (serial: number): string => {
+    // Excel uses January 1, 1900 as day 1 (with a bug treating 1900 as a leap year)
+    // We need to subtract 1 because Excel starts at 1, not 0
+    // Also subtract 1 for the 1900 leap year bug
+    const excelEpoch = new Date(1899, 11, 30); // December 30, 1899
+    const date = new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Format date for display
   const formatDate = (dateString: string): string => {
     if (!dateString) return '-';
+
+    // Check if it's an Excel serial date (a number like 45545)
+    const numericDate = Number(dateString);
+    if (!isNaN(numericDate) && numericDate > 30000 && numericDate < 60000) {
+      // Likely an Excel serial date - convert it first
+      dateString = excelSerialToDate(numericDate);
+    }
+
     const parts = dateString.split('-');
     if (parts.length !== 3) return dateString;
     return `${parts[1]}/${parts[2]}/${parts[0].slice(2)}`;
@@ -204,16 +235,28 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
             <input
               type="text"
               placeholder="Search..."
-              className="electronInput pl-9 pr-3 py-2 border border-neutral-300 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="electronInput pl-9 pr-8 py-2 border border-neutral-300 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={globalSearch}
               onChange={(e) => {
                 setGlobalSearch(e.target.value);
                 setCurrentPage(1);
               }}
             />
+            {globalSearch && (
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-100"
+                onClick={() => {
+                  setGlobalSearch('');
+                  setCurrentPage(1);
+                }}
+                title="Clear search"
+              >
+                <FontAwesomeIcon icon={faXmark} className="w-3 h-3" />
+              </button>
+            )}
           </div>
           <span className="text-sm text-neutral-500">
-            Total: {totalTransactions.toLocaleString()}
+            Total records: {totalTransactions.toLocaleString()}
           </span>
         </div>
       </div>
@@ -225,7 +268,7 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
             {/* Column Headers */}
             <tr className="bg-neutral-50 border-b border-neutral-200">
               <th
-                className="text-left py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
+                className="text-left py-3 px-4 text-sm font-semibold text-neutral-600 cursor-pointer hover:bg-neutral-100"
                 onClick={() => handleSort('date')}
               >
                 <div className="flex items-center gap-1">
@@ -234,7 +277,7 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
                 </div>
               </th>
               <th
-                className="text-left py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
+                className="text-left py-3 px-4 text-sm font-semibold text-neutral-600 cursor-pointer hover:bg-neutral-100"
                 onClick={() => handleSort('merchant')}
               >
                 <div className="flex items-center gap-1">
@@ -243,16 +286,16 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
                 </div>
               </th>
               <th
-                className="text-right py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
+                className="text-left py-3 px-4 text-sm font-semibold text-neutral-600 cursor-pointer hover:bg-neutral-100"
                 onClick={() => handleSort('amount')}
               >
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center gap-1">
                   Amount
                   {getSortIcon('amount')}
                 </div>
               </th>
               <th
-                className="text-left py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
+                className="text-left py-3 px-4 text-sm font-semibold text-neutral-600 cursor-pointer hover:bg-neutral-100"
                 onClick={() => handleSort('institutionName')}
               >
                 <div className="flex items-center gap-1">
@@ -261,7 +304,7 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
                 </div>
               </th>
               <th
-                className="text-left py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
+                className="text-left py-3 px-4 text-sm font-semibold text-neutral-600 cursor-pointer hover:bg-neutral-100"
                 onClick={() => handleSort('accountName')}
               >
                 <div className="flex items-center gap-1">
@@ -270,7 +313,7 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
                 </div>
               </th>
               <th
-                className="text-left py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:bg-neutral-100"
+                className="text-left py-3 px-4 text-sm font-semibold text-neutral-600 cursor-pointer hover:bg-neutral-100"
                 onClick={() => handleSort('category')}
               >
                 <div className="flex items-center gap-1">
@@ -278,75 +321,131 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
                   {getSortIcon('category')}
                 </div>
               </th>
-              <th className="text-right py-3 px-4 text-xs font-semibold text-neutral-500 uppercase tracking-wider w-16">
-                Actions
-              </th>
             </tr>
 
             {/* Filter Row */}
             <tr className="bg-neutral-50/50 border-b border-neutral-200">
-              <th className="py-2 px-4">
-                <input
-                  type="text"
-                  placeholder="Filter..."
-                  className="electronInput w-full px-2 py-1 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={columnFilters.date}
-                  onChange={(e) => handleFilterChange('date', e.target.value)}
-                />
-              </th>
-              <th className="py-2 px-4">
-                <input
-                  type="text"
-                  placeholder="Filter..."
-                  className="electronInput w-full px-2 py-1 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={columnFilters.merchant}
-                  onChange={(e) => handleFilterChange('merchant', e.target.value)}
-                />
-              </th>
-              <th className="py-2 px-4">
-                <input
-                  type="text"
-                  placeholder="Filter..."
-                  className="electronInput w-full px-2 py-1 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-right"
-                  value={columnFilters.amount}
-                  onChange={(e) => handleFilterChange('amount', e.target.value)}
-                />
-              </th>
-              <th className="py-2 px-4">
-                <input
-                  type="text"
-                  placeholder="Filter..."
-                  className="electronInput w-full px-2 py-1 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={columnFilters.institutionName}
-                  onChange={(e) => handleFilterChange('institutionName', e.target.value)}
-                />
-              </th>
-              <th className="py-2 px-4">
-                <input
-                  type="text"
-                  placeholder="Filter..."
-                  className="electronInput w-full px-2 py-1 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={columnFilters.accountName}
-                  onChange={(e) => handleFilterChange('accountName', e.target.value)}
-                />
-              </th>
-              <th className="py-2 px-4">
-                <input
-                  type="text"
-                  placeholder="Filter..."
-                  className="electronInput w-full px-2 py-1 text-sm border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  value={columnFilters.category}
-                  onChange={(e) => handleFilterChange('category', e.target.value)}
-                />
-              </th>
-              <th></th>
+              <td className="py-2 px-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter..."
+                    className="electronInput w-full px-2 pr-7 py-1 text-sm font-normal text-neutral-600 border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={columnFilters.date}
+                    onChange={(e) => handleFilterChange('date', e.target.value)}
+                  />
+                  {columnFilters.date && (
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600"
+                      onClick={() => handleFilterChange('date', '')}
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
+              <td className="py-2 px-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter..."
+                    className="electronInput w-full px-2 pr-7 py-1 text-sm font-normal text-neutral-600 border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={columnFilters.merchant}
+                    onChange={(e) => handleFilterChange('merchant', e.target.value)}
+                  />
+                  {columnFilters.merchant && (
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600"
+                      onClick={() => handleFilterChange('merchant', '')}
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
+              <td className="py-2 px-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter..."
+                    className="electronInput w-full px-2 pr-7 py-1 text-sm font-normal text-neutral-600 border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={columnFilters.amount}
+                    onChange={(e) => handleFilterChange('amount', e.target.value)}
+                  />
+                  {columnFilters.amount && (
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600"
+                      onClick={() => handleFilterChange('amount', '')}
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
+              <td className="py-2 px-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter..."
+                    className="electronInput w-full px-2 pr-7 py-1 text-sm font-normal text-neutral-600 border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={columnFilters.institutionName}
+                    onChange={(e) => handleFilterChange('institutionName', e.target.value)}
+                  />
+                  {columnFilters.institutionName && (
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600"
+                      onClick={() => handleFilterChange('institutionName', '')}
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
+              <td className="py-2 px-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter..."
+                    className="electronInput w-full px-2 pr-7 py-1 text-sm font-normal text-neutral-600 border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={columnFilters.accountName}
+                    onChange={(e) => handleFilterChange('accountName', e.target.value)}
+                  />
+                  {columnFilters.accountName && (
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600"
+                      onClick={() => handleFilterChange('accountName', '')}
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
+              <td className="py-2 px-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Filter..."
+                    className="electronInput w-full px-2 pr-7 py-1 text-sm font-normal text-neutral-600 border border-neutral-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={columnFilters.category}
+                    onChange={(e) => handleFilterChange('category', e.target.value)}
+                  />
+                  {columnFilters.category && (
+                    <button
+                      className="absolute right-1 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600"
+                      onClick={() => handleFilterChange('category', '')}
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="w-2.5 h-2.5" />
+                    </button>
+                  )}
+                </div>
+              </td>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-neutral-100">
+          <tbody className="divide-y divide-neutral-200 bg-white">
             {paginatedTransactions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-neutral-500">
+                <td colSpan={6} className="text-center py-8 text-neutral-500">
                   No transactions match your filters
                 </td>
               </tr>
@@ -356,29 +455,20 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
                   <td className="py-3 px-4 text-sm text-neutral-600">
                     {formatDate(txn.date)}
                   </td>
-                  <td className="py-3 px-4 text-sm font-medium text-neutral-900">
+                  <td className="py-3 px-4 text-sm font-medium text-neutral-900 max-w-[200px] truncate" title={txn.merchant}>
                     {txn.merchant}
                   </td>
                   <td className={`py-3 px-4 text-sm text-right font-medium ${txn.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {formatAmount(txn.amount)}
                   </td>
-                  <td className="py-3 px-4 text-sm text-neutral-700">
+                  <td className="py-3 px-4 text-sm text-neutral-700 max-w-[150px] truncate" title={txn.institutionName}>
                     {txn.institutionName}
                   </td>
-                  <td className="py-3 px-4 text-sm text-neutral-700">
+                  <td className="py-3 px-4 text-sm text-neutral-700 max-w-[150px] truncate" title={txn.accountName}>
                     {txn.accountName}
                   </td>
-                  <td className="py-3 px-4 text-sm text-neutral-600">
+                  <td className="py-3 px-4 text-sm text-neutral-600 max-w-[150px] truncate" title={txn.category || ''}>
                     {txn.category || '-'}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                      onClick={() => handleDeleteClick(txn)}
-                      title="Delete transaction"
-                    >
-                      <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
-                    </button>
                   </td>
                 </tr>
               ))
@@ -455,55 +545,6 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
             </button>
           </div>
         </div>
-      )}
-
-      {/* Delete Confirmation Modal - Rendered via Portal */}
-      {deletingTransaction && createPortal(
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-neutral-900 bg-opacity-50 transition-opacity"
-            onClick={handleCancelDelete}
-          />
-
-          {/* Modal Container */}
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white shadow-2xl">
-              <div className="px-6 py-5">
-                <h3 className="text-lg font-semibold text-neutral-900 mb-4">
-                  Delete Transaction
-                </h3>
-                <p className="text-neutral-600">
-                  Are you sure you want to delete this transaction?
-                </p>
-                <div className="mt-3 p-3 bg-neutral-50 rounded-lg text-sm">
-                  <p><span className="font-medium">Date:</span> {formatDate(deletingTransaction.date)}</p>
-                  <p><span className="font-medium">Merchant:</span> {deletingTransaction.merchant}</p>
-                  <p><span className="font-medium">Amount:</span> {formatAmount(deletingTransaction.amount)}</p>
-                </div>
-                <p className="text-neutral-500 text-sm mt-3">
-                  This action cannot be undone.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-neutral-200 bg-neutral-50">
-                <button
-                  className="px-4 py-2.5 border border-neutral-300 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100 transition-colors"
-                  onClick={handleCancelDelete}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
-                  onClick={handleConfirmDelete}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
       )}
     </div>
   );

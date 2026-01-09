@@ -1,17 +1,19 @@
 // ImportTemplatesList component
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faExclamationTriangle, 
-  faChevronLeft, 
-  faChevronRight 
+import {
+  faExclamationTriangle,
+  faChevronLeft,
+  faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate } from '../../models/ImportTemplate';
+import { Account } from '../../models/Settings';
 import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';
 import TableActions, { TableActionPresets } from '../common/TableActions';
 
 interface ImportTemplatesListProps {
   templates: ImportTemplate[];
+  accounts: Account[];
   loading: boolean;
   onEdit: (template: ImportTemplate) => void;
   onDuplicate: (template: ImportTemplate) => void;
@@ -20,6 +22,7 @@ interface ImportTemplatesListProps {
 
 const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
   templates,
+  accounts,
   loading,
   onEdit,
   onDuplicate,
@@ -28,11 +31,29 @@ const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
   // Format date to readable format
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
+  };
+
+  // Get account info from accountId, with fallback to legacy account field
+  const getAccountInfo = (template: ImportTemplate): { institution: string; account: string } => {
+    if (template.accountId) {
+      const account = accounts.find(a => a.id === template.accountId);
+      if (account) {
+        return {
+          institution: account.institutionName,
+          account: account.accountName
+        };
+      }
+    }
+    // Fallback for legacy templates with freeform account field
+    return {
+      institution: '-',
+      account: template.account || '-'
+    };
   };
 
   const handleEdit = (template: ImportTemplate) => {
@@ -66,12 +87,22 @@ const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
       )
     },
     {
+      key: 'institution',
+      header: 'Institution',
+      width: '140px',
+      render: (_, template) => {
+        const info = getAccountInfo(template);
+        return <span className="text-neutral-600">{info.institution}</span>;
+      }
+    },
+    {
       key: 'account',
       header: 'Account',
-      width: '140px', // Increased for better spacing
-      render: (value) => (
-        <span className="text-neutral-600">{value}</span>
-      )
+      width: '140px',
+      render: (_, template) => {
+        const info = getAccountInfo(template);
+        return <span className="text-neutral-600">{info.account}</span>;
+      }
     },
     {
       key: 'fileType',
@@ -157,7 +188,7 @@ const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
       emptyIcon={<FontAwesomeIcon icon={faExclamationTriangle} />}
       footer={footer}
       {...DataTablePresets.standard}
-      minWidth="1110px"
+      minWidth="1250px"
     />
   );
 };

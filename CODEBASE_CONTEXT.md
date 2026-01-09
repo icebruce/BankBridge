@@ -11,6 +11,7 @@ src/
 │   │   ├── Button.tsx       # Standard button with variants
 │   │   ├── DataTable.tsx    # Reusable data table
 │   │   ├── Modal.tsx        # Modal dialog
+│   │   ├── Toast.tsx        # Toast notifications (useToast hook)
 │   │   └── __tests__/
 │   ├── Layout/              # App shell components
 │   │   ├── DashboardLayout.tsx  # Main app layout wrapper
@@ -29,18 +30,31 @@ src/
 │   ├── ProcessFiles/        # File processing feature
 │   │   ├── ProcessFilesPage.tsx
 │   │   └── __tests__/
-│   ├── MasterData/          # Configuration/settings
-│   │   └── MasterDataPage.tsx
+│   ├── Settings/            # Settings & Configuration
+│   │   ├── SettingsPage.tsx             # Main settings page
+│   │   ├── AccountConfiguration.tsx     # Account CRUD
+│   │   ├── AccountFormModal.tsx         # Add/Edit account modal
+│   │   ├── MasterDataSection.tsx        # Master data management
+│   │   ├── MasterDataTable.tsx          # Transaction table
+│   │   ├── FileLocationSection.tsx      # File path + actions
+│   │   ├── ColumnMappingStep.tsx        # Import column mapping
+│   │   └── __tests__/
 │   └── Dashboard/           # Home dashboard
 │       └── DashboardPage.tsx
 ├── services/                # Business logic layer
 │   ├── templateService.ts       # Export template operations
 │   ├── importTemplateService.ts # Import template operations
+│   ├── settingsService.ts       # Account CRUD + preferences
+│   ├── masterDataService.ts     # Transaction operations
 │   ├── fileParserService.ts     # File parsing utilities
 │   └── __tests__/
+│       ├── templateService.test.ts
+│       └── importTemplateService.test.ts
 ├── models/                  # TypeScript interfaces
 │   ├── Template.ts          # Export template types
-│   └── ImportTemplate.ts    # Import template types
+│   ├── ImportTemplate.ts    # Import template types
+│   ├── Settings.ts          # Account, preferences types
+│   └── MasterData.ts        # Transaction types
 ├── ui/hooks/                # Custom React hooks
 │   ├── useDebounce.ts
 │   └── useLocalStorage.ts
@@ -105,7 +119,8 @@ interface ImportTemplate {
   name: string;
   description?: string;
   fieldCount: number;
-  account: string;
+  account: string;                      // Display name (denormalized)
+  accountId: string;                    // References Account in Settings
   fileType: string;
   createdAt: string;
   updatedAt: string;
@@ -114,9 +129,12 @@ interface ImportTemplate {
   fieldMappings: ImportFieldMapping[];
   isDefault?: boolean;
   fieldCombinations?: FieldCombination[];
-  sourceFields?: string[];  // Column headers from original file
+  sourceFields?: string[];              // CRITICAL: All column headers from original file
+                                        // Enables Add Field feature when editing
 }
 ```
+
+**Important**: `sourceFields` must be persisted when creating/updating templates. Without it, the Add Field dropdown won't show unmapped fields when editing a template.
 
 ### FieldCombination
 ```typescript
@@ -148,6 +166,19 @@ interface Template {
 }
 ```
 
+### Account (Settings)
+```typescript
+interface Account {
+  id: string;                    // Unique identifier (auto-generated)
+  institutionName: string;       // "TD Bank", "Chase", etc.
+  accountName: string;           // "Checking", "Savings"
+  exportDisplayName: string;     // "TD Bank - Checking" (for Monarch export)
+  accountType?: 'checking' | 'savings' | 'credit' | 'investment';
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
 ## Services
 
 ### importTemplateService.ts
@@ -168,6 +199,16 @@ getDefaultTemplate(): Promise<Template | null>
 createTemplate(data): Promise<Template>
 updateTemplate(id, data): Promise<Template>
 deleteTemplate(id): Promise<void>
+```
+
+### settingsService.ts
+```typescript
+// Account CRUD operations
+getAccounts(): Promise<Account[]>
+createAccount(data): Promise<Account>
+updateAccount(id, data): Promise<Account>
+deleteAccount(id): Promise<void>
+isAccountInUse(id): Promise<{ inUse: boolean; usedBy: string[] }>
 ```
 
 ### fileParserService.ts

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faCheck, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faCheck, faExclamationTriangle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 
 interface ColumnMappingStepProps {
   sourceColumns: string[];
@@ -90,6 +90,8 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
 }) => {
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [hasAttemptedImport, setHasAttemptedImport] = useState(false);
 
   // Auto-detect mappings on mount
   useEffect(() => {
@@ -102,6 +104,8 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
         ? { ...m, targetField }
         : m
     ));
+    // Mark field as touched
+    setTouchedFields(prev => new Set([...prev, sourceColumn]));
   };
 
   const getUsedFields = (): Set<InternalField> => {
@@ -122,6 +126,8 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
   };
 
   const handleImport = async () => {
+    setHasAttemptedImport(true);
+
     const missingRequired = getMissingRequiredFields();
     if (missingRequired.length > 0) {
       return; // Button should be disabled anyway
@@ -138,6 +144,8 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
   const usedFields = getUsedFields();
   const missingRequired = getMissingRequiredFields();
   const canImport = missingRequired.length === 0;
+  const isInstitutionMapped = usedFields.has('institutionName');
+  const isAccountMapped = usedFields.has('accountName');
 
   // Get sample value for a column
   const getSampleValue = (column: string): string => {
@@ -145,6 +153,16 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
     const value = sampleData[0][column];
     if (!value) return '-';
     return value.length > 30 ? value.substring(0, 30) + '...' : value;
+  };
+
+  // Check if a dropdown should show the error state (red left border)
+  const shouldShowError = (mapping: ColumnMapping): boolean => {
+    // Only show error if there are missing required fields
+    if (missingRequired.length === 0) return false;
+    // Only show error if field has been touched or user attempted import
+    if (!touchedFields.has(mapping.sourceColumn) && !hasAttemptedImport) return false;
+    // Only show error if this field is not mapped
+    return !mapping.targetField;
   };
 
   return (
@@ -155,7 +173,7 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
           Map Your Columns
         </h3>
         <p className="text-sm text-neutral-500">
-          Match your file columns to the internal data fields. Required fields are marked with *.
+          Match your file columns to the internal data fields. Date, Merchant, and Amount are required.
         </p>
       </div>
 
@@ -166,6 +184,21 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
           <div className="text-sm text-amber-800">
             <span className="font-medium">Missing required fields:</span>{' '}
             {missingRequired.join(', ')}
+          </div>
+        </div>
+      )}
+
+      {/* Institution/Account Not Mapped Info */}
+      {missingRequired.length === 0 && (!isInstitutionMapped || !isAccountMapped) && (
+        <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+          <FontAwesomeIcon icon={faInfoCircle} className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-blue-800">
+            {!isInstitutionMapped && !isAccountMapped
+              ? 'Institution and Account not mapped - transaction duplicate detection will rely only on date, amount, and merchant.'
+              : !isInstitutionMapped
+                ? 'Institution not mapped - transaction duplicate detection will rely only on date, amount, account, and merchant.'
+                : 'Account not mapped - transaction duplicate detection will rely only on date, amount, institution, and merchant.'}
+            {' '}Proceed if your file lacks these, or <span className="font-medium">Cancel</span> to update it.
           </div>
         </div>
       )}
@@ -182,7 +215,7 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
 
               </th>
               <th className="text-left px-4 py-3 text-sm font-semibold text-neutral-600">
-                Map To
+                Target Field
               </th>
               <th className="text-left px-4 py-3 text-sm font-semibold text-neutral-600">
                 Sample Value
@@ -200,14 +233,18 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
                 </td>
                 <td className="px-4 py-3">
                   <select
-                    className="w-full px-3 py-1.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={`w-full px-3 py-1.5 rounded-lg text-sm electronInput focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      shouldShowError(mapping)
+                        ? 'border-l-4 border-l-red-500 border border-red-300'
+                        : 'border border-neutral-300'
+                    }`}
                     value={mapping.targetField || ''}
                     onChange={(e) => handleMappingChange(
                       mapping.sourceColumn,
                       e.target.value ? e.target.value as InternalField : null
                     )}
                   >
-                    <option value="">-- Skip --</option>
+                    <option value="">-- Do not map --</option>
                     {INTERNAL_FIELDS.map((field) => {
                       const isUsedElsewhere = usedFields.has(field.field) && mapping.targetField !== field.field;
                       return (
@@ -216,7 +253,7 @@ const ColumnMappingStep: FC<ColumnMappingStepProps> = ({
                           value={field.field}
                           disabled={isUsedElsewhere}
                         >
-                          {field.label}{field.required ? ' *' : ''}{isUsedElsewhere ? ' (already mapped)' : ''}
+                          {field.label}{field.required ? ' (Required)' : ''}{isUsedElsewhere ? ' (already mapped)' : ''}
                         </option>
                       );
                     })}
