@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faExclamationTriangle, 
-  faChevronLeft, 
-  faChevronRight 
+import {
+  faExclamationTriangle,
+  faChevronLeft,
+  faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 import { Template } from '../../models/Template';
 import DataTable, { DataTableColumn, DataTablePresets } from '../common/DataTable';
 import TableActions, { TableActionPresets } from '../common/TableActions';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 interface TemplatesListProps {
   templates: Template[];
@@ -18,16 +19,18 @@ interface TemplatesListProps {
   onSetDefault: (templateId: string) => void;
 }
 
-const TemplatesList: React.FC<TemplatesListProps> = ({ 
-  templates, 
-  filter, 
-  onEdit, 
-  onDuplicate, 
-  onDelete, 
-  onSetDefault 
+const TemplatesList: React.FC<TemplatesListProps> = ({
+  templates,
+  filter,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onSetDefault
 }) => {
+  const [deleteTarget, setDeleteTarget] = useState<Template | null>(null);
+
   // Filter templates based on the search input
-  const filteredTemplates = templates.filter(template => 
+  const filteredTemplates = templates.filter(template =>
     template.name.toLowerCase().includes(filter.toLowerCase()) ||
     template.description.toLowerCase().includes(filter.toLowerCase())
   );
@@ -54,8 +57,13 @@ const TemplatesList: React.FC<TemplatesListProps> = ({
 
   // Handle template deletion
   const handleDelete = (template: Template) => {
-    if (window.confirm(`Are you sure you want to delete "${template.name}"? This action cannot be undone.`)) {
-      onDelete(template.id);
+    setDeleteTarget(template);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteTarget) {
+      onDelete(deleteTarget.id);
+      setDeleteTarget(null);
     }
   };
 
@@ -138,34 +146,50 @@ const TemplatesList: React.FC<TemplatesListProps> = ({
         Showing {filteredTemplates.length === 0 ? 0 : 1}-{filteredTemplates.length} of {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
       </div>
       <div className="flex gap-2">
-        <button 
-          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200" 
+        <button
+          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
           disabled={true}
+          aria-label="Previous page"
+          title="Previous page"
         >
-          <FontAwesomeIcon icon={faChevronLeft} />
+          <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" />
         </button>
-        <button 
-          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200" 
+        <button
+          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
           disabled={true}
+          aria-label="Next page"
+          title="Next page"
         >
-          <FontAwesomeIcon icon={faChevronRight} />
+          <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
         </button>
       </div>
     </div>
   );
 
   return (
-    <DataTable
-      columns={columns}
-      data={filteredTemplates}
-      loading={false}
-      title="Templates"
-      emptyMessage={filter ? 'No matching templates found.' : 'No templates available.'}
-      emptyIcon={<FontAwesomeIcon icon={faExclamationTriangle} />}
-      footer={footer}
-      {...DataTablePresets.standard}
-      minWidth="1190px"
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={filteredTemplates}
+        loading={false}
+        title="Templates"
+        emptyMessage={filter ? 'No matching templates found.' : 'No templates found. Create your first template to get started.'}
+        emptyIcon={<FontAwesomeIcon icon={faExclamationTriangle} />}
+        footer={footer}
+        {...DataTablePresets.standard}
+        minWidth="1190px"
+      />
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Template"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   );
 };
 

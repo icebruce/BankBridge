@@ -118,8 +118,9 @@ const AccountFormModal: FC<AccountFormModalProps> = ({ account, onSave, onCancel
               type="button"
               className="rounded-lg p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 transition-colors"
               onClick={onCancel}
+              aria-label="Close dialog"
             >
-              <FontAwesomeIcon icon={faTimes} className="h-5 w-5" />
+              <FontAwesomeIcon icon={faTimes} className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 

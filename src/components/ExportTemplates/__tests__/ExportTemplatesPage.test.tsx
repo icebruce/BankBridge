@@ -290,45 +290,62 @@ describe('ExportTemplatesPage', () => {
   describe('Template Deletion', () => {
     it('should delete template after confirmation', async () => {
       const user = userEvent.setup()
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-      
+
       vi.mocked(templateService.deleteTemplate).mockResolvedValue(true)
-      
+
       render(<ExportTemplatesPage />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Test Template 1')).toBeInTheDocument()
       })
-      
+
       const deleteButtons = screen.getAllByTitle('Delete')
       await user.click(deleteButtons[0])
-      
-      expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to delete "Test Template 1"? This action cannot be undone.')
-      
+
+      // Wait for confirm dialog to appear
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+        expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument()
+      })
+
+      // Find the confirm button within the dialog (has red styling)
+      const dialog = screen.getByRole('dialog')
+      const confirmButton = dialog.querySelector('button.bg-red-600') as HTMLButtonElement
+      await user.click(confirmButton)
+
       await waitFor(() => {
         expect(templateService.deleteTemplate).toHaveBeenCalledWith('template_1')
       })
-      
-      confirmSpy.mockRestore()
     })
 
     it('should not delete template if user cancels', async () => {
       const user = userEvent.setup()
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
-      
+
       render(<ExportTemplatesPage />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Test Template 1')).toBeInTheDocument()
       })
-      
+
       const deleteButtons = screen.getAllByTitle('Delete')
       await user.click(deleteButtons[0])
-      
-      expect(confirmSpy).toHaveBeenCalled()
+
+      // Wait for confirm dialog to appear
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      // Find and click cancel button
+      const dialog = screen.getByRole('dialog')
+      const cancelButton = dialog.querySelector('button.border-neutral-300') as HTMLButtonElement
+      await user.click(cancelButton)
+
+      // Dialog should close
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      })
+
       expect(templateService.deleteTemplate).not.toHaveBeenCalled()
-      
-      confirmSpy.mockRestore()
     })
   })
 
@@ -443,7 +460,7 @@ describe('ExportTemplatesPage', () => {
       render(<ExportTemplatesPage />)
       
       await waitFor(() => {
-        expect(screen.getByText('No templates available.')).toBeInTheDocument()
+        expect(screen.getByText('No templates found. Create your first template to get started.')).toBeInTheDocument()
       })
     })
 

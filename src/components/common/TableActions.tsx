@@ -62,9 +62,10 @@ const TableActions: React.FC<TableActionsProps> = ({
           className={`${getButtonClasses(action.variant)} transition-colors ${action.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           onClick={action.onClick}
           title={action.label}
+          aria-label={action.label}
           disabled={action.disabled}
         >
-          <FontAwesomeIcon icon={action.icon} />
+          <FontAwesomeIcon icon={action.icon} aria-hidden="true" />
         </button>
       ))}
     </div>

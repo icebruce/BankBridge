@@ -14,6 +14,7 @@ import SearchAndFilters from './SearchAndFilters';
 import NewImportTemplateEditor from './NewImportTemplateEditor';
 import FieldCombinationEditor from './FieldCombinationEditor';
 import { useToast, ToastContainer } from '../common/Toast';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const ImportTemplatesPage: FC = () => {
   const [templates, setTemplates] = useState<ImportTemplate[]>([]);
@@ -30,6 +31,7 @@ const ImportTemplatesPage: FC = () => {
   const [uploadedFileFields, setUploadedFileFields] = useState<string[]>([]);
   const [editingFieldCombination, setEditingFieldCombination] = useState<FieldCombination | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [deleteTarget, setDeleteTarget] = useState<ImportTemplate | null>(null);
   const saveTemplateRef = useRef<(() => void) | null>(null);
   const fieldCombinationsRef = useRef<{
     updateFieldCombinations: (combinations: FieldCombination[]) => void;
@@ -85,16 +87,21 @@ const ImportTemplatesPage: FC = () => {
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
-    if (window.confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
-      try {
-        await deleteImportTemplate(templateId);
-        setTemplates(prev => prev.filter(t => t.id !== templateId));
-        showSuccess('Template deleted successfully');
-      } catch (error) {
-        console.error('Error deleting template:', error);
-        showError('Failed to delete template');
-      }
+  const handleDeleteTemplate = async (template: ImportTemplate) => {
+    setDeleteTarget(template);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await deleteImportTemplate(deleteTarget.id);
+      setTemplates(prev => prev.filter(t => t.id !== deleteTarget.id));
+      showSuccess('Template deleted successfully');
+    } catch (error) {
+      showError('Failed to delete template');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -170,7 +177,6 @@ const ImportTemplatesPage: FC = () => {
       setCurrentTemplateData(null);
       showSuccess('Template saved successfully');
     } catch (error) {
-      console.error('❌ Error saving template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       showError(`Failed to save template: ${errorMessage}`);
     } finally {
@@ -270,8 +276,9 @@ const ImportTemplatesPage: FC = () => {
                 <button
                   className="mr-3 text-neutral-600"
                   onClick={handleCancelTemplate}
+                  aria-label="Go back to templates list"
                 >
-                  <FontAwesomeIcon icon={faArrowLeft} />
+                  <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
                 </button>
                 <div>
                   <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">
@@ -385,6 +392,16 @@ const ImportTemplatesPage: FC = () => {
       )}
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Template"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

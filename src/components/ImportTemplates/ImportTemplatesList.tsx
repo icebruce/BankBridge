@@ -17,7 +17,7 @@ interface ImportTemplatesListProps {
   loading: boolean;
   onEdit: (template: ImportTemplate) => void;
   onDuplicate: (template: ImportTemplate) => void;
-  onDelete: (templateId: string) => void;
+  onDelete: (template: ImportTemplate) => void;
 }
 
 const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
@@ -65,7 +65,7 @@ const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
   };
 
   const handleDelete = (template: ImportTemplate) => {
-    onDelete(template.id);
+    onDelete(template);
   };
 
   // Define table columns with better responsive widths
@@ -162,17 +162,21 @@ const ImportTemplatesList: FC<ImportTemplatesListProps> = ({
         Showing 1-{templates.length} of {templates.length} templates
       </div>
       <div className="flex gap-2">
-        <button 
-          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200" 
+        <button
+          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
           disabled={true}
+          aria-label="Previous page"
+          title="Previous page"
         >
-          <FontAwesomeIcon icon={faChevronLeft} />
+          <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" />
         </button>
-        <button 
-          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200" 
+        <button
+          className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
           disabled={true}
+          aria-label="Next page"
+          title="Next page"
         >
-          <FontAwesomeIcon icon={faChevronRight} />
+          <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
         </button>
       </div>
     </div>

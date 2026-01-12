@@ -152,7 +152,7 @@ const SortableRow = React.memo(({
       <td className="px-4 py-3 text-sm">
         <div className="flex items-center gap-2">
           <select
-            className="flex-1 px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors bg-neutral-50"
+            className="flex-1 px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-neutral-50"
             value={field.internalField}
             onChange={(e) => {
               const newInternalField = e.target.value as InternalField;
@@ -192,7 +192,7 @@ const SortableRow = React.memo(({
       <td className="px-4 py-3 text-sm">
         <input
           type="text"
-          className={`w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
+          className={`w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
             showValidation && !field.exportField.trim() ? 'border-l-4 border-l-red-500' : ''
           }`}
           value={field.exportField}
@@ -204,7 +204,7 @@ const SortableRow = React.memo(({
       {/* Type */}
       <td className="px-4 py-3 text-sm">
         <select
-          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          className="w-full px-3 py-1.5 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           value={field.type}
           onChange={(e) => onChangeField(field.id, 'type', e.target.value as any)}
         >
@@ -484,7 +484,7 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
             <label className="block text-sm font-semibold text-neutral-600 mb-1">Template Name</label>
             <input
               type="text"
-              className={`w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
+              className={`w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                 templateNameTouched && !templateName.trim() ? 'border-l-4 border-l-red-500' : ''
               }`}
               placeholder="Enter template name"
@@ -497,7 +497,7 @@ const NewTemplateEditor: React.FC<NewTemplateEditorProps> = ({ onSave, saveRef, 
             <label className="block text-sm font-semibold text-neutral-600 mb-1">Description</label>
             <input
               type="text"
-              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              className="w-full px-4 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="Enter description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}

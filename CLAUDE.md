@@ -131,7 +131,7 @@ ASK before:
 | **Layout** | `components/Layout/DashboardLayout.tsx`, `SidebarMenu.tsx` |
 | **Services** | `services/templateService.ts`, `importTemplateService.ts`, `fileParserService.ts` |
 | **Models** | `models/Template.ts`, `models/ImportTemplate.ts` |
-| **Common Components** | `components/common/Button.tsx`, `DataTable.tsx` |
+| **Common Components** | `components/common/Button.tsx`, `DataTable.tsx`, `ConfirmDialog.tsx`, `TableActions.tsx` |
 
 ### Styling Quick Reference
 
@@ -179,6 +179,25 @@ setTimeout(() => setSuccessMessage(null), 3000);
 useEffect(() => {
   if (saveRef) saveRef.current = handleSave;
 }, [dependencies, saveRef]);
+
+// Confirm dialog pattern (replace window.confirm)
+const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
+const handleDelete = (item: Item) => setDeleteTarget(item);
+const handleConfirmDelete = async () => {
+  if (deleteTarget) {
+    await deleteItem(deleteTarget.id);
+    setDeleteTarget(null);
+  }
+};
+// In JSX:
+<ConfirmDialog
+  isOpen={deleteTarget !== null}
+  title="Delete Item"
+  message={`Are you sure you want to delete "${deleteTarget?.name}"?`}
+  variant="danger"
+  onConfirm={handleConfirmDelete}
+  onCancel={() => setDeleteTarget(null)}
+/>
 ```
 
 ---

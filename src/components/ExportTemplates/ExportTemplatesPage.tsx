@@ -36,8 +36,6 @@ const ExportTemplatesPage: FC = () => {
 
   const handleSaveTemplate = useCallback(async (templateData: any) => {
     try {
-      console.log('🔄 Saving template with data:', templateData);
-
       // Validate input data
       if (!templateData) {
         throw new Error('No template data provided');
@@ -58,19 +56,13 @@ const ExportTemplatesPage: FC = () => {
         dataType: field.type
       }));
 
-      console.log('📋 Field mappings created:', fieldMappings);
-
       if (editingTemplate) {
         // Update existing template
-        console.log('📝 Updating existing template:', editingTemplate.id);
-
         const updatedTemplate = await updateTemplate(editingTemplate.id, {
           name: templateData.name,
           description: templateData.description || '',
           fieldMappings
         });
-
-        console.log('✅ Template updated successfully:', updatedTemplate);
 
         // Update the template in the list
         setTemplates(prev => prev.map(t =>
@@ -78,15 +70,11 @@ const ExportTemplatesPage: FC = () => {
         ));
       } else {
         // Create new template
-        console.log('➕ Creating new template');
-
         const newTemplate = await createTemplate({
           name: templateData.name,
           description: templateData.description || '',
           fieldMappings
         });
-
-        console.log('✅ Template created successfully:', newTemplate);
 
         // Add the new template to the list
         setTemplates(prev => [newTemplate, ...prev]);
@@ -96,12 +84,7 @@ const ExportTemplatesPage: FC = () => {
       setShowNewTemplateEditor(false);
       setEditingTemplate(null);
       showSuccess(editingTemplate ? 'Template updated successfully' : 'Template created successfully');
-
-      console.log('🎉 Template saved and UI updated');
     } catch (error) {
-      console.error('❌ Error saving template:', error);
-      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-
       // Show error toast
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       showError(`Failed to save template: ${errorMessage}`);
@@ -122,18 +105,12 @@ const ExportTemplatesPage: FC = () => {
   // Handle duplicating a template
   const handleDuplicateTemplate = useCallback(async (template: Template) => {
     try {
-      console.log('🔄 Duplicating template:', template.name);
-
       const duplicatedTemplate = await duplicateTemplate(template.id);
-
-      console.log('✅ Template duplicated successfully:', duplicatedTemplate);
 
       // Add the duplicated template to the list
       setTemplates(prev => [duplicatedTemplate, ...prev]);
       showSuccess('Template duplicated successfully');
-
     } catch (error) {
-      console.error('❌ Error duplicating template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       showError(`Failed to duplicate template: ${errorMessage}`);
     }
@@ -142,18 +119,12 @@ const ExportTemplatesPage: FC = () => {
   // Handle deleting a template
   const handleDeleteTemplate = useCallback(async (templateId: string) => {
     try {
-      console.log('🔄 Deleting template:', templateId);
-
       await deleteTemplate(templateId);
-
-      console.log('✅ Template deleted successfully');
 
       // Remove the template from the list
       setTemplates(prev => prev.filter(t => t.id !== templateId));
       showSuccess('Template deleted successfully');
-
     } catch (error) {
-      console.error('❌ Error deleting template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       showError(`Failed to delete template: ${errorMessage}`);
     }
@@ -162,11 +133,7 @@ const ExportTemplatesPage: FC = () => {
   // Handle setting a template as default
   const handleSetDefaultTemplate = useCallback(async (templateId: string) => {
     try {
-      console.log('🔄 Setting default template:', templateId);
-
       await setDefaultTemplate(templateId);
-
-      console.log('✅ Default template set successfully');
 
       // Update all templates in the list
       setTemplates(prev => prev.map(t => ({
@@ -174,9 +141,7 @@ const ExportTemplatesPage: FC = () => {
         isDefault: t.id === templateId
       })));
       showSuccess('Default template updated successfully');
-
     } catch (error) {
-      console.error('❌ Error setting default template:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       showError(`Failed to set default template: ${errorMessage}`);
     }
@@ -191,8 +156,9 @@ const ExportTemplatesPage: FC = () => {
               <button
                 className="mr-3 text-neutral-600 hover:text-neutral-900 transition-colors duration-200"
                 onClick={handleCancelTemplate}
+                aria-label="Go back to templates list"
               >
-                <FontAwesomeIcon icon={faArrowLeft} />
+                <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
               </button>
               <div>
                 <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">

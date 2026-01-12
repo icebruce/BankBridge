@@ -184,8 +184,7 @@ const FileParser: React.FC<FileParserProps> = ({
   // Download reject file
   const handleDownloadRejects = () => {
     if (parseResult?.rejectFile) {
-      // In a real Electron app, you'd use the main process to handle file downloads
-      console.log('Download reject file:', parseResult.rejectFile);
+      // TODO: Implement file download via Electron main process
     }
   };
 

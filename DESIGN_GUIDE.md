@@ -773,4 +773,109 @@ Use neutral background for rows and blue pill style for the "Combined" badge:
 </span>
 ```
 
+## Modal Dialogs
+
+### ConfirmDialog Component
+
+Use `ConfirmDialog` for destructive actions instead of `window.confirm()`:
+
+```tsx
+import ConfirmDialog from '../common/ConfirmDialog';
+
+// State for managing dialog
+const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
+
+// Open dialog
+const handleDelete = (item: Item) => setDeleteTarget(item);
+
+// Handle confirmation
+const handleConfirmDelete = async () => {
+  if (deleteTarget) {
+    await deleteItem(deleteTarget.id);
+    setDeleteTarget(null);
+  }
+};
+
+// JSX
+<ConfirmDialog
+  isOpen={deleteTarget !== null}
+  title="Delete Item"
+  message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+  confirmLabel="Delete"
+  cancelLabel="Cancel"
+  variant="danger"
+  onConfirm={handleConfirmDelete}
+  onCancel={() => setDeleteTarget(null)}
+/>
+```
+
+### ConfirmDialog Props
+
+- `isOpen`: boolean - Controls dialog visibility
+- `title`: string - Dialog title
+- `message`: string - Confirmation message
+- `confirmLabel`: string (default: "Confirm") - Confirm button text
+- `cancelLabel`: string (default: "Cancel") - Cancel button text
+- `variant`: 'danger' | 'warning' | 'default' - Button color scheme
+- `onConfirm`: () => void - Called when user confirms
+- `onCancel`: () => void - Called when user cancels
+
+### Modal Styling Pattern
+
+For custom modals, use this portal pattern:
+
+```tsx
+import { createPortal } from 'react-dom';
+
+{showModal && createPortal(
+  <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+    {/* Backdrop */}
+    <div
+      className="fixed inset-0 bg-neutral-900 bg-opacity-50 transition-opacity"
+      onClick={onCancel}
+      aria-hidden="true"
+    />
+
+    {/* Modal Container */}
+    <div className="flex min-h-full items-center justify-center p-4">
+      <div className="relative w-full max-w-md transform overflow-hidden rounded-xl bg-white shadow-2xl">
+        {/* Header */}
+        <div className="px-6 py-5">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-3">Title</h3>
+          <p className="text-neutral-600">Message content</p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-neutral-200 bg-neutral-50">
+          <button className="px-4 py-2.5 border border-neutral-300 text-neutral-700 font-medium rounded-lg hover:bg-neutral-100">
+            Cancel
+          </button>
+          <button className="px-4 py-2.5 bg-neutral-900 text-white font-medium rounded-lg hover:bg-neutral-800">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+```
+
+### Accessibility for Modals
+
+Always include these accessibility attributes:
+
+```tsx
+// Dialog container
+role="dialog"
+aria-modal="true"
+aria-labelledby="dialog-title"
+
+// Close button
+aria-label="Close dialog"
+
+// Icons
+aria-hidden="true"
+```
+
 This comprehensive design guide ensures consistency across all pages and components in the BankBridge application. All new pages and components should follow these established patterns. 

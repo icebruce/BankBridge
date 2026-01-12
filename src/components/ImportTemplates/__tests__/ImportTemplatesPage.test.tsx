@@ -311,39 +311,83 @@ describe('ImportTemplatesPage', () => {
 
   describe('Template Deletion', () => {
     it('should show confirmation dialog when delete is clicked', async () => {
-      vi.mocked(window.confirm).mockReturnValue(true)
       vi.mocked(importTemplateService.deleteImportTemplate).mockResolvedValue(true)
 
       render(<ImportTemplatesPage />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
       })
-      
-      // Find and click delete button
-      const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
+
+      // Find and click delete button (using title attribute)
+      const deleteButtons = screen.getAllByTitle('Delete')
       fireEvent.click(deleteButtons[0])
-      
-      expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete this template? This action cannot be undone.')
+
+      // Confirm dialog should appear
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+        expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument()
+      })
     })
 
     it('should delete template when confirmed', async () => {
-      vi.mocked(window.confirm).mockReturnValue(true)
       vi.mocked(importTemplateService.deleteImportTemplate).mockResolvedValue(true)
 
       render(<ImportTemplatesPage />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
       })
-      
-      // Click delete and confirm
-      const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
+
+      // Click delete button in table (using title attribute)
+      const deleteButtons = screen.getAllByTitle('Delete')
       fireEvent.click(deleteButtons[0])
-      
+
+      // Wait for dialog
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      // Find the confirm button within the dialog (has red styling)
+      const dialog = screen.getByRole('dialog')
+      const confirmButton = dialog.querySelector('button.bg-red-600') as HTMLButtonElement
+      fireEvent.click(confirmButton)
+
       await waitFor(() => {
         expect(importTemplateService.deleteImportTemplate).toHaveBeenCalledWith('import_template_1')
       })
+    })
+
+    it('should not delete template when cancelled', async () => {
+      vi.mocked(importTemplateService.deleteImportTemplate).mockResolvedValue(true)
+
+      render(<ImportTemplatesPage />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Import Template 1')).toBeInTheDocument()
+      })
+
+      // Click delete button in table (using title attribute)
+      const deleteButtons = screen.getAllByTitle('Delete')
+      fireEvent.click(deleteButtons[0])
+
+      // Wait for dialog
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      // Find and click cancel button
+      const dialog = screen.getByRole('dialog')
+      const cancelButton = dialog.querySelector('button.border-neutral-300') as HTMLButtonElement
+      fireEvent.click(cancelButton)
+
+      // Dialog should close
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      })
+
+      // deleteImportTemplate should not have been called
+      expect(importTemplateService.deleteImportTemplate).not.toHaveBeenCalled()
     })
   })
 

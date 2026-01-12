@@ -75,7 +75,7 @@ const ProcessFilesPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-neutral-600 mb-1">Account</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                   <option>Select Account</option>
                   <option>Account 1</option>
                   <option>Account 2</option>
@@ -83,7 +83,7 @@ const ProcessFilesPage: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-neutral-600 mb-1">File Type</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                   <option>Select Type</option>
                   <option>Sales Data</option>
                   <option>Customer Data</option>
@@ -130,13 +130,13 @@ const ProcessFilesPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-neutral-600 mb-1">Account</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                   <option>Account 2</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-neutral-600 mb-1">File Type</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                   <option>Sales Data</option>
                 </select>
               </div>
@@ -181,13 +181,13 @@ const ProcessFilesPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-neutral-600 mb-1">Account</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                   <option>Account 1</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-neutral-600 mb-1">File Type</label>
-                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                <select className="w-full px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
                   <option>Sales Data</option>
                 </select>
               </div>

@@ -38,7 +38,7 @@ const DataTable = <T extends Record<string, any>>({
   columns,
   data,
   loading = false,
-  emptyMessage = "No data available",
+  emptyMessage = "No data found.",
   emptyIcon,
   className = "",
   tableClassName = "",

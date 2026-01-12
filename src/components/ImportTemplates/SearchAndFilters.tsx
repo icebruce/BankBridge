@@ -33,7 +33,7 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
           placeholder="Search templates..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          className="w-full px-4 py-2 pl-10 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
         />
         <svg
           className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400"
@@ -53,7 +53,7 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
       <select
         value={selectedAccount}
         onChange={(e) => onAccountChange(e.target.value)}
-        className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors min-w-[140px]"
+        className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[140px]"
       >
         {accountOptions.map(account => (
           <option key={account} value={account}>{account}</option>
@@ -63,7 +63,7 @@ const SearchAndFilters: FC<SearchAndFiltersProps> = ({
       <select
         value={selectedFileType}
         onChange={(e) => onFileTypeChange(e.target.value)}
-        className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors min-w-[140px]"
+        className="px-3 py-2 border border-neutral-200 rounded-lg electronInput focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors min-w-[140px]"
       >
         {fileTypeOptions.map(fileType => (
           <option key={fileType} value={fileType}>{fileType}</option>
