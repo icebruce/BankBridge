@@ -4,6 +4,73 @@ Track changes and decisions made across Claude Code sessions.
 
 ---
 
+## 2026-01-17 - Import Preview & CSV Parser Improvements
+
+**Changes:**
+
+### New Import Preview Step
+- **New:** `src/components/Settings/ImportPreviewStep.tsx`: Multi-step import workflow with duplicate detection
+  - Shows "Total in File" and "Selected for Import" summary cards
+  - Detects duplicates based on date, amount, institution, account, and description
+  - Allows selecting/deselecting individual transactions or bulk actions
+  - Warning displayed when duplicates are selected for import
+  - Performance optimized with `React.memo`, `useCallback`, `useMemo`, and Set-based selection state
+
+### CSV Parser Fixes (RFC 4180 Compliance)
+- `src/services/fileParserService.ts`:
+  - Added `splitCSVIntoRows()` for proper multi-line quoted field handling
+  - Fixed `parseCSVRow()` to handle escaped quotes (`""` → `"`)
+  - Added line ending normalization (CRLF/CR → LF)
+  - Added public `parseCSVContent()` method for string parsing
+- `src/services/__tests__/fileParserService.test.ts`: Added 9 new tests for CSV edge cases
+- `src/components/Settings/MasterDataSection.tsx`: Updated to use fixed CSV parser
+
+### Export Template Simplification
+- `src/models/MasterData.ts`: Removed `accountName` and `institutionName` from export field options
+- `src/components/ExportTemplates/NewTemplateEditor.tsx`: Renamed `exportDisplayName` to "Account" in UI
+
+### MasterDataTable UI Improvements
+- `src/components/Settings/MasterDataTable.tsx`:
+  - Reduced page size from 50 to 25 rows
+  - Added first/last page navigation buttons (`faAnglesLeft`/`faAnglesRight`)
+  - Moved pagination into proper table footer with `border-t` styling
+  - Updated button styling to match app standards (`border border-neutral-200`)
+
+**Decisions Made:**
+- Multi-line quoted fields in CSV require quote-aware row splitting, not naive `split('\n')`
+- Selection state stored in `Set<number>` for O(1) toggle operations instead of recreating objects
+- Table row component memoized to prevent re-renders when only selection changes
+- Duplicate detection uses existing `findDuplicates` service from backend
+- Export templates only need computed `exportDisplayName` field, not raw account components
+- Pagination footer belongs inside table container for visual consistency
+
+**Performance Patterns:**
+```tsx
+// Set-based selection for fast toggle
+const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+
+// Memoized row component
+const TableRow = memo<TableRowProps>(({ item, isSelected, onToggle }) => ...);
+
+// Stable callbacks
+const toggleSelection = useCallback((index: number) => {
+  setSelectedIndices(prev => {
+    const next = new Set(prev);
+    next.has(index) ? next.delete(index) : next.add(index);
+    return next;
+  });
+}, []);
+```
+
+**Test Results:**
+- Total: 286 tests (up from 277)
+- All passing
+- 9 new CSV parser tests
+
+**Commit:** f74d25d - "Import preview with duplicate detection & UI improvements"
+
+---
+
 ## 2026-01-11 - Phase 7 Complete: UI Polish & Accessibility
 
 **Changes:**
@@ -215,7 +282,8 @@ Copy and fill in for each new session:
 
 | Date | Feature | Branch | PR | Status |
 |------|---------|--------|----|----|
-| 2026-01-11 | Phase 7: UI Polish & Accessibility | main | pending | Ready to commit |
+| 2026-01-17 | Import Preview & CSV Parser | main | f74d25d | Pushed |
+| 2026-01-11 | Phase 7: UI Polish & Accessibility | main | fa19916 | Pushed |
 | 2026-01-08 | Phase 6: Import Templates Integration | main | 5127957 | Committed |
 | 2026-01-08 | Export Templates Alignment | main | 0951df8 | Committed |
 | 2026-01-08 | Import Templates UX Round 4 | main | 843c2ed | Pushed |
@@ -232,7 +300,8 @@ Copy and fill in for each new session:
 | Phase 4: Import/Export | Complete | CSV/Excel export, import diff |
 | Phase 5: Export Template Updates | Complete | Internal field mapping |
 | Phase 6: Import Templates | Complete | Account dropdown, sourceFields |
-| **Phase 7: Polish & Testing** | **Complete** | Accessibility, ConfirmDialog, cleanup |
+| Phase 7: Polish & Testing | Complete | Accessibility, ConfirmDialog, cleanup |
+| **Phase 8: Import Preview** | **Complete** | Duplicate detection, CSV parser fixes, MasterDataTable UI |
 
 ---
 

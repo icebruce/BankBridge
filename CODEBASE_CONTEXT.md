@@ -35,9 +35,11 @@ src/
 │   │   ├── AccountConfiguration.tsx     # Account CRUD
 │   │   ├── AccountFormModal.tsx         # Add/Edit account modal
 │   │   ├── MasterDataSection.tsx        # Master data management
-│   │   ├── MasterDataTable.tsx          # Transaction table
+│   │   ├── MasterDataTable.tsx          # Transaction table (25 rows, pagination)
 │   │   ├── FileLocationSection.tsx      # File path + actions
+│   │   ├── InitialSetupWizard.tsx       # First-time setup wizard
 │   │   ├── ColumnMappingStep.tsx        # Import column mapping
+│   │   ├── ImportPreviewStep.tsx        # Duplicate detection preview
 │   │   └── __tests__/
 │   └── Dashboard/           # Home dashboard
 │       └── DashboardPage.tsx
@@ -101,6 +103,30 @@ const [editingTemplate, setEditingTemplate] = useState<ImportTemplate | null>(nu
 - Delimiter selection (Space, Comma, Semicolon, Custom)
 - Live preview of combined result
 - Validation (requires 2+ source fields)
+
+### Master Data Import Workflow
+**Location:** `src/components/Settings/MasterDataSection.tsx`
+
+The import workflow is a multi-step process managed by `setupMode` state:
+
+1. **InitialSetupWizard** (`setupMode: 'wizard'`)
+   - First-time users choose "Start Fresh" or "Import Existing"
+
+2. **ColumnMappingStep** (`setupMode: 'mapping'`)
+   - Map source columns to target fields
+   - Configure data transformations
+
+3. **ImportPreviewStep** (`setupMode: 'preview'`)
+   - Shows duplicate detection results
+   - "Total in File" and "Selected for Import" summary cards
+   - Transaction table with checkboxes for selection
+   - Warning when duplicates are selected
+
+**Performance optimizations in ImportPreviewStep:**
+- Uses `Set<number>` for O(1) selection state instead of object recreation
+- Memoized `TableRow` component with `React.memo`
+- Stable callbacks with `useCallback`
+- Stats computed with `useMemo`
 
 ### Common Components
 
