@@ -76,7 +76,11 @@ class FileParserService {
    */
   private parseCSV(text: string, options: ParserOptions, hasBOM: boolean): ParseResult {
     try {
-      const lines = text.split('\n').filter(line => line.trim());
+      // Normalize line endings (Windows \r\n and old Mac \r to Unix \n)
+      const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+      // Split into logical rows (respecting quoted multi-line fields)
+      const lines = this.splitCSVIntoRows(normalizedText).filter(line => line.trim());
       if (lines.length === 0) {
         return {
           success: false,
@@ -706,16 +710,67 @@ class FileParserService {
     return totalCells > 0 ? textCells / totalCells : 0;
   }
 
+  /**
+   * Split CSV text into logical rows, respecting quoted multi-line fields.
+   * This handles the RFC 4180 case where a quoted field can contain newlines.
+   */
+  private splitCSVIntoRows(text: string): string[] {
+    const rows: string[] = [];
+    let currentRow = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (char === '"') {
+        // Check for escaped quote (doubled quote "")
+        if (inQuotes && text[i + 1] === '"') {
+          // Add both quotes to current row (will be unescaped later in parseCSVRow)
+          currentRow += '""';
+          i++; // Skip the next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+          currentRow += char;
+        }
+      } else if (char === '\n' && !inQuotes) {
+        // End of logical row (only when not inside quotes)
+        rows.push(currentRow);
+        currentRow = '';
+      } else {
+        currentRow += char;
+      }
+    }
+
+    // Don't forget the last row (if file doesn't end with newline)
+    if (currentRow) {
+      rows.push(currentRow);
+    }
+
+    return rows;
+  }
+
+  /**
+   * Parse a single CSV row into fields, handling quoted fields and escaped quotes.
+   * Escaped quotes (doubled quotes "") are converted to single quotes.
+   */
   private parseCSVRow(line: string, delimiter: string): string[] {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
-        inQuotes = !inQuotes;
+        if (inQuotes && line[i + 1] === '"') {
+          // Escaped quote ("") - add single quote to result
+          current += '"';
+          i++; // Skip the next quote
+        } else {
+          // Toggle quote state (don't add the quote char to result)
+          inQuotes = !inQuotes;
+        }
       } else if (char === delimiter && !inQuotes) {
         result.push(current.trim());
         current = '';
@@ -723,7 +778,7 @@ class FileParserService {
         current += char;
       }
     }
-    
+
     result.push(current.trim());
     return result;
   }
@@ -831,6 +886,43 @@ class FileParserService {
     }
 
     return warnings;
+  }
+
+  /**
+   * Parse raw CSV content string into columns and data rows.
+   * Handles multi-line quoted fields, escaped quotes, and various line endings.
+   * Use this when you have CSV content as a string (e.g., from Electron API).
+   */
+  parseCSVContent(content: string, options: { delimiter?: string; hasHeader?: boolean } = {}): {
+    columns: string[];
+    data: Record<string, string>[];
+  } {
+    // Normalize line endings
+    const normalizedText = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // Split into logical rows (respecting quoted multi-line fields)
+    const lines = this.splitCSVIntoRows(normalizedText).filter(line => line.trim());
+
+    if (lines.length === 0) {
+      return { columns: [], data: [] };
+    }
+
+    // Auto-detect delimiter if not specified
+    const delimiter = options.delimiter || this.detectCSVDelimiter(lines[0]);
+
+    // Parse header row
+    const columns = this.parseCSVRow(lines[0], delimiter);
+
+    // Parse data rows
+    const data = lines.slice(1).map(line => {
+      const values = this.parseCSVRow(line, delimiter);
+      return columns.reduce((obj, col, i) => {
+        obj[col] = values[i] || '';
+        return obj;
+      }, {} as Record<string, string>);
+    });
+
+    return { columns, data };
   }
 }
 

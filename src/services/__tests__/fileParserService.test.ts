@@ -122,6 +122,73 @@ describe('FileParserService', () => {
       // rowCount is 1 because the header is counted as a row (no data rows)
       expect(result.rowCount).toBeGreaterThanOrEqual(0);
     });
+
+    it('should parse CSV with multi-line quoted fields', async () => {
+      // This simulates Monarch Money exports where Notes can contain newlines
+      const csvContent = 'Date,Merchant,Notes,Amount\n2024-06-28,SAQ,"IGOR CEBRUCEAN\nKavkaz alcohol for birthday",-158.75\n2024-06-29,Store,Simple note,-50.00';
+      mockFile = new File([csvContent], 'test.csv', { type: 'text/csv' });
+
+      const result = await fileParserService.parseFile(mockFile);
+
+      expect(result.success).toBe(true);
+      expect(result.fields).toHaveLength(4);
+      expect(result.rowCount).toBe(2); // Should be 2 rows, not 3
+      expect(result.previewRows).toBeDefined();
+      // The multi-line note should be preserved as a single field
+      expect(result.previewRows![1][2]).toContain('IGOR CEBRUCEAN');
+      expect(result.previewRows![1][2]).toContain('Kavkaz alcohol for birthday');
+    });
+
+    it('should handle escaped quotes (doubled quotes) in CSV', async () => {
+      // RFC 4180: doubled quotes inside quoted field = single quote
+      const csvContent = 'Name,Quote,Value\nJohn,"He said ""Hello""",100\nJane,"It\'s ""fine""",200';
+      mockFile = new File([csvContent], 'test.csv', { type: 'text/csv' });
+
+      const result = await fileParserService.parseFile(mockFile);
+
+      expect(result.success).toBe(true);
+      expect(result.fields).toHaveLength(3);
+      expect(result.previewRows).toBeDefined();
+      // Doubled quotes should be unescaped to single quotes
+      expect(result.previewRows![1][1]).toBe('He said "Hello"');
+      expect(result.previewRows![2][1]).toBe('It\'s "fine"');
+    });
+
+    it('should handle Windows line endings (CRLF)', async () => {
+      const csvContent = 'Name,Age,City\r\nJohn,25,New York\r\nJane,30,Los Angeles';
+      mockFile = new File([csvContent], 'test.csv', { type: 'text/csv' });
+
+      const result = await fileParserService.parseFile(mockFile);
+
+      expect(result.success).toBe(true);
+      expect(result.fields).toHaveLength(3);
+      expect(result.rowCount).toBe(2);
+    });
+
+    it('should handle mixed line endings', async () => {
+      const csvContent = 'Name,Age,City\r\nJohn,25,New York\nJane,30,Los Angeles\rBob,35,Chicago';
+      mockFile = new File([csvContent], 'test.csv', { type: 'text/csv' });
+
+      const result = await fileParserService.parseFile(mockFile);
+
+      expect(result.success).toBe(true);
+      expect(result.fields).toHaveLength(3);
+      expect(result.rowCount).toBe(3);
+    });
+
+    it('should handle complex multi-line with escaped quotes', async () => {
+      // Combination of multi-line and escaped quotes
+      const csvContent = 'Date,Notes,Amount\n2024-01-01,"Line 1\nLine 2 with ""quotes""\nLine 3",-100';
+      mockFile = new File([csvContent], 'test.csv', { type: 'text/csv' });
+
+      const result = await fileParserService.parseFile(mockFile);
+
+      expect(result.success).toBe(true);
+      expect(result.rowCount).toBe(1);
+      expect(result.previewRows![1][1]).toContain('Line 1');
+      expect(result.previewRows![1][1]).toContain('Line 2 with "quotes"');
+      expect(result.previewRows![1][1]).toContain('Line 3');
+    });
   });
 
   describe('JSON Parsing', () => {
@@ -373,6 +440,50 @@ describe('FileParserService', () => {
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
       expect(result.warnings!.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('parseCSVContent (string parsing)', () => {
+    it('should parse CSV content string with multi-line quoted fields', () => {
+      const csvContent = 'Date,Merchant,Notes,Amount\n2024-06-28,SAQ,"IGOR CEBRUCEAN\nKavkaz alcohol for birthday",-158.75\n2024-06-29,Store,Simple note,-50.00';
+
+      const result = fileParserService.parseCSVContent(csvContent);
+
+      expect(result.columns).toEqual(['Date', 'Merchant', 'Notes', 'Amount']);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].Date).toBe('2024-06-28');
+      expect(result.data[0].Merchant).toBe('SAQ');
+      expect(result.data[0].Notes).toContain('IGOR CEBRUCEAN');
+      expect(result.data[0].Notes).toContain('Kavkaz alcohol for birthday');
+      expect(result.data[0].Amount).toBe('-158.75');
+    });
+
+    it('should parse CSV content with escaped quotes', () => {
+      const csvContent = 'Name,Quote\nJohn,"He said ""Hello"""\nJane,"It\'s ""fine"""';
+
+      const result = fileParserService.parseCSVContent(csvContent);
+
+      expect(result.columns).toEqual(['Name', 'Quote']);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].Quote).toBe('He said "Hello"');
+      expect(result.data[1].Quote).toBe('It\'s "fine"');
+    });
+
+    it('should handle empty content', () => {
+      const result = fileParserService.parseCSVContent('');
+
+      expect(result.columns).toEqual([]);
+      expect(result.data).toEqual([]);
+    });
+
+    it('should auto-detect semicolon delimiter', () => {
+      const csvContent = 'Name;Age;City\nJohn;25;New York';
+
+      const result = fileParserService.parseCSVContent(csvContent);
+
+      expect(result.columns).toEqual(['Name', 'Age', 'City']);
+      expect(result.data[0].Name).toBe('John');
+      expect(result.data[0].Age).toBe('25');
     });
   });
 

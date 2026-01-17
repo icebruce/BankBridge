@@ -8,6 +8,8 @@ import {
   faSortDown,
   faChevronLeft,
   faChevronRight,
+  faAnglesLeft,
+  faAnglesRight,
   faXmark
 } from '@fortawesome/free-solid-svg-icons';
 import type { Transaction } from '../../models/MasterData';
@@ -29,7 +31,7 @@ interface ColumnFilters {
   category: string;
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 const MasterDataTable: FC<MasterDataTableProps> = ({
   transactions,
@@ -261,9 +263,10 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border border-neutral-200 rounded-lg">
-        <table className="w-full min-w-[900px]">
+      {/* Table Container */}
+      <div className="border border-neutral-200 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
           <thead>
             {/* Column Headers */}
             <tr className="bg-neutral-50 border-b border-neutral-200">
@@ -474,12 +477,11 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
               ))
             )}
           </tbody>
-        </table>
-      </div>
+          </table>
+        </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
+        {/* Footer with Pagination */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 bg-white">
           <span className="text-sm text-neutral-600">
             Showing {showingFrom}-{showingTo} of {sortedTransactions.length.toLocaleString()}
             {sortedTransactions.length !== totalTransactions && (
@@ -487,65 +489,79 @@ const MasterDataTable: FC<MasterDataTableProps> = ({
             )}
           </span>
 
-          <div className="flex items-center gap-1">
-            <button
-              className="p-2 text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              disabled={currentPage === 1}
-            >
-              <FontAwesomeIcon icon={faChevronLeft} className="w-4 h-4" />
-            </button>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              {/* First page */}
+              <button
+                className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                title="First page"
+              >
+                <FontAwesomeIcon icon={faAnglesLeft} />
+              </button>
 
-            {/* Page numbers */}
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum: number;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
+              {/* Previous page */}
+              <button
+                className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                disabled={currentPage === 1}
+                title="Previous page"
+              >
+                <FontAwesomeIcon icon={faChevronLeft} />
+              </button>
 
-              return (
-                <button
-                  key={pageNum}
-                  className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600 hover:bg-neutral-100'
-                  }`}
-                  onClick={() => setCurrentPage(pageNum)}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
+              {/* Page numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
 
-            {totalPages > 5 && currentPage < totalPages - 2 && (
-              <>
-                <span className="px-1 text-neutral-400">...</span>
-                <button
-                  className="w-8 h-8 text-sm text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
-                  onClick={() => setCurrentPage(totalPages)}
-                >
-                  {totalPages}
-                </button>
-              </>
-            )}
+                return (
+                  <button
+                    key={pageNum}
+                    className={`w-8 h-8 text-sm rounded-lg border transition-colors duration-200 ${
+                      currentPage === pageNum
+                        ? 'bg-neutral-900 text-white border-neutral-900'
+                        : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                    }`}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
 
-            <button
-              className="p-2 text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              disabled={currentPage === totalPages}
-            >
-              <FontAwesomeIcon icon={faChevronRight} className="w-4 h-4" />
-            </button>
-          </div>
+              {/* Next page */}
+              <button
+                className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={currentPage === totalPages}
+                title="Next page"
+              >
+                <FontAwesomeIcon icon={faChevronRight} />
+              </button>
+
+              {/* Last page */}
+              <button
+                className="px-3 py-1 border border-neutral-200 rounded-lg disabled:opacity-50 hover:bg-neutral-50 transition-colors duration-200"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                title="Last page"
+              >
+                <FontAwesomeIcon icon={faAnglesRight} />
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

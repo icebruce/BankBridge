@@ -88,14 +88,16 @@ export const MASTER_DATA_VERSION = '1.0.0';
 /**
  * Available internal fields for export mapping
  * These are the fields that can be mapped in Export Templates
+ *
+ * Note: institutionName and accountName are stored internally but not
+ * available for direct export. Use 'exportDisplayName' (labeled "Account"
+ * in UI) which combines them from Account Configuration.
  */
 export const INTERNAL_FIELDS = [
   'date',
   'merchant',
   'category',
-  'institutionName',
-  'accountName',
-  'exportDisplayName',  // Computed field - looked up from Account config
+  'exportDisplayName',  // Computed field - looked up from Account config (shows as "Account" in UI)
   'originalStatement',
   'notes',
   'amount',
@@ -111,9 +113,7 @@ export const INTERNAL_FIELD_DESCRIPTIONS: Record<InternalField, string> = {
   date: 'Transaction date',
   merchant: 'Merchant/payee name',
   category: 'Transaction category',
-  institutionName: 'Financial institution',
-  accountName: 'Account name',
-  exportDisplayName: 'Account display name (from Settings)',
+  exportDisplayName: 'Account name from Settings (e.g., "TD Bank - Checking")',
   originalStatement: "Bank's original description",
   notes: 'User notes',
   amount: 'Transaction amount',

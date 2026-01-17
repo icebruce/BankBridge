@@ -41,8 +41,6 @@ const SAMPLE_DATA: Record<InternalField, string> = {
   date: '2025-01-08',
   merchant: 'Amazon',
   category: 'Shopping',
-  institutionName: 'TD Bank',
-  accountName: 'Checking',
   exportDisplayName: 'TD Bank - Checking',
   originalStatement: 'AMAZON.COM*ABC123',
   notes: 'Monthly subscription',
@@ -55,8 +53,6 @@ const DEFAULT_DATA_TYPES: Record<InternalField, 'Text' | 'Date' | 'Currency'> = 
   date: 'Date',
   merchant: 'Text',
   category: 'Text',
-  institutionName: 'Text',
-  accountName: 'Text',
   exportDisplayName: 'Text',
   originalStatement: 'Text',
   notes: 'Text',
@@ -81,9 +77,7 @@ const INTERNAL_FIELD_LABELS: Record<InternalField, string> = {
   date: 'Date',
   merchant: 'Merchant',
   category: 'Category',
-  institutionName: 'Institution Name',
-  accountName: 'Account Name',
-  exportDisplayName: 'Account Display Name',
+  exportDisplayName: 'Account',
   originalStatement: 'Original Statement',
   notes: 'Notes',
   amount: 'Amount',
@@ -181,7 +175,7 @@ const SortableRow = React.memo(({
                 className="w-4 h-4 text-blue-500 cursor-help"
               />
               <div className="absolute left-6 top-0 w-64 p-2 bg-neutral-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                Account display name configured in Settings → Account Configuration. Combines institution and account name (e.g., "TD Bank - Checking").
+                Account name from Settings → Account Configuration (e.g., "TD Bank - Checking").
               </div>
             </div>
           )}

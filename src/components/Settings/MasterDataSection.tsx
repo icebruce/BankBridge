@@ -4,20 +4,23 @@ import FileLocationSection from './FileLocationSection';
 import MasterDataTable from './MasterDataTable';
 import InitialSetupWizard from './InitialSetupWizard';
 import ColumnMappingStep from './ColumnMappingStep';
+import ImportPreviewStep from './ImportPreviewStep';
 import type { ColumnMapping } from './ColumnMappingStep';
 import {
   loadMasterData,
   getFileInfo,
-  initializeMasterData
+  initializeMasterData,
+  addTransactions
 } from '../../services/masterDataService';
-import type { MasterDataFile, MasterDataFileInfo, Transaction } from '../../models/MasterData';
+import { fileParserService } from '../../services/fileParserService';
+import type { MasterDataFile, MasterDataFileInfo, CreateTransactionInput } from '../../models/MasterData';
 
 interface MasterDataSectionProps {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 }
 
-type SetupMode = 'wizard' | 'mapping' | 'none';
+type SetupMode = 'wizard' | 'mapping' | 'preview' | 'none';
 
 interface ImportData {
   sourceColumns: string[];
@@ -30,6 +33,8 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
   const [loading, setLoading] = useState(true);
   const [setupMode, setSetupMode] = useState<SetupMode>('none');
   const [importData, setImportData] = useState<ImportData | null>(null);
+  // Store pending transactions between mapping and preview steps
+  const [pendingTransactions, setPendingTransactions] = useState<CreateTransactionInput[]>([]);
 
   // Load master data on mount
   useEffect(() => {
@@ -98,17 +103,10 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
       let data: Record<string, string>[] = [];
 
       if (result.type === 'csv' && result.content) {
-        const lines = result.content.split('\n').filter(line => line.trim());
-        if (lines.length > 0) {
-          columns = lines[0].split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-          data = lines.slice(1).map(line => {
-            const values = line.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
-            return columns.reduce((obj, col, i) => {
-              obj[col] = values[i] || '';
-              return obj;
-            }, {} as Record<string, string>);
-          });
-        }
+        // Use fileParserService for proper CSV parsing (handles multi-line quoted fields, escaped quotes)
+        const parsed = fileParserService.parseCSVContent(result.content);
+        columns = parsed.columns;
+        data = parsed.data;
       } else if (result.type === 'excel' && result.data) {
         if (result.data.length > 0) {
           columns = Object.keys(result.data[0]);
@@ -149,18 +147,10 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
       let data: Record<string, string>[] = [];
 
       if (result.type === 'csv' && result.content) {
-        // Parse CSV content
-        const lines = result.content.split('\n').filter(line => line.trim());
-        if (lines.length > 0) {
-          columns = lines[0].split(',').map(col => col.trim().replace(/^"|"$/g, ''));
-          data = lines.slice(1).map(line => {
-            const values = line.split(',').map(val => val.trim().replace(/^"|"$/g, ''));
-            return columns.reduce((obj, col, i) => {
-              obj[col] = values[i] || '';
-              return obj;
-            }, {} as Record<string, string>);
-          });
-        }
+        // Use fileParserService for proper CSV parsing (handles multi-line quoted fields, escaped quotes)
+        const parsed = fileParserService.parseCSVContent(result.content);
+        columns = parsed.columns;
+        data = parsed.data;
       } else if (result.type === 'excel' && result.data) {
         // Excel data is already parsed as array of objects
         if (result.data.length > 0) {
@@ -187,14 +177,14 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
     }
   }, [onError]);
 
-  // Handle column mapping import
+  // Handle column mapping - transform data and go to preview
   const handleMappingImport = useCallback(async (mappings: ColumnMapping[]) => {
     if (!importData) return;
 
     try {
-      // Transform data using mappings
-      const transactions: Transaction[] = importData.sampleData.map(row => {
-        const mappedData: Partial<Transaction> = {};
+      // Transform data using mappings (without generating IDs - that happens on final import)
+      const transactions: CreateTransactionInput[] = importData.sampleData.map(row => {
+        const mappedData: Partial<CreateTransactionInput> = {};
 
         mappings.forEach(mapping => {
           if (mapping.targetField && mapping.sourceColumn) {
@@ -211,9 +201,8 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
           }
         });
 
-        // Create full transaction with defaults
-        const transaction: Transaction = {
-          id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        // Create transaction input with defaults
+        const transaction: CreateTransactionInput = {
           date: mappedData.date || new Date().toISOString().split('T')[0],
           merchant: mappedData.merchant || '',
           category: mappedData.category || '',
@@ -224,35 +213,58 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
           amount: mappedData.amount ?? 0,
           tags: mappedData.tags || [],
           sourceFile: 'manual_import',
-          importedAt: new Date().toISOString(),
         };
 
         return transaction;
       });
 
-      // Load existing master data or create new
+      // Store pending transactions and go to preview
+      setPendingTransactions(transactions);
+      setSetupMode('preview');
+    } catch (error) {
+      console.error('Error processing mapped data:', error);
+      onError('Failed to process data');
+    }
+  }, [importData, onError]);
+
+  // Handle preview import - final import of selected transactions
+  const handlePreviewImport = useCallback(async (transactions: CreateTransactionInput[]) => {
+    try {
+      // Ensure master data exists
       let data = await loadMasterData();
       if (!data || !data.transactions) {
         data = await initializeMasterData();
       }
 
-      // Add new transactions
-      data.transactions = [...data.transactions, ...transactions];
+      // Add transactions using service (generates IDs and timestamps)
+      await addTransactions(transactions);
 
-      // Save
-      if (window.electronAPI) {
-        await window.electronAPI.masterData.save(data);
-      }
-
-      onSuccess(`Imported ${transactions.length} transactions successfully`);
+      onSuccess(`Imported ${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} successfully`);
       setSetupMode('none');
       setImportData(null);
+      setPendingTransactions([]);
       await loadData();
     } catch (error) {
-      console.error('Error importing mapped data:', error);
-      onError('Failed to import data');
+      console.error('Error importing transactions:', error);
+      onError('Failed to import transactions');
     }
-  }, [importData, onSuccess, onError]);
+  }, [onSuccess, onError]);
+
+  // Handle going back from preview to mapping
+  const handlePreviewBack = useCallback(() => {
+    setSetupMode('mapping');
+  }, []);
+
+  // Handle cancel from preview
+  const handlePreviewCancel = useCallback(() => {
+    if (masterData && masterData.transactions.length > 0) {
+      setSetupMode('none');
+    } else {
+      setSetupMode('wizard');
+    }
+    setImportData(null);
+    setPendingTransactions([]);
+  }, [masterData]);
 
   // Handle cancel from column mapping
   const handleMappingCancel = useCallback(() => {
@@ -307,6 +319,31 @@ const MasterDataSection: FC<MasterDataSectionProps> = ({ onSuccess, onError }) =
             sampleData={importData.sampleData}
             onImport={handleMappingImport}
             onCancel={handleMappingCancel}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Show import preview with duplicate detection
+  if (setupMode === 'preview' && pendingTransactions.length > 0) {
+    return (
+      <div>
+        {/* Section Header */}
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-neutral-900">Master Data</h3>
+          <p className="text-sm text-neutral-500 mt-0.5">
+            Manage your transaction database for processing and export
+          </p>
+        </div>
+
+        {/* Import Preview Step */}
+        <div className="border border-neutral-200 rounded-lg overflow-hidden">
+          <ImportPreviewStep
+            transactions={pendingTransactions}
+            onImport={handlePreviewImport}
+            onCancel={handlePreviewCancel}
+            onBack={handlePreviewBack}
           />
         </div>
       </div>
