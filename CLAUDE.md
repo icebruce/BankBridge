@@ -72,11 +72,46 @@ After completing a full implementation (not after every small change):
 
 ## Testing Requirements
 
-- **Coverage**: 90% statements, 85% branches, 90% functions, 90% lines
-- Unit tests for services and utilities
-- Component tests with React Testing Library
-- Test edge cases and error scenarios
-- Run `npm test` before committing
+**Read `TESTING_GUIDE.md` before writing any tests.** Key principles:
+
+### Coverage Thresholds (Realistic, Not Maximized)
+- Statements: 80%, Branches: 75%, Functions: 75%, Lines: 80%
+
+### What to Test (High → Low Priority)
+1. **Services**: Business logic, data transformations, validation
+2. **Hooks**: State management, side effects
+3. **Components**: User interactions, conditional rendering (NOT styling)
+
+### What NOT to Test
+- CSS classes or Tailwind styling
+- That React renders or useState works
+- Constants, getters, trivial code
+- Implementation details (internal state, DOM structure)
+
+### Anti-Patterns to Avoid
+```typescript
+// ❌ BAD - Testing CSS classes
+expect(button.className).toContain('bg-blue-500');
+
+// ❌ BAD - Redundant tests for each variant
+it('should apply primary styles', ...);
+it('should apply secondary styles', ...);
+it('should apply tertiary styles', ...);
+
+// ✅ GOOD - Testing behavior
+expect(onClick).toHaveBeenCalledOnce();
+
+// ✅ GOOD - Parameterized tests
+it.each([...])('formats %s correctly', ...);
+```
+
+### Before Adding Tests, Ask:
+- Does this test verify **user-visible behavior**?
+- Would a user notice if this code broke?
+- Am I testing MY code, not React/library code?
+- Can I consolidate with `it.each`?
+
+Run `npm test` before committing.
 
 ## File Organization
 

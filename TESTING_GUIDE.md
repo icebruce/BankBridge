@@ -1,431 +1,359 @@
 # Testing Guide for BankBridge
 
-This document provides comprehensive information about testing the BankBridge application, including Export Templates and Import Templates functionality.
+## Philosophy: Quality Over Quantity
 
-## Testing Framework
+Tests exist to **catch bugs and verify behavior**, not to achieve coverage metrics. Every test should answer: *"What user-visible behavior does this verify?"*
 
-The project uses **Vitest** as the testing framework with **React Testing Library** for component testing.
+## Core Principles
 
-### Dependencies
+### 1. Test Behavior, Not Implementation
 
-```json
-{
-  "@testing-library/jest-dom": "^6.1.4",
-  "@testing-library/react": "^13.4.0",
-  "@testing-library/user-event": "^14.5.1",
-  "@vitest/coverage-v8": "^1.0.4",
-  "@vitest/ui": "^1.0.4",
-  "jsdom": "^23.0.1",
-  "vitest": "^1.0.4"
-}
+**Bad - Testing CSS classes:**
+```typescript
+it('should apply primary variant styles', () => {
+  render(<Button>Click</Button>);
+  expect(screen.getByRole('button').className).toContain('bg-neutral-900');
+});
 ```
+
+**Good - Testing behavior:**
+```typescript
+it('calls onClick when clicked', async () => {
+  const onClick = vi.fn();
+  render(<Button onClick={onClick}>Click</Button>);
+  await userEvent.click(screen.getByRole('button'));
+  expect(onClick).toHaveBeenCalledOnce();
+});
+```
+
+### 2. One Test, One Concept
+
+Each test should verify one thing. If a test description contains "and", split it.
+
+**Bad:**
+```typescript
+it('should render form and validate on submit and show errors', () => { ... });
+```
+
+**Good:**
+```typescript
+it('renders the form fields', () => { ... });
+it('validates required fields on submit', () => { ... });
+it('displays validation errors', () => { ... });
+```
+
+### 3. Use Parameterized Tests for Variations
+
+**Bad - Repetitive tests:**
+```typescript
+it('formats positive amount as green', () => { ... });
+it('formats negative amount as red', () => { ... });
+it('formats zero amount as neutral', () => { ... });
+```
+
+**Good - Parameterized:**
+```typescript
+it.each([
+  { amount: 100, expected: '$100.00' },
+  { amount: -50, expected: '-$50.00' },
+  { amount: 0, expected: '$0.00' },
+])('formats $amount as $expected', ({ amount, expected }) => {
+  expect(formatCurrency(amount)).toBe(expected);
+});
+```
+
+### 4. Avoid Testing Framework/Library Behavior
+
+Don't test that React renders, that useState works, or that Tailwind applies classes.
+
+**Don't test:**
+- That a component renders without crashing (if it has other tests, they cover this)
+- That className contains expected Tailwind classes
+- That useState updates state
+- That constants equal their defined values
+
+### 5. Focus on User-Facing Outcomes
+
+Ask: "If I broke this, would a user notice?"
+
+**High value tests:**
+- Form submission saves data
+- Error messages appear for invalid input
+- Navigation works correctly
+- Data transforms correctly for export
+
+**Low value tests:**
+- Button has correct padding class
+- Component has specific DOM structure
+- Internal state matches expected value
+
+---
+
+## What to Test
+
+### Services (High Priority)
+- Business logic and data transformations
+- Validation rules
+- Error handling
+- Edge cases (empty data, malformed input, large datasets)
+
+```typescript
+describe('fileParserService', () => {
+  it('parses CSV with headers correctly', () => { ... });
+  it('handles missing required columns gracefully', () => { ... });
+  it('detects duplicate transactions', () => { ... });
+});
+```
+
+### Components (Medium Priority)
+- User interactions (click, type, submit)
+- Conditional rendering (loading, error, empty states)
+- Props affecting behavior (not styling)
+
+```typescript
+describe('FileUploader', () => {
+  it('accepts valid file types', () => { ... });
+  it('rejects invalid file types with error message', () => { ... });
+  it('shows upload progress', () => { ... });
+});
+```
+
+### Hooks (Medium Priority)
+- Return values for different inputs
+- Side effects (API calls, state updates)
+- Cleanup behavior
+
+```typescript
+describe('useParseFile', () => {
+  it('returns parsed data on success', () => { ... });
+  it('returns error on parse failure', () => { ... });
+});
+```
+
+### Models (Low Priority)
+Only test functions with logic, not simple type definitions.
+
+```typescript
+// Worth testing - has logic
+describe('createAccount', () => {
+  it('generates unique IDs', () => { ... });
+  it('auto-generates display name from institution and account', () => { ... });
+});
+
+// Not worth testing - trivial
+// createDefaultSettings just returns an object literal
+```
+
+---
+
+## What NOT to Test
+
+1. **CSS/Styling** - Use visual regression tools (Chromatic, Percy) if needed
+2. **Third-party libraries** - Trust that React, Tailwind, FontAwesome work
+3. **Trivial code** - Getters, simple object creation, type definitions
+4. **Implementation details** - Internal state, private methods, DOM structure
+
+---
 
 ## Test Structure
 
-### Test Files Location
-
+### File Organization
 ```
 src/
 ├── components/
-│   ├── ExportTemplates/
-│   │   ├── __tests__/
-│   │   │   ├── ExportTemplatesPage.test.tsx
-│   │   │   └── TemplatesList.test.tsx
-│   │   ├── ExportTemplatesPage.tsx
-│   │   └── TemplatesList.tsx
-│   └── ImportTemplates/
+│   └── FeatureName/
 │       ├── __tests__/
-│       │   ├── ImportTemplatesPage.test.tsx
-│       │   └── NewImportTemplateEditor.test.tsx
-│       ├── ImportTemplatesPage.tsx
-│       └── NewImportTemplateEditor.tsx
+│       │   └── FeatureName.test.tsx    # One test file per component
+│       └── FeatureName.tsx
 └── services/
     ├── __tests__/
-    │   ├── templateService.test.ts
-    │   └── importTemplateService.test.ts
-    ├── templateService.ts
-    └── importTemplateService.ts
+    │   └── serviceName.test.ts
+    └── serviceName.ts
 ```
 
-### Test Categories
+### Test File Template
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ComponentName } from '../ComponentName';
 
-1. **Component Tests** - Testing React components
-2. **Service Tests** - Testing business logic and API calls
-3. **Integration Tests** - Testing component interactions
-4. **Edge Case Tests** - Testing error scenarios and boundary conditions
+describe('ComponentName', () => {
+  // Setup shared across tests
+  const defaultProps = {
+    onSave: vi.fn(),
+    onCancel: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Group by feature/behavior, not by prop
+  describe('form submission', () => {
+    it('saves valid data', async () => { ... });
+    it('shows validation errors for invalid data', async () => { ... });
+  });
+
+  describe('cancellation', () => {
+    it('calls onCancel without saving', async () => { ... });
+  });
+});
+```
+
+---
+
+## Coverage Thresholds
+
+We target **80% coverage** as a reasonable baseline, not a goal to maximize.
+
+```typescript
+// vitest.config.ts
+coverage: {
+  thresholds: {
+    statements: 80,
+    branches: 75,
+    functions: 75,
+    lines: 80,
+  }
+}
+```
+
+**Important:** High coverage with bad tests is worse than moderate coverage with good tests.
+
+---
 
 ## Running Tests
 
-### Install Dependencies
+```bash
+npm test              # Run all tests in watch mode
+npm run test:run      # Run once (CI mode)
+npm run test:coverage # Run with coverage report
+npm run test:ui       # Visual test runner
+```
+
+---
+
+## Checklist Before Adding Tests
+
+- [ ] Does this test verify user-visible behavior?
+- [ ] Would a user notice if the tested code broke?
+- [ ] Am I testing MY code, not React/library code?
+- [ ] Can I consolidate with existing tests using `it.each`?
+- [ ] Is the test name clear about what behavior is verified?
+
+---
+
+## Examples
+
+### Good Test Suite (Component)
+```typescript
+describe('ImportTemplateEditor', () => {
+  it('loads existing template data into form', () => { ... });
+  it('validates required fields before save', () => { ... });
+  it('saves template with correct structure', () => { ... });
+  it('handles save errors gracefully', () => { ... });
+  it('confirms before discarding unsaved changes', () => { ... });
+});
+// 5 tests covering core user workflows
+```
+
+### Good Test Suite (Service)
+```typescript
+describe('templateService', () => {
+  describe('saveTemplate', () => {
+    it('creates new template with generated ID', () => { ... });
+    it('updates existing template preserving ID', () => { ... });
+    it('validates template structure before save', () => { ... });
+  });
+
+  describe('deleteTemplate', () => {
+    it('removes template from storage', () => { ... });
+    it('throws if template not found', () => { ... });
+  });
+});
+// 5 tests covering CRUD operations
+```
+
+### Bad Test Suite (Avoid)
+```typescript
+describe('Button', () => {
+  it('renders', () => { ... });
+  it('has correct class for primary', () => { ... });
+  it('has correct class for secondary', () => { ... });
+  it('has correct class for tertiary', () => { ... });
+  it('has correct padding for sm', () => { ... });
+  it('has correct padding for md', () => { ... });
+  it('has correct padding for lg', () => { ... });
+  // 38 tests checking CSS classes...
+});
+```
+
+---
+
+## Code Review Checklist for Tests
+
+When reviewing PRs with test changes, check for these **red flags**:
+
+### 🚩 Immediate Rejection
+- [ ] Tests asserting on CSS class names (`.toContain('bg-blue-500')`)
+- [ ] Tests checking `className` property
+- [ ] Multiple tests that only differ by a prop value (use `it.each` instead)
+- [ ] Tests named "should render" with no behavioral assertions
+- [ ] Test file is longer than the source file it tests
+
+### ⚠️ Needs Justification
+- [ ] More than 15 tests for a single component
+- [ ] Tests checking internal state values
+- [ ] Tests for constants or type definitions
+- [ ] Tests that mock more than 3 dependencies
+
+### ✅ Good Signs
+- [ ] Tests use `userEvent` for interactions
+- [ ] Tests verify callbacks are called with correct arguments
+- [ ] Tests check error states and edge cases
+- [ ] Tests use `it.each` for variations
+- [ ] Test names describe user-visible behavior
+
+---
+
+## Metrics to Watch
+
+### Test-to-Source Ratio
+- **Target**: 0.3:1 to 0.7:1 (test lines : source lines)
+- **Warning**: > 1:1 ratio suggests over-testing
+- **Current**: ~0.75:1 ✅
+
+### Tests per File Guidelines
+| File Type | Recommended Tests |
+|-----------|-------------------|
+| Simple component (Button, Badge) | 3-7 |
+| Form component | 8-15 |
+| Complex component (Editor, Modal) | 10-20 |
+| Service | 10-25 |
+| Utility function | 5-15 |
+
+### Warning Signs of Bloat
+1. Test file > 300 lines for a simple component
+2. More than 5 tests in a `describe` block for styling/variants
+3. Copy-pasted test blocks with minor differences
+4. Tests that break when refactoring (not changing behavior)
+
+---
+
+## Periodic Audit
+
+Every quarter, run this check:
 
 ```bash
-npm install
+# Count tests per file
+npm test -- --reporter=verbose 2>&1 | grep -E "^\s*✓" | wc -l
+
+# Find largest test files
+find src -name "*.test.ts*" | xargs wc -l | sort -n | tail -10
 ```
 
-### Run All Tests
-
-```bash
-npm run test
-```
-
-### Run Tests in Watch Mode
-
-```bash
-npm run test
-```
-
-### Run Tests Once (CI Mode)
-
-```bash
-npm run test:run
-```
-
-### Run Tests with Coverage
-
-```bash
-npm run test:coverage
-```
-
-### Run Tests with UI
-
-```bash
-npm run test:ui
-```
-
-## Test Coverage
-
-### Current Coverage Areas
-
-#### ExportTemplatesPage Component
-- ✅ Initial loading and template display
-- ✅ Template creation (positive and negative scenarios)
-- ✅ Template editing functionality
-- ✅ Template duplication
-- ✅ Template deletion with confirmation
-- ✅ Default template management
-- ✅ Search and filtering
-- ✅ Navigation and breadcrumbs
-- ✅ Error handling
-- ✅ Empty states
-
-#### TemplatesList Component
-- ✅ Template display and formatting
-- ✅ Filtering functionality
-- ✅ Action button interactions
-- ✅ Status display (default/non-default)
-- ✅ Accessibility features
-- ✅ Edge cases and error handling
-
-#### Template Service (Export)
-- ✅ CRUD operations (Create, Read, Update, Delete)
-- ✅ Template duplication
-- ✅ Default template management
-- ✅ Data validation
-- ✅ Error handling
-- ✅ Schema version management
-- ✅ Storage integration
-
-#### ImportTemplatesPage Component
-- ✅ Initial loading and template display
-- ✅ Template creation flow
-- ✅ Template editing with pre-populated data
-- ✅ Template duplication
-- ✅ Template deletion with confirmation
-- ✅ Search and filtering by account/file type
-- ✅ Field combination navigation
-- ✅ Setup incomplete warnings (no accounts configured)
-- ✅ Error handling
-
-#### NewImportTemplateEditor Component
-- ✅ New template form rendering
-- ✅ Edit mode with initial template data
-- ✅ File upload and parsing
-- ✅ Field mapping table
-- ✅ Field combination management (add, edit, delete)
-- ✅ Add Field dropdown for unmapped sourceFields
-- ✅ Form validation
-- ✅ Account dropdown (linked to Settings)
-- ✅ Target field validation
-
-#### Import Template Service
-- ✅ CRUD operations (Create, Read, Update, Delete)
-- ✅ Template duplication with all fields preserved
-- ✅ sourceFields persistence (critical for partial mapping)
-- ✅ fieldCombinations persistence
-- ✅ accountId persistence
-- ✅ Round-trip testing (create → load → update cycle)
-- ✅ Schema version management
-- ✅ Error handling
-
-### Coverage Goals
-
-- **Statements**: > 90%
-- **Branches**: > 85%
-- **Functions**: > 90%
-- **Lines**: > 90%
-
-## Test Scenarios
-
-### Positive Test Cases
-
-1. **Template Creation**
-   - Create template with valid data
-   - Save template successfully
-   - Display new template in list
-
-2. **Template Editing**
-   - Edit existing template
-   - Update template fields
-   - Save changes successfully
-
-3. **Template Management**
-   - Duplicate template
-   - Set template as default
-   - Delete template with confirmation
-
-4. **User Interface**
-   - Search and filter templates
-   - Navigate between views
-   - Display correct status indicators
-
-### Negative Test Cases
-
-1. **Validation Errors**
-   - Empty template name
-   - Invalid field mappings
-   - Duplicate field names
-
-2. **Service Errors**
-   - Network failures
-   - Storage errors
-   - Invalid template IDs
-
-3. **User Interactions**
-   - Cancel operations
-   - Reject confirmations
-   - Invalid search queries
-
-### Edge Cases
-
-1. **Data Handling**
-   - Empty template lists
-   - Templates with no fields
-   - Very long template names
-   - Invalid date formats
-
-2. **User Experience**
-   - Rapid button clicks
-   - Concurrent operations
-   - Browser refresh during operations
-
-## Mock Data
-
-### Template Mock Structure
-
-```typescript
-const mockTemplate: Template = {
-  id: 'template_123',
-  name: 'Test Template',
-  description: 'Test description',
-  createdAt: '2023-01-01T00:00:00Z',
-  updatedAt: '2023-01-01T00:00:00Z',
-  schemaVersion: '1.0.0',
-  isDefault: false,
-  fieldMappings: [
-    { sourceField: 'field1', targetField: 'Field 1' },
-    { sourceField: 'field2', targetField: 'Field 2' }
-  ]
-}
-```
-
-### Import Template Mock Structure
-
-```typescript
-const mockImportTemplate: ImportTemplate = {
-  id: 'import_template_123',
-  name: 'TD Bank CSV Template',
-  description: 'Template for TD Bank CSV exports',
-  account: 'TD Bank - Checking',
-  accountId: 'acc_123',
-  fileType: 'CSV File',
-  fieldCount: 3,
-  createdAt: '2023-01-01T00:00:00Z',
-  updatedAt: '2023-01-01T00:00:00Z',
-  schemaVersion: '1.0.0',
-  status: 'Active',
-  fieldMappings: [
-    { sourceField: 'date', targetField: 'Date', dataType: 'Date', required: false, validation: '' },
-    { sourceField: 'amount', targetField: 'Amount', dataType: 'Currency', required: false, validation: '' }
-  ],
-  fieldCombinations: [],
-  // IMPORTANT: Include sourceFields for all mock templates
-  // This enables Add Field functionality in edit mode
-  sourceFields: ['date', 'amount', 'description', 'category', 'memo', 'reference', 'balance']
-}
-```
-
-**Important**: Always include `sourceFields` in mock Import Templates. This array contains all original column names from the source file and is critical for:
-- Testing the Add Field dropdown shows unmapped fields
-- Testing partial mapping → edit → add field workflow
-- Verifying round-trip persistence
-
-### Service Mocking
-
-```typescript
-// Mock export template service
-vi.mock('../../../services/templateService', () => ({
-  fetchTemplates: vi.fn(),
-  createTemplate: vi.fn(),
-  updateTemplate: vi.fn(),
-  deleteTemplate: vi.fn(),
-  duplicateTemplate: vi.fn(),
-  setDefaultTemplate: vi.fn()
-}))
-
-// Mock import template service
-vi.mock('../../../services/importTemplateService', () => ({
-  fetchImportTemplates: vi.fn(),
-  createImportTemplate: vi.fn(),
-  updateImportTemplate: vi.fn(),
-  deleteImportTemplate: vi.fn(),
-  duplicateImportTemplate: vi.fn()
-}))
-```
-
-## Testing Best Practices
-
-### 1. Test Organization
-
-- Group related tests using `describe` blocks
-- Use descriptive test names that explain the scenario
-- Follow the AAA pattern: Arrange, Act, Assert
-
-### 2. Component Testing
-
-```typescript
-// Good: Test user interactions
-it('should create template when form is submitted', async () => {
-  const user = userEvent.setup()
-  render(<ExportTemplatesPage />)
-  
-  await user.type(screen.getByPlaceholderText('Enter template name'), 'New Template')
-  await user.click(screen.getByText('Save Template'))
-  
-  expect(templateService.createTemplate).toHaveBeenCalledWith({
-    name: 'New Template',
-    description: '',
-    fieldMappings: expect.any(Array)
-  })
-})
-```
-
-### 3. Service Testing
-
-```typescript
-// Good: Test business logic
-it('should validate template data before creation', async () => {
-  const invalidData = { name: '', description: '', fieldMappings: [] }
-  
-  await expect(createTemplate(invalidData)).rejects.toThrow('Validation failed')
-})
-```
-
-### 4. Error Testing
-
-```typescript
-// Good: Test error scenarios
-it('should handle creation errors gracefully', async () => {
-  const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
-  vi.mocked(templateService.createTemplate).mockRejectedValue(new Error('Creation failed'))
-  
-  // ... test implementation
-  
-  expect(alertSpy).toHaveBeenCalledWith('Failed to save template: Creation failed')
-  alertSpy.mockRestore()
-})
-```
-
-## Continuous Integration
-
-### Pre-commit Testing
-
-Before making changes to the Export Templates functionality:
-
-1. Run the full test suite: `npm run test:run`
-2. Check test coverage: `npm run test:coverage`
-3. Ensure all tests pass
-4. Review coverage report for any gaps
-
-### Build Pipeline
-
-The CI/CD pipeline should include:
-
-1. **Lint Check**: `npm run lint`
-2. **Type Check**: `npm run typecheck`
-3. **Unit Tests**: `npm run test:run`
-4. **Coverage Check**: Ensure coverage thresholds are met
-5. **Build Test**: `npm run build`
-
-## Debugging Tests
-
-### Common Issues
-
-1. **Async Operations**
-   ```typescript
-   // Use waitFor for async operations
-   await waitFor(() => {
-     expect(screen.getByText('Template created')).toBeInTheDocument()
-   })
-   ```
-
-2. **Mock Cleanup**
-   ```typescript
-   beforeEach(() => {
-     vi.clearAllMocks()
-   })
-   ```
-
-3. **DOM Queries**
-   ```typescript
-   // Use appropriate queries
-   screen.getByText() // Throws if not found
-   screen.queryByText() // Returns null if not found
-   screen.findByText() // Async, waits for element
-   ```
-
-### Debug Tools
-
-1. **Screen Debug**: `screen.debug()` - Prints current DOM
-2. **Test UI**: `npm run test:ui` - Visual test runner
-3. **Coverage Report**: `npm run test:coverage` - Detailed coverage analysis
-
-## Future Enhancements
-
-### Planned Test Additions
-
-1. **E2E Tests**: Full user workflow testing
-2. **Performance Tests**: Large dataset handling
-3. **Accessibility Tests**: Screen reader compatibility
-4. **Visual Regression Tests**: UI consistency checks
-
-### Test Automation
-
-1. **Snapshot Testing**: Component output consistency
-2. **Property-based Testing**: Random input validation
-3. **Mutation Testing**: Test quality assessment
-
-## Troubleshooting
-
-### Common Test Failures
-
-1. **Import Errors**: Ensure all dependencies are installed
-2. **Mock Issues**: Check mock setup and cleanup
-3. **Timing Issues**: Use proper async/await patterns
-4. **DOM Queries**: Verify element existence and accessibility
-
-### Getting Help
-
-1. Check the [Vitest documentation](https://vitest.dev/)
-2. Review [React Testing Library guides](https://testing-library.com/docs/react-testing-library/intro/)
-3. Consult the project's existing test examples
-4. Ask team members for guidance on complex scenarios 
+If a test file has grown significantly, review it for:
+1. Redundant tests that can be consolidated
+2. CSS/styling tests that should be removed
+3. Implementation detail tests that provide no value

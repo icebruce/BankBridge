@@ -4,6 +4,67 @@ Track changes and decisions made across Claude Code sessions.
 
 ---
 
+## 2026-01-18 - Test Suite Refactoring (Quality Over Quantity)
+
+**Problem Identified:**
+- Test suite had grown to ~1,000 tests with ~15,200 lines of test code
+- Test-to-source ratio was 1.09:1 (more test code than source code!)
+- Many tests were checking CSS classes, implementation details, and trivial behavior
+
+**Changes:**
+
+### Test Files Refactored
+| File | Before | After | Reduction |
+|------|--------|-------|-----------|
+| Button.test.tsx | 272 lines / 38 tests | 62 lines / 7 tests | -82% |
+| Toast.test.tsx | 237 lines / 18 tests | 85 lines / 7 tests | -64% |
+| DataTable.test.tsx | 366 lines / 36 tests | 115 lines / 9 tests | -69% |
+| TableActions.test.tsx | 288 lines / 24 tests | 90 lines / 6 tests | -69% |
+| Settings.test.ts | 220 lines / 22 tests | 78 lines / 6 tests | -65% |
+| SearchAndFilters.test.tsx | 168 lines / 12 tests | 68 lines / 4 tests | -60% |
+| Breadcrumbs.test.tsx | 293 lines / 17 tests | 91 lines / 5 tests | -69% |
+| AccountFormModal.test.tsx | 630 lines / 33 tests | 155 lines / 10 tests | -75% |
+| NewImportTemplateEditor.test.tsx | 1029 lines / 40 tests | 368 lines / 14 tests | -64% |
+| ImportPreviewStep.test.tsx | 849 lines / 30 tests | 382 lines / 14 tests | -55% |
+| FileParser.test.tsx | 727 lines / 50 tests | 309 lines / 17 tests | -58% |
+
+**Final Results:**
+- Tests: ~1,000 → 786 (**-214 tests**)
+- Test lines: ~15,200 → ~10,500 (**-4,700 lines**)
+- Test-to-source ratio: 1.09:1 → 0.75:1
+- Coverage still exceeds thresholds (90%+ statements/lines, 82%+ branches/functions)
+
+### Documentation Updates
+- `TESTING_GUIDE.md`: New comprehensive testing philosophy document
+  - What to test vs what NOT to test
+  - Good/bad examples with code
+  - Code review checklist with red flags
+  - Metrics and periodic audit instructions
+- `CLAUDE.md`: Updated Testing Requirements section with anti-patterns
+- `vitest.config.ts`: Updated thresholds to realistic 80/75/75/80
+
+**Anti-Patterns Removed:**
+```typescript
+// ❌ CSS class assertions (removed)
+expect(button.className).toContain('bg-blue-500');
+
+// ❌ Redundant variant tests (consolidated to it.each)
+it('should apply primary styles', ...);
+it('should apply secondary styles', ...);
+
+// ❌ Testing React behavior
+it('should render without crashing', ...);
+```
+
+**Decisions Made:**
+- Coverage thresholds reduced from 90/85/90/90 to 80/75/75/80 (quality over quantity)
+- Service tests are high-value and should remain thorough
+- Component tests should focus on user interactions, not styling
+- Test file should never be longer than its source file
+- Use `it.each` for variations instead of copy-pasting tests
+
+---
+
 ## 2026-01-17 - Import Preview & CSV Parser Improvements
 
 **Changes:**

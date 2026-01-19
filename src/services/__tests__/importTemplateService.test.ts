@@ -8,6 +8,7 @@ import {
   updateImportTemplate,
   deleteImportTemplate,
   duplicateImportTemplate,
+  getTemplatesByAccountId,
   StoredImportTemplatesData
 } from '../importTemplateService'
 import { ImportTemplate, ImportFieldMapping, FieldCombination } from '../../models/ImportTemplate'
@@ -512,6 +513,59 @@ describe('importTemplateService', () => {
       vi.advanceTimersByTime(300)
 
       await expect(promise).rejects.toThrow('Import template with id non_existent not found')
+    })
+  })
+
+  describe('getTemplatesByAccountId', () => {
+    it('should return empty array when no templates exist', () => {
+      const result = getTemplatesByAccountId('acc_123')
+      expect(result).toEqual([])
+    })
+
+    it('should return empty array for empty accountId', () => {
+      const templates = [createMockTemplate({ id: 'template_1', accountId: 'acc_1', name: 'Template 1' })]
+      localStorageMock.setItem(STORAGE_KEY, JSON.stringify(createStoredData(templates)))
+
+      const result = getTemplatesByAccountId('')
+      expect(result).toEqual([])
+    })
+
+    it('should return template names matching accountId', () => {
+      const templates = [
+        createMockTemplate({ id: 'template_1', accountId: 'acc_1', name: 'Template 1' }),
+        createMockTemplate({ id: 'template_2', accountId: 'acc_2', name: 'Template 2' }),
+        createMockTemplate({ id: 'template_3', accountId: 'acc_1', name: 'Template 3' })
+      ]
+      localStorageMock.setItem(STORAGE_KEY, JSON.stringify(createStoredData(templates)))
+
+      const result = getTemplatesByAccountId('acc_1')
+      expect(result).toHaveLength(2)
+      expect(result).toContain('Template 1')
+      expect(result).toContain('Template 3')
+      expect(result).not.toContain('Template 2')
+    })
+
+    it('should return empty array when no templates match accountId', () => {
+      const templates = [
+        createMockTemplate({ id: 'template_1', accountId: 'acc_1', name: 'Template 1' }),
+        createMockTemplate({ id: 'template_2', accountId: 'acc_2', name: 'Template 2' })
+      ]
+      localStorageMock.setItem(STORAGE_KEY, JSON.stringify(createStoredData(templates)))
+
+      const result = getTemplatesByAccountId('acc_nonexistent')
+      expect(result).toEqual([])
+    })
+
+    it('should not match templates with undefined accountId', () => {
+      const templates = [
+        createMockTemplate({ id: 'template_1', accountId: undefined, name: 'Legacy Template' }),
+        createMockTemplate({ id: 'template_2', accountId: 'acc_1', name: 'Template With Account' })
+      ]
+      localStorageMock.setItem(STORAGE_KEY, JSON.stringify(createStoredData(templates)))
+
+      const result = getTemplatesByAccountId('acc_1')
+      expect(result).toHaveLength(1)
+      expect(result).toContain('Template With Account')
     })
   })
 
