@@ -196,8 +196,8 @@ export async function checkAccountUsage(id: string): Promise<AccountUsageResult>
   }
 
   // Check import templates
-  // TODO: Implement when importTemplateService is updated with accountId
-  const importTemplates: string[] = [];
+  const { getTemplatesByAccountId } = await import('./importTemplateService');
+  const importTemplates = getTemplatesByAccountId(id);
 
   // Check transactions in master data
   // Dynamic import to avoid circular dependency

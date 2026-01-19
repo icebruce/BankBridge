@@ -221,6 +221,21 @@ export const deleteImportTemplate = (id: string): Promise<boolean> => {
 };
 
 /**
+ * Get templates that use a specific account ID
+ * Used for checking account dependencies before deletion
+ */
+export const getTemplatesByAccountId = (accountId: string): string[] => {
+  if (!accountId) {
+    return [];
+  }
+
+  const templates = loadImportTemplatesFromStorage();
+  return templates
+    .filter(t => t.accountId === accountId)
+    .map(t => t.name);
+};
+
+/**
  * Duplicate an import template
  */
 export const duplicateImportTemplate = (id: string): Promise<ImportTemplate> => {

@@ -1408,6 +1408,11 @@ video {
   border-color: rgb(82 82 82 / var(--tw-border-opacity)) !important;
 }
 
+.border-neutral-900 {
+  --tw-border-opacity: 1 !important;
+  border-color: rgb(23 23 23 / var(--tw-border-opacity)) !important;
+}
+
 .border-red-200 {
   --tw-border-opacity: 1 !important;
   border-color: rgb(254 202 202 / var(--tw-border-opacity)) !important;
@@ -2085,6 +2090,11 @@ video {
 
 .outline {
   outline-style: solid !important;
+}
+
+.blur {
+  --tw-blur: blur(8px) !important;
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow) !important;
 }
 
 .filter {
