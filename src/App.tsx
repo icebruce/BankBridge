@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SidebarMenu from './components/Layout/SidebarMenu'
 import DashboardLayout from './components/Layout/DashboardLayout'
 import ProcessFilesPage from './components/Process files/ProcessFilesPage'
 import ImportTemplatesPage from './components/ImportTemplates/ImportTemplatesPage'
 import ExportTemplatesPage from './components/ExportTemplates/ExportTemplatesPage'
 import { SettingsPage } from './components/Settings'
+import ConfirmDialog from './components/common/ConfirmDialog'
 
 type SectionType = 'Process Files' | 'Import Templates' | 'Export Templates' | 'Settings';
 
@@ -18,22 +19,37 @@ const PAGE_TO_SECTION: Record<string, SectionType> = {
 
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SectionType>('Process Files')
+  const [hasProcessFilesWork, setHasProcessFilesWork] = useState(false)
+  const [showExitWarning, setShowExitWarning] = useState(false)
+  const [pendingSection, setPendingSection] = useState<SectionType | null>(null)
 
-  // Handle sidebar navigation with type checking
-  const handleSectionChange = (name: string) => {
+  // Handle sidebar navigation with type checking and exit warning
+  const handleSectionChange = useCallback((name: string) => {
     if (name === 'Process Files' ||
         name === 'Import Templates' ||
         name === 'Export Templates' ||
         name === 'Settings') {
+      // If navigating away from Process Files with work in progress, show warning
+      if (activeSection === 'Process Files' && name !== 'Process Files' && hasProcessFilesWork) {
+        setPendingSection(name)
+        setShowExitWarning(true)
+        return
+      }
       setActiveSection(name);
     }
-  };
+  }, [activeSection, hasProcessFilesWork]);
 
   // Listen for navigation events from child components
   useEffect(() => {
     const handleNavigate = (event: CustomEvent<{ page: string }>) => {
       const section = PAGE_TO_SECTION[event.detail.page];
       if (section) {
+        // If navigating away from Process Files with work, show warning
+        if (activeSection === 'Process Files' && section !== 'Process Files' && hasProcessFilesWork) {
+          setPendingSection(section)
+          setShowExitWarning(true)
+          return
+        }
         setActiveSection(section);
       }
     };
@@ -42,55 +58,64 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('navigate', handleNavigate as EventListener);
     };
+  }, [activeSection, hasProcessFilesWork]);
+
+  // Listen for work status updates from ProcessFilesPage
+  useEffect(() => {
+    const handleWorkStatus = (event: CustomEvent<{ hasWork: boolean }>) => {
+      setHasProcessFilesWork(event.detail.hasWork)
+    };
+
+    window.addEventListener('process-files-work-status', handleWorkStatus as EventListener);
+    return () => {
+      window.removeEventListener('process-files-work-status', handleWorkStatus as EventListener);
+    };
   }, []);
 
-  // Create sticky bar content
-  const stickyBarContent = activeSection === 'Process Files' ? (
-    <div className="px-4 py-2">
-      <h3 className="text-lg font-semibold mb-2">Export</h3>
-      <div className="flex justify-between items-center">
-        <div className="text-neutral-600">
-          <p>3 files ready for processing</p>
-          <p className="text-sm">Estimated processing time: 2 minutes</p>
-        </div>
-        <div className="flex gap-4 items-center">
-          <div className="flex-1">
-            <input 
-              type="text" 
-              className="w-96 px-3 py-2 border border-neutral-200 rounded-lg" 
-              placeholder="/path/to/output" 
-              readOnly 
-            />
-            <button className="ml-2 px-4 py-2 bg-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-300">
-              Browse
-            </button>
-          </div>
-          <button className="px-6 py-2 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800">
-            Process & Export
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : undefined
+  const handleConfirmLeave = () => {
+    setShowExitWarning(false)
+    if (pendingSection) {
+      setActiveSection(pendingSection)
+      setPendingSection(null)
+    }
+  }
+
+  const handleCancelLeave = () => {
+    setShowExitWarning(false)
+    setPendingSection(null)
+  }
 
   return (
-    <DashboardLayout
-      sidebar={<SidebarMenu active={activeSection} onSelect={handleSectionChange} />}
-      stickyBar={stickyBarContent}
-    >
-      {(() => {
-        switch (activeSection) {
-          case 'Process Files':
-            return <ProcessFilesPage />
-          case 'Import Templates':
-            return <ImportTemplatesPage />
-          case 'Export Templates':
-            return <ExportTemplatesPage />
-          case 'Settings':
-            return <SettingsPage />
-        }
-      })()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout
+        sidebar={<SidebarMenu active={activeSection} onSelect={handleSectionChange} />}
+      >
+        {(() => {
+          switch (activeSection) {
+            case 'Process Files':
+              return <ProcessFilesPage />
+            case 'Import Templates':
+              return <ImportTemplatesPage />
+            case 'Export Templates':
+              return <ExportTemplatesPage />
+            case 'Settings':
+              return <SettingsPage />
+          }
+        })()}
+      </DashboardLayout>
+
+      {/* Exit warning when navigating away from Process Files with work */}
+      <ConfirmDialog
+        isOpen={showExitWarning}
+        title="Leave this page?"
+        message="You have files in progress. If you leave now, you'll lose your work and need to start over."
+        confirmLabel="Leave"
+        cancelLabel="Stay"
+        variant="warning"
+        onConfirm={handleConfirmLeave}
+        onCancel={handleCancelLeave}
+      />
+    </>
   )
 }
 

@@ -243,7 +243,7 @@ export const duplicateImportTemplate = (id: string): Promise<ImportTemplate> => 
     try {
       const templates = loadImportTemplatesFromStorage();
       const originalTemplate = templates.find(t => t.id === id);
-      
+
       if (!originalTemplate) {
         throw new Error(`Import template with id ${id} not found`);
       }
@@ -273,4 +273,86 @@ export const duplicateImportTemplate = (id: string): Promise<ImportTemplate> => 
       }, 300);
     }
   });
+};
+
+/**
+ * Result from template suggestion
+ */
+export interface TemplateSuggestion {
+  templateId: string;
+  confidence: number; // 0-100
+}
+
+/**
+ * Suggest the best matching import template based on detected column headers
+ *
+ * Algorithm:
+ * 1. Normalize both detected columns and template source fields (lowercase, trim)
+ * 2. For each template, count how many of its source fields match detected columns
+ * 3. Score = matched fields / total template source fields
+ * 4. Return best match if confidence >= 70%
+ *
+ * Matching includes:
+ * - Exact match (case-insensitive)
+ * - Partial match (one contains the other)
+ *
+ * @param detectedColumns - Column headers detected from the file
+ * @param templates - List of import templates to match against
+ * @param minConfidence - Minimum confidence threshold (default: 0.7 = 70%)
+ * @returns Best matching template with confidence, or null if no match meets threshold
+ */
+export const suggestTemplateForColumns = (
+  detectedColumns: string[],
+  templates: ImportTemplate[],
+  minConfidence: number = 0.7
+): TemplateSuggestion | null => {
+  if (!detectedColumns || detectedColumns.length === 0) {
+    return null;
+  }
+
+  if (!templates || templates.length === 0) {
+    return null;
+  }
+
+  const normalizedDetected = detectedColumns.map(c => c.toLowerCase().trim());
+
+  let bestMatch: { template: ImportTemplate | null; score: number } = {
+    template: null,
+    score: 0,
+  };
+
+  for (const template of templates) {
+    // Skip templates without source fields
+    if (!template.sourceFields || template.sourceFields.length === 0) {
+      continue;
+    }
+
+    const normalizedSource = template.sourceFields.map(f => f.toLowerCase().trim());
+
+    // Count matching columns
+    const matches = normalizedSource.filter(sourceField =>
+      normalizedDetected.some(
+        detectedCol =>
+          detectedCol === sourceField ||
+          detectedCol.includes(sourceField) ||
+          sourceField.includes(detectedCol)
+      )
+    );
+
+    const score = matches.length / normalizedSource.length;
+
+    if (score > bestMatch.score) {
+      bestMatch = { template, score };
+    }
+  }
+
+  // Return if confidence meets minimum threshold
+  if (bestMatch.score >= minConfidence && bestMatch.template) {
+    return {
+      templateId: bestMatch.template.id,
+      confidence: Math.round(bestMatch.score * 100),
+    };
+  }
+
+  return null;
 }; 

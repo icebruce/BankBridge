@@ -186,187 +186,54 @@ describe('ProcessFilesPage', () => {
   it('should render page header', () => {
     const { container } = render(<ProcessFilesPage />);
 
-    // "Process Files" appears multiple times - check header section specifically
     const header = container.querySelector('#header');
     expect(header?.textContent).toContain('Process Files');
-    expect(screen.getByText('Upload and process your CSV files')).toBeInTheDocument();
+    expect(screen.getByText('Import and export your bank statements')).toBeInTheDocument();
   });
 
-  it('should render upload section', () => {
+  it('should render stepper with all 4 steps', () => {
     render(<ProcessFilesPage />);
 
-    expect(screen.getByText(/Drag and drop your CSV file here/)).toBeInTheDocument();
+    expect(screen.getByText('Upload')).toBeInTheDocument();
+    expect(screen.getByText('Configure')).toBeInTheDocument();
+    expect(screen.getByText('Review')).toBeInTheDocument();
+    expect(screen.getByText('Export')).toBeInTheDocument();
+  });
+
+  it('should start on Upload step', () => {
+    render(<ProcessFilesPage />);
+
+    // Upload step should have drop zone visible
+    expect(screen.getByText('Drag and drop your bank CSV files here')).toBeInTheDocument();
     expect(screen.getByText('Browse Files')).toBeInTheDocument();
   });
 
-  it('should render file processing configuration', () => {
+  it('should not show Back button on first step', () => {
     render(<ProcessFilesPage />);
 
-    expect(screen.getByText(/Process Files \(3 files ready\)/)).toBeInTheDocument();
-    expect(screen.getByText('3 files ready for processing')).toBeInTheDocument();
-    expect(screen.getByText('Estimated processing time: 2 minutes')).toBeInTheDocument();
+    // Back button should not be present on step 1
+    expect(screen.queryByRole('button', { name: /Back/i })).not.toBeInTheDocument();
   });
 
-  it('should render Process Files button', () => {
+  it('should have Next button disabled when no files are uploaded', () => {
     render(<ProcessFilesPage />);
 
-    // There are multiple "Process Files" texts - look for the button
-    const buttons = screen.getAllByRole('button');
-    const processButton = buttons.find(btn => btn.textContent === 'Process Files');
-    expect(processButton).toBeInTheDocument();
+    // Next button has the text "Next →"
+    const nextButton = screen.getByRole('button', { name: /Next/i });
+    expect(nextButton).toBeDisabled();
   });
 
-  it('should render duplicate warning', () => {
+  it('should show helpful message when Next is disabled', () => {
     render(<ProcessFilesPage />);
 
-    expect(screen.getByText(/Warning: 2 duplicate files detected/)).toBeInTheDocument();
-  });
-
-  it('should render file cards', () => {
-    render(<ProcessFilesPage />);
-
-    expect(screen.getByText('sales_data.csv')).toBeInTheDocument();
-    expect(screen.getByText('q1_transactions.csv')).toBeInTheDocument();
-    expect(screen.getByText('q2_sales.csv')).toBeInTheDocument();
-  });
-
-  it('should render account dropdowns', () => {
-    render(<ProcessFilesPage />);
-
-    const accountLabels = screen.getAllByText('Account');
-    expect(accountLabels.length).toBe(3);
-  });
-
-  it('should render file type dropdowns', () => {
-    render(<ProcessFilesPage />);
-
-    const fileTypeLabels = screen.getAllByText('File Type');
-    expect(fileTypeLabels.length).toBe(3);
-  });
-
-  it('should render processing status for each file', () => {
-    render(<ProcessFilesPage />);
-
-    const statusLabels = screen.getAllByText('Processing Status');
-    expect(statusLabels.length).toBe(3);
-  });
-
-  it('should render record counts', () => {
-    render(<ProcessFilesPage />);
-
-    expect(screen.getByText('Records: 1,234')).toBeInTheDocument();
-    expect(screen.getByText('Records: 2,456')).toBeInTheDocument();
-    expect(screen.getByText('Records: 1,890')).toBeInTheDocument();
-  });
-
-  it('should render parsing errors information', () => {
-    render(<ProcessFilesPage />);
-
-    expect(screen.getByText('3 parsing errors found')).toBeInTheDocument();
-    expect(screen.getByText('2 parsing errors found')).toBeInTheDocument();
-    expect(screen.getByText('1 parsing error found')).toBeInTheDocument();
-  });
-
-  it('should render duplicate records information', () => {
-    render(<ProcessFilesPage />);
-
-    expect(screen.getByText('5 duplicate records found')).toBeInTheDocument();
-    expect(screen.getByText('3 duplicate records found')).toBeInTheDocument();
-    expect(screen.getByText('0 duplicate records found')).toBeInTheDocument();
-  });
-
-  it('should render processing summary section', () => {
-    const { container } = render(<ProcessFilesPage />);
-
-    expect(screen.getByText('Processing Summary')).toBeInTheDocument();
-    // Account 1 and Account 2 appear in dropdowns and summary sections
-    const summarySection = container.querySelector('#processing-summary');
-    expect(summarySection?.textContent).toContain('Account 1');
-    expect(summarySection?.textContent).toContain('Account 2');
-  });
-
-  it('should render original and processed file sections', () => {
-    render(<ProcessFilesPage />);
-
-    const originalLabels = screen.getAllByText('Original Files');
-    const processedLabels = screen.getAllByText('Processed Files');
-    expect(originalLabels.length).toBe(2);
-    expect(processedLabels.length).toBe(2);
-  });
-
-  it('should render total records in summary', () => {
-    const { container } = render(<ProcessFilesPage />);
-
-    // Check that the processing summary section contains these values
-    const summarySection = container.querySelector('#processing-summary');
-    expect(summarySection?.textContent).toContain('3,690');
-    expect(summarySection?.textContent).toContain('2,345');
-  });
-
-  it('should render total amounts in summary', () => {
-    const { container } = render(<ProcessFilesPage />);
-
-    // Check that the processing summary section contains these values
-    const summarySection = container.querySelector('#processing-summary');
-    expect(summarySection?.textContent).toContain('$234,567.00');
-    expect(summarySection?.textContent).toContain('$123,456.00');
-  });
-
-  it('should render date ranges in summary', () => {
-    render(<ProcessFilesPage />);
-
-    // Date ranges appear twice each (original and processed)
-    const janDateRanges = screen.getAllByText('Jan 1 - Mar 31, 2025');
-    const aprDateRanges = screen.getAllByText('Apr 1 - Jun 30, 2025');
-    expect(janDateRanges.length).toBe(2);
-    expect(aprDateRanges.length).toBe(2);
-  });
-
-  it('should render recent files section', () => {
-    render(<ProcessFilesPage />);
-
-    expect(screen.getByText('Recent Files')).toBeInTheDocument();
-    expect(screen.getByText('march_sales.csv')).toBeInTheDocument();
-    expect(screen.getByText('Processed on Apr 26, 2025')).toBeInTheDocument();
-  });
-
-  it('should render remove buttons on file cards', () => {
-    const { container } = render(<ProcessFilesPage />);
-
-    // X buttons for removing files
-    const fileCards = container.querySelectorAll('[class*="bg-white border border-neutral-200 rounded-lg p-4"]');
-    expect(fileCards.length).toBeGreaterThan(0);
-  });
-
-  it('should render view buttons for parsing errors', () => {
-    render(<ProcessFilesPage />);
-
-    const viewButtons = screen.getAllByText('View');
-    expect(viewButtons.length).toBe(3);
-  });
-
-  it('should render review buttons for duplicates', () => {
-    render(<ProcessFilesPage />);
-
-    const reviewButtons = screen.getAllByText('Review');
-    expect(reviewButtons.length).toBe(3);
+    expect(screen.getByText(/Upload at least one file to continue/i)).toBeInTheDocument();
   });
 
   it('should have correct page structure', () => {
     const { container } = render(<ProcessFilesPage />);
 
     expect(container.querySelector('#header')).toBeInTheDocument();
-    expect(container.querySelector('#upload-section')).toBeInTheDocument();
-    expect(container.querySelector('#file-config')).toBeInTheDocument();
-    expect(container.querySelector('#processing-summary')).toBeInTheDocument();
-    expect(container.querySelector('#recent-files')).toBeInTheDocument();
-  });
-
-  it('should have progress bars for each file', () => {
-    const { container } = render(<ProcessFilesPage />);
-
-    // Progress bars are nested divs with specific classes
-    const progressBars = container.querySelectorAll('.h-2.bg-neutral-700.rounded-full');
-    expect(progressBars.length).toBe(3);
+    // Stepper should be visible
+    expect(screen.getByText('Upload')).toBeInTheDocument();
   });
 });
