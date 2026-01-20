@@ -4,6 +4,67 @@ Track changes and decisions made across Claude Code sessions.
 
 ---
 
+## 2026-01-19 - Process Files 4-Step Wizard Implementation
+
+**Changes:**
+
+### New Components Created
+| File | Purpose |
+|------|---------|
+| `Stepper.tsx` | Accessible horizontal stepper with circle indicators and connector lines |
+| `UploadStep.tsx` | Drag-drop file upload with parsing status and duplicate detection |
+| `ConfigureStep.tsx` | Template selection for each file with auto-match suggestion |
+| `ReviewStep.tsx` | Processing results with error/duplicate review modals |
+| `ExportStep.tsx` | Export location selection and file generation |
+| `ErrorReviewModal.tsx` | Modal for reviewing parse errors per file |
+| `DuplicateReviewModal.tsx` | Modal for reviewing duplicate transactions |
+
+### Modified Files
+- `ProcessFilesPage.tsx`: Refactored from single-page to 4-step wizard orchestrator
+- `App.tsx`: Added exit warning when navigating away with unsaved work
+- `importTemplateService.ts`: Extracted `suggestTemplateForColumns()` function
+
+### UI/UX Design Decisions
+
+**Stepper Design (Based on UX Best Practices):**
+- Circles with visual state indicators:
+  - Completed: Green filled circle with white checkmark
+  - Current: Dark filled circle with small white dot (active indicator)
+  - Future: Transparent circle with gray border and small gray dot
+- Labels below circles (text-xs, font-semibold for current)
+- Solid connector lines (green for completed, gray for upcoming)
+- Hover effects on completed steps for navigation
+
+**File Cards (Compact Design):**
+- Single-row layout: file icon + filename + status + record count + remove button
+- Status icons with colored text (green/blue/red)
+- Duplicate badge for detected duplicates
+- Shadow and border styling consistent with app design
+
+**Navigation Bar:**
+- Back button with arrow icon (left side)
+- Context-aware Next button text:
+  - Step 1→2: "Next"
+  - Step 2→3: "Process Files" with cog icon
+  - Step 3→4: "Next"
+  - Step 4: "Export Files" with export icon
+- Disabled message shown when action not available
+
+**Decisions Made:**
+- Stepper serves as page title (removed separate "Process Files" header)
+- Exit warning uses custom event system to communicate work status to App.tsx
+- Template suggestion algorithm uses column name matching with 70% confidence threshold
+- Export path persisted to localStorage for convenience
+- Browser beforeunload warning for unsaved work
+
+**Resources Referenced:**
+- [SetProduct - Steps UI Design Tutorial](https://www.setproduct.com/blog/steps-ui-design)
+- [8 Proven UX Practices for Designing Accessible Steppers](https://medium.com/@ahmedtareq_46462/8-proven-ux-practices-for-designing-accessible-steppers-628001493e54)
+
+**Commit:** 4a60b0c - "Refactor Process Files into 4-step wizard with polished UI"
+
+---
+
 ## 2026-01-18 - Test Suite Refactoring (Quality Over Quantity)
 
 **Problem Identified:**
@@ -343,6 +404,7 @@ Copy and fill in for each new session:
 
 | Date | Feature | Branch | PR | Status |
 |------|---------|--------|----|----|
+| 2026-01-19 | Process Files 4-Step Wizard | main | 4a60b0c | Pushed |
 | 2026-01-17 | Import Preview & CSV Parser | main | f74d25d | Pushed |
 | 2026-01-11 | Phase 7: UI Polish & Accessibility | main | fa19916 | Pushed |
 | 2026-01-08 | Phase 6: Import Templates Integration | main | 5127957 | Committed |
@@ -362,7 +424,8 @@ Copy and fill in for each new session:
 | Phase 5: Export Template Updates | Complete | Internal field mapping |
 | Phase 6: Import Templates | Complete | Account dropdown, sourceFields |
 | Phase 7: Polish & Testing | Complete | Accessibility, ConfirmDialog, cleanup |
-| **Phase 8: Import Preview** | **Complete** | Duplicate detection, CSV parser fixes, MasterDataTable UI |
+| Phase 8: Import Preview | Complete | Duplicate detection, CSV parser fixes, MasterDataTable UI |
+| **Phase 9: Process Files Wizard** | **Complete** | 4-step wizard, Stepper component, exit warning |
 
 ---
 

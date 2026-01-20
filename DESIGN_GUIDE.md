@@ -150,7 +150,7 @@ For new/edit pages with back navigation:
 
 ```tsx
 <div className="flex items-center text-sm text-neutral-500 mb-1 font-semibold">
-  <button 
+  <button
     className="hover:text-neutral-700 transition-colors duration-200"
     onClick={handleNavigateToParent}
   >
@@ -160,6 +160,73 @@ For new/edit pages with back navigation:
   <span>Current Page Name</span>
 </div>
 ```
+
+## Stepper Component
+
+### Horizontal Stepper for Multi-Step Wizards
+
+Used in Process Files wizard. Based on accessible UX best practices.
+
+```tsx
+// Stepper structure
+<div className="flex items-center w-full">
+  {steps.map((step, index) => (
+    <React.Fragment key={step.id}>
+      {/* Step indicator */}
+      <div className="flex flex-col items-center">
+        {/* Circle */}
+        <div className={`
+          w-9 h-9 rounded-full flex items-center justify-center
+          transition-all duration-300 border-2
+          ${isCompleted ? 'bg-green-500 border-green-500 text-white' : ''}
+          ${isCurrent ? 'bg-neutral-900 border-neutral-900 text-white' : ''}
+          ${isFuture ? 'bg-transparent border-neutral-300' : ''}
+        `}>
+          {isCompleted ? <FontAwesomeIcon icon={faCheck} /> : null}
+          {isCurrent ? <div className="w-2 h-2 bg-white rounded-full" /> : null}
+          {isFuture ? <div className="w-2 h-2 bg-neutral-300 rounded-full" /> : null}
+        </div>
+
+        {/* Label below */}
+        <span className={`
+          mt-2.5 text-xs font-medium whitespace-nowrap
+          ${isCompleted ? 'text-green-600' : ''}
+          ${isCurrent ? 'text-neutral-900 font-semibold' : ''}
+          ${isFuture ? 'text-neutral-400' : ''}
+        `}>
+          {step.label}
+        </span>
+      </div>
+
+      {/* Connector line */}
+      {index < steps.length - 1 && (
+        <div className="flex-1 mx-4 -mt-5">
+          <div className={`
+            h-0.5 w-full transition-colors duration-300
+            ${isCompleted ? 'bg-green-500' : 'bg-neutral-200'}
+          `} />
+        </div>
+      )}
+    </React.Fragment>
+  ))}
+</div>
+```
+
+### Stepper Visual States
+
+| State | Circle | Inner Content | Label | Connector |
+|-------|--------|---------------|-------|-----------|
+| Completed | `bg-green-500 border-green-500` | White checkmark | `text-green-600` | `bg-green-500` |
+| Current | `bg-neutral-900 border-neutral-900` | Small white dot | `text-neutral-900 font-semibold` | `bg-neutral-200` |
+| Future | `bg-transparent border-neutral-300` | Small gray dot | `text-neutral-400` | `bg-neutral-200` |
+
+### Stepper Best Practices
+
+1. **Labels below circles** - Better readability and alignment
+2. **No step numbers in circles** - Visual indicators (dots/checkmarks) are clearer
+3. **Clickable completed steps** - Allow users to navigate back
+4. **Solid connector lines** - Green for completed paths, gray for upcoming
+5. **Hover effects** - Scale and color change on clickable steps
 
 ## Button Styling
 

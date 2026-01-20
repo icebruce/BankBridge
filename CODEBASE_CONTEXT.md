@@ -27,8 +27,15 @@ src/
 │   │   ├── ExportTemplatesPage.tsx      # List view + routing
 │   │   ├── NewTemplateEditor.tsx        # Create/edit form
 │   │   └── __tests__/
-│   ├── ProcessFiles/        # File processing feature
-│   │   ├── ProcessFilesPage.tsx
+│   ├── Process files/       # File processing 4-step wizard
+│   │   ├── ProcessFilesPage.tsx      # Wizard orchestrator
+│   │   ├── Stepper.tsx               # Horizontal step indicator
+│   │   ├── UploadStep.tsx            # Step 1: File upload
+│   │   ├── ConfigureStep.tsx         # Step 2: Template selection
+│   │   ├── ReviewStep.tsx            # Step 3: Processing results
+│   │   ├── ExportStep.tsx            # Step 4: Export
+│   │   ├── ErrorReviewModal.tsx      # Error review modal
+│   │   ├── DuplicateReviewModal.tsx  # Duplicate review modal
 │   │   └── __tests__/
 │   ├── Settings/            # Settings & Configuration
 │   │   ├── SettingsPage.tsx             # Main settings page
