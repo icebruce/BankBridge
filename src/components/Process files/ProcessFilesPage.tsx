@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faArrowRight, faCog, faFileExport } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faArrowRight, faFileExport } from '@fortawesome/free-solid-svg-icons';
 import Stepper from './Stepper';
 import UploadStep from './UploadStep';
 import ConfigureStep from './ConfigureStep';
@@ -257,55 +257,53 @@ const ProcessFilesPage: React.FC = () => {
 
       {/* Navigation - only show if not on export success */}
       {!(step === 4 && exportSuccess) && (
-        <div className="bg-white p-4 border border-neutral-200 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between">
-            {/* Back button */}
-            <div>
-              {step > 1 ? (
-                <button
-                  onClick={handleBack}
-                  className="px-4 py-2.5 border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50 hover:shadow-sm transition-all duration-200 flex items-center gap-2 font-medium"
-                >
-                  <FontAwesomeIcon icon={faArrowLeft} className="text-sm" />
-                  Back
-                </button>
-              ) : (
-                <div></div>
-              )}
-            </div>
-
-            {/* Disabled message + Next button */}
-            <div className="flex items-center gap-4">
-              {disabledMessage && (
-                <span className="text-sm text-neutral-500 italic">{disabledMessage}</span>
-              )}
+        <div className="flex items-center justify-between">
+          {/* Back button */}
+          <div>
+            {step > 1 ? (
               <button
-                onClick={handleNext}
-                disabled={!canProceed()}
-                className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                  canProceed()
-                    ? 'bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-sm'
-                    : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                }`}
+                onClick={handleBack}
+                className="px-4 py-2.5 border border-neutral-200 text-neutral-700 rounded-lg hover:bg-neutral-50 hover:shadow-sm transition-all duration-200 flex items-center gap-2 font-medium"
               >
-                {step === 2 ? (
-                  <>
-                    Process Files
-                    <FontAwesomeIcon icon={faCog} className="text-sm" />
-                  </>
-                ) : step === 4 ? (
-                  <>
-                    Export Files
-                    <FontAwesomeIcon icon={faFileExport} className="text-sm" />
-                  </>
-                ) : (
-                  <>
-                    Next
-                    <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
-                  </>
-                )}
+                <FontAwesomeIcon icon={faArrowLeft} className="text-sm" />
+                Back
               </button>
-            </div>
+            ) : (
+              <div></div>
+            )}
+          </div>
+
+          {/* Disabled message + Next button */}
+          <div className="flex items-center gap-4">
+            {disabledMessage && (
+              <span className="text-sm text-neutral-500 italic">{disabledMessage}</span>
+            )}
+            <button
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+                canProceed()
+                  ? 'bg-neutral-900 text-white hover:bg-neutral-800 hover:shadow-sm'
+                  : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
+              }`}
+            >
+              {step === 2 ? (
+                <>
+                  Process Files
+                  <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+                </>
+              ) : step === 4 ? (
+                <>
+                  Export Files
+                  <FontAwesomeIcon icon={faFileExport} className="text-sm" />
+                </>
+              ) : (
+                <>
+                  Next
+                  <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}

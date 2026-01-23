@@ -1,6 +1,4 @@
 import React from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck } from '@fortawesome/free-solid-svg-icons';
 
 interface StepDefinition {
   id: string;
@@ -22,7 +20,7 @@ const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClick }) =>
   };
 
   return (
-    <div className="flex items-center w-full">
+    <div className="flex w-full gap-4">
       {steps.map((step, index) => {
         const stepNumber = index + 1;
         const isCompleted = stepNumber < currentStep;
@@ -31,61 +29,64 @@ const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepClick }) =>
         const isClickable = isCompleted && onStepClick;
 
         return (
-          <React.Fragment key={step.id}>
-            {/* Step */}
+          <div
+            key={step.id}
+            className={`flex-1 ${isClickable ? 'cursor-pointer group' : ''}`}
+            onClick={() => handleStepClick(stepNumber)}
+          >
+            {/* Progress bar segment */}
             <div
-              className={`flex flex-col items-center ${isClickable ? 'cursor-pointer group' : ''}`}
-              onClick={() => handleStepClick(stepNumber)}
-            >
-              {/* Circle indicator */}
-              <div
-                className={`
-                  w-9 h-9 rounded-full flex items-center justify-center
-                  transition-all duration-300 border-2
-                  ${isCompleted
-                    ? 'bg-green-500 border-green-500 text-white'
-                    : isCurrent
-                      ? 'bg-neutral-900 border-neutral-900 text-white'
-                      : 'bg-transparent border-neutral-300'
-                  }
-                  ${isClickable ? 'group-hover:bg-green-600 group-hover:border-green-600' : ''}
-                `}
-              >
-                {isCompleted ? (
-                  <FontAwesomeIcon icon={faCheck} className="text-sm" />
-                ) : isCurrent ? (
-                  <div className="w-2 h-2 bg-white rounded-full" />
-                ) : (
-                  <div className="w-2 h-2 bg-neutral-300 rounded-full" />
-                )}
-              </div>
+              className={`
+                h-2 w-full rounded-full transition-all duration-300
+                ${isCompleted
+                  ? 'bg-neutral-800 group-hover:bg-neutral-600'
+                  : isCurrent
+                    ? 'bg-blue-500'
+                    : 'bg-neutral-200'
+                }
+              `}
+            />
 
-              {/* Label Below */}
+            {/* Label below */}
+            <div className="mt-3 flex items-center gap-2">
+              {isCurrent && (
+                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-blue-100 text-blue-600">
+                  {stepNumber}
+                </span>
+              )}
+              {isCompleted && (
+                <svg
+                  className="w-4 h-4 text-neutral-600 group-hover:text-neutral-500"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
+              {isFuture && (
+                <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium rounded-full bg-neutral-100 text-neutral-400">
+                  {stepNumber}
+                </span>
+              )}
               <span
                 className={`
-                  mt-2.5 text-xs font-medium transition-colors duration-200 whitespace-nowrap
-                  ${isCompleted ? 'text-green-600' : ''}
-                  ${isCurrent ? 'text-neutral-900 font-semibold' : ''}
-                  ${isFuture ? 'text-neutral-400' : ''}
-                  ${isClickable ? 'group-hover:text-green-700' : ''}
+                  text-sm font-medium transition-colors duration-200
+                  ${isCompleted
+                    ? 'text-neutral-800 group-hover:text-neutral-600'
+                    : isCurrent
+                      ? 'text-blue-600'
+                      : 'text-neutral-400'
+                  }
                 `}
               >
                 {step.label}
               </span>
             </div>
-
-            {/* Connector Line */}
-            {index < steps.length - 1 && (
-              <div className="flex-1 mx-4 -mt-5">
-                <div
-                  className={`
-                    h-0.5 w-full transition-colors duration-300
-                    ${stepNumber < currentStep ? 'bg-green-500' : 'bg-neutral-200'}
-                  `}
-                />
-              </div>
-            )}
-          </React.Fragment>
+          </div>
         );
       })}
     </div>

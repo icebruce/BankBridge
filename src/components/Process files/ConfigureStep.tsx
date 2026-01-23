@@ -107,7 +107,7 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
         <div className="text-center">
           <FontAwesomeIcon
             icon={faTriangleExclamation}
-            className="text-4xl text-amber-500 mb-4"
+            className="text-4xl text-yellow-600 mb-4"
           />
           <h3 className="text-lg font-semibold mb-2">No Import Templates Found</h3>
           <p className="text-neutral-600 mb-4">
@@ -130,9 +130,9 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full">
       {/* Summary Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold mb-1">
             Configure Files ({files.length})
@@ -149,7 +149,7 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
             </span>
           )}
           {filesNeedingAttention.length > 0 && (
-            <span className="text-amber-600 flex items-center">
+            <span className="text-yellow-700 flex items-center">
               <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
               {filesNeedingAttention.length} need attention
             </span>
@@ -157,105 +157,107 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
         </div>
       </div>
 
-      {/* File Cards */}
-      <div className="max-h-[500px] overflow-y-auto space-y-4">
-        {files.map((file) => {
-          const selectedTemplate = file.selectedTemplateId
-            ? getTemplateById(file.selectedTemplateId)
-            : undefined;
-          const needsAttention = !file.selectedTemplateId && file.parseStatus === 'complete';
+      {/* File Table */}
+      <div className="flex-1 min-h-0 border border-neutral-200 rounded-lg bg-white overflow-hidden">
+        <div className="h-full overflow-auto">
+        <table className="w-full table-fixed" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <colgroup>
+            <col style={{ width: '40%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '20%' }} />
+            <col style={{ width: '30%' }} />
+          </colgroup>
+          <thead className="bg-neutral-50 sticky top-0">
+            <tr>
+              <th style={{ paddingLeft: '24px' }} className="text-left text-sm font-medium text-neutral-600 pr-4 py-3 border-b border-neutral-200">File Name</th>
+              <th className="text-left text-sm font-medium text-neutral-600 px-4 py-3 border-b border-neutral-200">Records</th>
+              <th className="text-left text-sm font-medium text-neutral-600 px-4 py-3 border-b border-neutral-200">Status</th>
+              <th style={{ paddingRight: '24px' }} className="text-left text-sm font-medium text-neutral-600 pl-4 py-3 border-b border-neutral-200">Import Template</th>
+            </tr>
+          </thead>
+          <tbody>
+            {files.map((file, index) => {
+              const selectedTemplate = file.selectedTemplateId
+                ? getTemplateById(file.selectedTemplateId)
+                : undefined;
+              const needsAttention = !file.selectedTemplateId && file.parseStatus === 'complete';
+              const isLastRow = index === files.length - 1;
+              const borderClass = isLastRow ? '' : 'border-b border-neutral-200';
 
-          return (
-            <div
-              key={file.id}
-              className={`
-                bg-white border rounded-lg p-4 shadow-sm transition-all duration-200
-                ${needsAttention
-                  ? 'border-amber-300 ring-1 ring-amber-200'
-                  : 'border-neutral-200 hover:border-neutral-300'
-                }
-              `}
-            >
-              {/* File Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center min-w-0 flex-1">
-                  <FontAwesomeIcon
-                    icon={faFileLines}
-                    className="text-neutral-400 mr-3 flex-shrink-0"
-                  />
-                  <span className="font-medium text-neutral-900 truncate">{file.name}</span>
-                </div>
-                {file.isAutoMatched && file.selectedTemplateId && (
-                  <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium flex items-center">
-                    <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-1.5" />
-                    Auto-matched
-                  </span>
-                )}
-                {needsAttention && (
-                  <span className="text-xs px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full font-medium flex items-center">
-                    <FontAwesomeIcon icon={faTriangleExclamation} className="mr-1.5" />
-                    Select template
-                  </span>
-                )}
-              </div>
+              return (
+                <tr
+                  key={file.id}
+                  className={`
+                    transition-colors
+                    ${needsAttention ? 'bg-yellow-50/50' : 'hover:bg-neutral-50'}
+                  `}
+                >
+                  {/* File Name */}
+                  <td style={{ paddingLeft: '24px' }} className={`text-left pr-4 py-4 ${borderClass}`}>
+                    <div className="flex items-center gap-3">
+                      <FontAwesomeIcon
+                        icon={faFileLines}
+                        className="text-neutral-400 flex-shrink-0"
+                      />
+                      <span className="font-medium text-neutral-900 truncate">{file.name}</span>
+                    </div>
+                  </td>
 
-              {/* Template Selection */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-600 mb-1">
-                    Import Template
-                  </label>
-                  <select
-                    value={file.selectedTemplateId || ''}
-                    onChange={(e) => handleTemplateChange(file.id, e.target.value)}
-                    className={`
-                      w-full px-3 py-2 border rounded-lg electronInput
-                      focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none
-                      transition-colors
-                      ${needsAttention ? 'border-amber-400' : 'border-neutral-200'}
-                    `}
-                  >
-                    <option value="">Select template...</option>
-                    {templates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-600 mb-1">
-                    Target Account
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedTemplate?.accountDisplayName || 'Select a template first'}
-                    readOnly
-                    disabled
-                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-600 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              {/* File Info */}
-              <div className="mt-3 pt-3 border-t border-neutral-100">
-                <div className="flex items-center justify-between text-sm text-neutral-500">
-                  <span>
-                    {file.parseResult?.rowCount.toLocaleString() || 0} records
-                    {file.parseResult?.columns && ` • ${file.parseResult.columns.length} columns`}
-                  </span>
-                  {selectedTemplate && (
-                    <span className="flex items-center text-green-600">
-                      <FontAwesomeIcon icon={faCheck} className="mr-1.5" />
-                      Ready to process
+                  {/* Records */}
+                  <td className={`text-left px-4 py-4 ${borderClass}`}>
+                    <span className="text-sm text-neutral-600">
+                      {file.parseResult?.rowCount.toLocaleString() || 0}
                     </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                  </td>
+
+                  {/* Status */}
+                  <td className={`text-left px-4 py-4 ${borderClass}`}>
+                    {file.isAutoMatched && file.selectedTemplateId && (
+                      <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium inline-flex items-center">
+                        <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-1.5" />
+                        Auto-matched
+                      </span>
+                    )}
+                    {selectedTemplate && !file.isAutoMatched && (
+                      <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium inline-flex items-center">
+                        <FontAwesomeIcon icon={faCheck} className="mr-1.5" />
+                        Ready
+                      </span>
+                    )}
+                    {needsAttention && (
+                      <span className="text-xs px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium inline-flex items-center">
+                        <FontAwesomeIcon icon={faTriangleExclamation} className="mr-1.5" />
+                        Select template
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Import Template */}
+                  <td style={{ paddingRight: '24px' }} className={`text-left pl-4 py-4 ${borderClass}`}>
+                    <select
+                      value={file.selectedTemplateId || ''}
+                      onChange={(e) => handleTemplateChange(file.id, e.target.value)}
+                      className={`
+                        w-full px-3 py-1.5 text-sm border rounded-lg electronInput
+                        focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none
+                        transition-colors
+                        ${needsAttention ? 'border-yellow-200' : 'border-neutral-200'}
+                      `}
+                    >
+                      <option value="">Select...</option>
+                      {templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.accountDisplayName}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        </div>
       </div>
     </div>
   );

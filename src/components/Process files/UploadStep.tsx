@@ -187,9 +187,9 @@ const UploadStep: React.FC<UploadStepProps> = ({
         <div>
           {/* Duplicate Warning */}
           {duplicateCount > 0 && (
-            <div className="flex items-center text-sm text-amber-600 mb-4">
-              <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2 text-amber-500" />
-              <span>Warning: {duplicateCount} duplicate file{duplicateCount > 1 ? 's' : ''} detected</span>
+            <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm mb-4">
+              <FontAwesomeIcon icon={faTriangleExclamation} className="flex-shrink-0" />
+              <span>{duplicateCount} duplicate file{duplicateCount > 1 ? 's' : ''} detected</span>
             </div>
           )}
 
@@ -201,7 +201,7 @@ const UploadStep: React.FC<UploadStepProps> = ({
                 className={`
                   bg-white border rounded-lg px-4 py-3 shadow-sm transition-all duration-200
                   ${isFileDuplicate(file.name)
-                    ? 'border-amber-300 bg-amber-50'
+                    ? 'border-yellow-200'
                     : 'border-neutral-200 hover:border-neutral-300'
                   }
                 `}
@@ -215,7 +215,7 @@ const UploadStep: React.FC<UploadStepProps> = ({
                     />
                     <span className="font-medium text-neutral-900 truncate mr-2">{file.name}</span>
                     {isFileDuplicate(file.name) && (
-                      <span className="text-xs px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full font-medium flex-shrink-0">
+                      <span className="text-xs px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium flex items-center flex-shrink-0">
                         Duplicate
                       </span>
                     )}
