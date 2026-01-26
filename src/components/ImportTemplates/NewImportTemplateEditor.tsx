@@ -11,8 +11,9 @@ import {
   faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
 import { ImportTemplate, FieldCombination } from '../../models/ImportTemplate';
-import { Template } from '../../models/Template';
+import { Template, getInternalField } from '../../models/Template';
 import { Account } from '../../models/Settings';
+import { INTERNAL_FIELDS, INTERNAL_FIELD_DISPLAY_NAMES } from '../../models/MasterData';
 import { fileParserService } from '../../services/fileParserService';
 import Button from '../common/Button';
 
@@ -77,9 +78,10 @@ const TargetSelect: FC<{
   disabledReason?: string;
   disabledOptions?: string[];
   isError?: boolean;
+  displayNames?: Record<string, string>;
   onChange: (value: string) => void;
   onBlur?: () => void;
-}> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, disabledOptions = [], isError, onChange, onBlur }) => (
+}> = ({ options, value, placeholder = 'Select target field', disabled, disabledReason, disabledOptions = [], isError, displayNames = {}, onChange, onBlur }) => (
   <select
     className={`w-full px-3 pr-6 py-1.5 text-sm border rounded-lg electronInput ${
       !value ? 'border-l-4 border-l-red-500' : ''
@@ -101,9 +103,10 @@ const TargetSelect: FC<{
     <option value="">{placeholder}</option>
     {options.map(opt => {
       const isOptionDisabled = disabledOptions.includes(opt) && opt !== value;
+      const displayName = displayNames[opt] || opt;
       return (
         <option key={opt} value={opt} disabled={isOptionDisabled}>
-          {opt}{isOptionDisabled ? ' (already mapped)' : ''}
+          {displayName}{isOptionDisabled ? ' (already mapped)' : ''}
         </option>
       );
     })}
@@ -186,7 +189,8 @@ const FieldRow = React.memo(({
   usedTargetFields,
   hasDefaultExportTemplate,
   onTargetBlur,
-  isTargetError
+  isTargetError,
+  targetFieldDisplayNames
 }: {
   field: ImportFieldType;
   index: number;
@@ -199,6 +203,7 @@ const FieldRow = React.memo(({
   hasDefaultExportTemplate: boolean;
   onTargetBlur?: (id: string) => void;
   isTargetError?: boolean;
+  targetFieldDisplayNames?: Record<string, string>;
 }) => {
   // Check if this field is part of a combined group
   const isCombined = field.actions === 'Combined';
@@ -282,6 +287,7 @@ const FieldRow = React.memo(({
               disabled={!hasDefaultExportTemplate}
               disabledReason={!hasDefaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
               disabledOptions={usedTargetFields}
+              displayNames={targetFieldDisplayNames}
               placeholder="Select target field"
             />
           </div>
@@ -367,47 +373,23 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
   const [storedSourceFields, setStoredSourceFields] = useState<string[]>([]);
   const [showAddFieldDropdown, setShowAddFieldDropdown] = useState(false);
 
-  // Fields state
-  const [fields, setFields] = useState<ImportFieldType[]>([
-    { 
-      id: '1', 
-      sourceField: 'first_name', 
-      dataType: 'Text', 
-      sampleData: 'John',
-      targetField: 'Full Name',
-      actions: 'Combined'
-    },
-    { 
-      id: '2', 
-      sourceField: 'last_name', 
-      dataType: 'Text', 
-      sampleData: 'Doe',
-      targetField: 'Full Name',
-      actions: 'Combined'
-    },
-    { 
-      id: '3', 
-      sourceField: 'email', 
-      dataType: 'Text', 
-      sampleData: 'john@example.com',
-      targetField: 'Email Address',
-      actions: ''
-    },
-    { 
-      id: '4', 
-      sourceField: 'phone', 
-      dataType: 'Text', 
-      sampleData: '+1234567890',
-      targetField: 'Phone Number',
-      actions: ''
-    }
-  ]);
+  // Fields state - empty by default, populated when file is uploaded
+  const [fields, setFields] = useState<ImportFieldType[]>([]);
 
-  // Derive available target fields from the selected export template
-  const availableTargetFields: string[] = (defaultExportTemplate?.fieldMappings || [])
-    .map(m => m.targetField)
-    .filter(Boolean)
-    .filter((v, i, a) => a.indexOf(v) === i);
+  // Derive available target fields from the Export Template's internal field names
+  // Use getInternalField() to get the actual internal field name (e.g., "date" not "Date")
+  // Filter out 'exportDisplayName' as it's computed from Account config, not mapped from source
+  // Fallback to INTERNAL_FIELDS if no default export template is set
+  const availableTargetFields: string[] = defaultExportTemplate
+    ? (defaultExportTemplate.fieldMappings || [])
+        .map(m => getInternalField(m))
+        .filter(Boolean)
+        .filter(f => f !== 'exportDisplayName')
+        .filter((v, i, a) => a.indexOf(v) === i)
+    : INTERNAL_FIELDS.filter(f => f !== 'exportDisplayName');
+
+  // Use centralized display name mapping for user-friendly labels in dropdowns
+  const targetFieldDisplayNames = INTERNAL_FIELD_DISPLAY_NAMES as Record<string, string>;
 
   // Track touched fields for error border behavior
   const [touchedTargetFields, setTouchedTargetFields] = useState<Record<string, boolean>>({});
@@ -1209,8 +1191,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
               variant="tertiary"
               icon={faPlus}
               onClick={handleAddFieldCombination}
-              disabled={!defaultExportTemplate || (!uploadedFile && fields.length === 0)}
-              title={!defaultExportTemplate ? "Set a default export template to enable field combinations" : (!uploadedFile && fields.length === 0) ? "Upload a file to enable field combinations" : "Add field combination"}
+              disabled={!uploadedFile && fields.length === 0}
+              title={(!uploadedFile && fields.length === 0) ? "Upload a file to enable field combinations" : "Add field combination"}
             >
               Add Field Combination
             </Button>
@@ -1269,9 +1251,10 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                     onEditCombination={handleEditLegacyCombination}
                     availableTargetFields={availableTargetFields}
                     usedTargetFields={usedTargetFields}
-                    hasDefaultExportTemplate={!!defaultExportTemplate}
+                    hasDefaultExportTemplate={true}
                     onTargetBlur={markTouched}
                     isTargetError={touchedTargetFields[field.id] && !field.targetField}
+                    targetFieldDisplayNames={targetFieldDisplayNames}
                   />
                 ));
               })()}
@@ -1343,8 +1326,8 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                   onChange={(v) => handleFieldChange(field.id, 'targetField', v)}
                                   onBlur={() => markTouched(field.id)}
                                   isError={touchedTargetFields[field.id] && !field.targetField}
-                                  disabled={!defaultExportTemplate}
-                                  disabledReason={!defaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
+                                  disabled={false}
+                                  displayNames={targetFieldDisplayNames}
                                   placeholder="Select target field"
                                 />
                               </div>
@@ -1486,8 +1469,6 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                                 !combination.targetField ? 'border-l-4 border-l-red-500' : ''
                               } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-colors`}
                               value={combination.targetField}
-                              disabled={!defaultExportTemplate}
-                              title={!defaultExportTemplate ? 'Select a default export template to enable mapping' : undefined}
                               onChange={(e) => {
                                 setFieldCombinations(prevCombinations =>
                                   prevCombinations.map(c =>
@@ -1500,7 +1481,7 @@ const NewImportTemplateEditor: FC<NewImportTemplateEditorProps> = ({
                             >
                               <option value="">Select target field</option>
                               {availableTargetFields.map(field => (
-                                <option key={field} value={field}>{field}</option>
+                                <option key={field} value={field}>{targetFieldDisplayNames[field] || field}</option>
                               ))}
                             </select>
                           </div>

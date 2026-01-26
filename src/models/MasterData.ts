@@ -107,7 +107,7 @@ export const INTERNAL_FIELDS = [
 export type InternalField = typeof INTERNAL_FIELDS[number];
 
 /**
- * Field descriptions for UI display
+ * Field descriptions for UI display (tooltips, help text)
  */
 export const INTERNAL_FIELD_DESCRIPTIONS: Record<InternalField, string> = {
   date: 'Transaction date',
@@ -118,6 +118,20 @@ export const INTERNAL_FIELD_DESCRIPTIONS: Record<InternalField, string> = {
   notes: 'User notes',
   amount: 'Transaction amount',
   tags: 'Tags (comma-joined)'
+};
+
+/**
+ * Human-readable display names for internal fields (dropdowns, labels)
+ */
+export const INTERNAL_FIELD_DISPLAY_NAMES: Record<InternalField, string> = {
+  date: 'Date',
+  merchant: 'Merchant',
+  category: 'Category',
+  exportDisplayName: 'Account',
+  originalStatement: 'Original Statement',
+  notes: 'Notes',
+  amount: 'Amount',
+  tags: 'Tags'
 };
 
 /**

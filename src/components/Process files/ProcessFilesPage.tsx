@@ -6,6 +6,7 @@ import UploadStep from './UploadStep';
 import ConfigureStep from './ConfigureStep';
 import ReviewStep from './ReviewStep';
 import ExportStep from './ExportStep';
+import type { DuplicateMatch } from '../../services/fileProcessingService';
 
 // Types
 export interface FileEntry {
@@ -22,6 +23,13 @@ export interface FileEntry {
   selectedTemplateId?: string;
   suggestedTemplateId?: string;
   isAutoMatched?: boolean;
+  hasColumnMismatch?: boolean;
+}
+
+export interface ProcessingMetrics {
+  totalAmount: number;
+  minDate: string | null;
+  maxDate: string | null;
 }
 
 export interface ProcessingResult {
@@ -34,6 +42,8 @@ export interface ProcessingResult {
   duplicates: DuplicateMatch[];
   totalRecords: number;
   processedRecords: number;
+  originalMetrics: ProcessingMetrics;
+  processedMetrics: ProcessingMetrics;
 }
 
 export interface Transaction {
@@ -49,13 +59,8 @@ export interface ParseError {
   field?: string;
 }
 
-export interface DuplicateMatch {
-  row: number;
-  description: string;
-  amount: number;
-  date: string;
-  matchSource: string;
-}
+// DuplicateMatch is imported from fileProcessingService
+export type { DuplicateMatch };
 
 // Step definitions
 const STEPS = [
@@ -114,16 +119,24 @@ const ProcessFilesPage: React.FC = () => {
       parseStatus: 'pending' as const,
     }));
     setFiles((prev) => [...prev, ...entries]);
+    // Clear results since file list changed - will need reprocessing
+    setResults([]);
   }, []);
 
   const removeFile = useCallback((id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
+    // Clear results since file list changed - will need reprocessing
+    setResults([]);
   }, []);
 
   const updateFile = useCallback((id: string, updates: Partial<FileEntry>) => {
     setFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, ...updates } : f))
     );
+    // Clear results if template assignment changed - will need reprocessing
+    if ('selectedTemplateId' in updates) {
+      setResults([]);
+    }
   }, []);
 
   // Navigation
@@ -159,8 +172,10 @@ const ProcessFilesPage: React.FC = () => {
         // At least one file uploaded
         return files.length > 0;
       case 2:
-        // All files have template selected
-        return files.length > 0 && files.every((f) => f.selectedTemplateId);
+        // All files have template selected AND no column mismatches
+        return files.length > 0 &&
+               files.every((f) => f.selectedTemplateId) &&
+               !files.some((f) => f.hasColumnMismatch);
       case 3:
         // All issues reviewed (we'll implement this logic later)
         return results.length > 0;
@@ -181,6 +196,9 @@ const ProcessFilesPage: React.FC = () => {
       case 2:
         if (files.some((f) => !f.selectedTemplateId)) {
           return 'Select templates for all files to continue';
+        }
+        if (files.some((f) => f.hasColumnMismatch)) {
+          return 'Fix column mismatches before continuing';
         }
         return null;
       case 3:

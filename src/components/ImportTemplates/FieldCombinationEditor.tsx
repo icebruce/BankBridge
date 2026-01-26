@@ -11,6 +11,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import Button from '../common/Button';
 import { FieldCombination, SourceField } from '../../models/ImportTemplate';
+import { INTERNAL_FIELD_DISPLAY_NAMES } from '../../models/MasterData';
 
 interface FieldCombinationEditorProps {
   onSave: (combination: FieldCombination) => void;
@@ -24,7 +25,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
   onSave,
   onCancel,
   availableSourceFields = ['first_name', 'last_name', 'middle_name', 'title', 'suffix'],
-  availableTargetFields = ['Full Name', 'Address', 'Contact Info', 'Customer Details'],
+  availableTargetFields = ['date', 'merchant', 'originalStatement', 'notes', 'amount', 'tags'],
   editingCombination = null
 }) => {
   const [targetField, setTargetField] = useState<string>('');
@@ -235,7 +236,7 @@ const FieldCombinationEditor: FC<FieldCombinationEditorProps> = ({
               >
                 <option value="">Select target field</option>
                 {availableTargetFields.map(field => (
-                  <option key={field} value={field}>{field}</option>
+                  <option key={field} value={field}>{INTERNAL_FIELD_DISPLAY_NAMES[field as keyof typeof INTERNAL_FIELD_DISPLAY_NAMES] || field}</option>
                 ))}
               </select>
             </div>

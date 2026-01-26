@@ -8,7 +8,8 @@ import { Account } from '../../models/Settings';
 import { fetchImportTemplates, createImportTemplate, updateImportTemplate, deleteImportTemplate, duplicateImportTemplate } from '../../services/importTemplateService';
 import { getDefaultTemplate } from '../../services/templateService';
 import { getAccounts } from '../../services/settingsService';
-import { Template } from '../../models/Template';
+import { Template, getInternalField } from '../../models/Template';
+import { INTERNAL_FIELDS } from '../../models/MasterData';
 import ImportTemplatesList from './ImportTemplatesList';
 import SearchAndFilters from './SearchAndFilters';
 import NewImportTemplateEditor from './NewImportTemplateEditor';
@@ -264,7 +265,15 @@ const ImportTemplatesPage: FC = () => {
           onSave={handleSaveFieldCombination}
           onCancel={handleCancelFieldCombination}
           availableSourceFields={uploadedFileFields}
-          availableTargetFields={defaultExportTemplate?.fieldMappings.map(mapping => mapping.targetField) || []}
+          availableTargetFields={
+            defaultExportTemplate
+              ? (defaultExportTemplate.fieldMappings || [])
+                  .map(m => getInternalField(m))
+                  .filter(Boolean)
+                  .filter(f => f !== 'exportDisplayName')
+                  .filter((v, i, a) => a.indexOf(v) === i)
+              : INTERNAL_FIELDS.filter(f => f !== 'exportDisplayName')
+          }
           editingCombination={editingFieldCombination}
         />
       ) : showNewTemplateEditor ? (

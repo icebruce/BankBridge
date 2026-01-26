@@ -12,6 +12,8 @@ interface DuplicateReviewModalProps {
   onApply: (selectedRows: number[]) => void;
 }
 
+type Selection = 'original' | 'duplicate';
+
 const DuplicateReviewModal: React.FC<DuplicateReviewModalProps> = ({
   isOpen,
   duplicates,
@@ -19,38 +21,64 @@ const DuplicateReviewModal: React.FC<DuplicateReviewModalProps> = ({
   onClose,
   onApply,
 }) => {
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  // Track selection for each duplicate set: 'original' keeps original (skips duplicate), 'duplicate' keeps duplicate
+  const [selections, setSelections] = useState<Record<number, Selection>>(() => {
+    // Default to keeping original (skip duplicates)
+    const initial: Record<number, Selection> = {};
+    duplicates.forEach((_, idx) => {
+      initial[idx] = 'original';
+    });
+    return initial;
+  });
 
   if (!isOpen) return null;
 
-  const handleToggle = (row: number) => {
-    const newSelected = new Set(selectedRows);
-    if (newSelected.has(row)) {
-      newSelected.delete(row);
-    } else {
-      newSelected.add(row);
-    }
-    setSelectedRows(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    setSelectedRows(new Set(duplicates.map((d) => d.row)));
-  };
-
-  const handleDeselectAll = () => {
-    setSelectedRows(new Set());
+  const handleSelectionChange = (index: number, selection: Selection) => {
+    setSelections((prev) => ({ ...prev, [index]: selection }));
   };
 
   const handleApply = () => {
-    onApply(Array.from(selectedRows));
+    // Return rows that should be INCLUDED (where user selected 'duplicate')
+    const selectedRows = duplicates
+      .filter((_, idx) => selections[idx] === 'duplicate')
+      .map((d) => d.row);
+    onApply(selectedRows);
   };
 
-  const formatAmount = (amount: number): string => {
+  const formatAmount = (amount: number | undefined): string => {
+    if (amount === undefined) return '-';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
   };
+
+  const formatDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getSourceLabel = (matchSource: string): string => {
+    if (matchSource.includes('Existing data')) {
+      return 'Master Data';
+    } else if (matchSource.includes('Another file')) {
+      return 'Another File';
+    }
+    return 'This File';
+  };
+
+  // Count how many duplicates will be included
+  const duplicatesToInclude = Object.values(selections).filter((s) => s === 'duplicate').length;
 
   return createPortal(
     <div
@@ -68,12 +96,17 @@ const DuplicateReviewModal: React.FC<DuplicateReviewModalProps> = ({
 
       {/* Modal Container */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl transform overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="relative w-full max-w-3xl transform overflow-hidden rounded-xl bg-white shadow-2xl">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
-            <h3 id="duplicate-modal-title" className="text-lg font-semibold">
-              Duplicate Records ({duplicates.length})
-            </h3>
+            <div>
+              <h3 id="duplicate-modal-title" className="text-lg font-semibold">
+                Review Duplicates
+              </h3>
+              <p className="text-sm text-neutral-500 mt-0.5">
+                {duplicates.length} duplicate{duplicates.length !== 1 ? 's' : ''} found in {fileName}
+              </p>
+            </div>
             <button
               onClick={onClose}
               className="p-2 text-neutral-400 hover:text-neutral-600 rounded-lg transition-colors"
@@ -83,71 +116,125 @@ const DuplicateReviewModal: React.FC<DuplicateReviewModalProps> = ({
           </div>
 
           {/* Body */}
-          <div className="px-6 py-4">
-            <p className="text-sm text-neutral-500 mb-4">
-              The following records in <strong>{fileName}</strong> appear to be duplicates:
-            </p>
-
-            {/* Duplicate List */}
-            <div className="max-h-80 overflow-y-auto space-y-2 mb-4">
+          <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-6">
               {duplicates.map((duplicate, index) => (
-                <label
-                  key={index}
-                  className={`
-                    flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors
-                    ${selectedRows.has(duplicate.row)
-                      ? 'border-blue-300 bg-blue-50'
-                      : 'border-neutral-200 hover:bg-neutral-50'
-                    }
-                  `}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedRows.has(duplicate.row)}
-                    onChange={() => handleToggle(duplicate.row)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">
-                      Row {duplicate.row}: {duplicate.description} - {formatAmount(duplicate.amount)} - {duplicate.date}
-                    </div>
-                    <div className="text-sm text-neutral-500 mt-1">
-                      ↳ Found in: {duplicate.matchSource}
-                    </div>
+                <div key={index} className="border border-neutral-200 rounded-lg overflow-hidden">
+                  {/* Set Header */}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-neutral-50 border-b border-neutral-200">
+                    <span className="text-sm font-medium text-neutral-700">
+                      Duplicate Set #{index + 1}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      Source: {getSourceLabel(duplicate.matchSource)}
+                    </span>
                   </div>
-                </label>
+
+                  {/* Comparison Cards */}
+                  <div className="p-4 space-y-3">
+                    {/* Original Record */}
+                    <label
+                      className={`
+                        block p-4 border rounded-lg cursor-pointer transition-all
+                        ${selections[index] === 'original'
+                          ? 'border-blue-400 bg-blue-50/50 ring-1 ring-blue-200'
+                          : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <input
+                          type="radio"
+                          name={`duplicate-${index}`}
+                          checked={selections[index] === 'original'}
+                          onChange={() => handleSelectionChange(index, 'original')}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm font-medium text-neutral-900">
+                          Original
+                          {duplicate.originalRow && (
+                            <span className="text-neutral-500 font-normal ml-1">(Row {duplicate.originalRow})</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4 ml-7">
+                        <div>
+                          <div className="text-xs text-neutral-500 mb-1">Date</div>
+                          <div className="text-sm font-medium text-neutral-900">
+                            {formatDate(duplicate.originalDate)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-neutral-500 mb-1">Amount</div>
+                          <div className="text-sm font-medium text-neutral-900">
+                            {formatAmount(duplicate.originalAmount)}
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-xs text-neutral-500 mb-1">Description</div>
+                          <div className="text-sm font-medium text-neutral-900 truncate">
+                            {duplicate.originalDescription || '-'}
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+
+                    {/* Duplicate Record */}
+                    <label
+                      className={`
+                        block p-4 border rounded-lg cursor-pointer transition-all
+                        ${selections[index] === 'duplicate'
+                          ? 'border-blue-400 bg-blue-50/50 ring-1 ring-blue-200'
+                          : 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <input
+                          type="radio"
+                          name={`duplicate-${index}`}
+                          checked={selections[index] === 'duplicate'}
+                          onChange={() => handleSelectionChange(index, 'duplicate')}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm font-medium text-neutral-900">
+                          Duplicate
+                          <span className="text-neutral-500 font-normal ml-1">(Row {duplicate.row})</span>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4 ml-7">
+                        <div>
+                          <div className="text-xs text-neutral-500 mb-1">Date</div>
+                          <div className="text-sm font-medium text-neutral-900">
+                            {formatDate(duplicate.date)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-neutral-500 mb-1">Amount</div>
+                          <div className="text-sm font-medium text-neutral-900">
+                            {formatAmount(duplicate.amount)}
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-xs text-neutral-500 mb-1">Description</div>
+                          <div className="text-sm font-medium text-neutral-900 truncate">
+                            {duplicate.description || '-'}
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
               ))}
-            </div>
-
-            {/* Bulk Actions */}
-            <div className="flex gap-3 mb-4">
-              <button
-                onClick={handleSelectAll}
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                Select All
-              </button>
-              <button
-                onClick={handleDeselectAll}
-                className="text-sm text-neutral-600 hover:text-neutral-700"
-              >
-                Deselect All
-              </button>
-            </div>
-
-            {/* Info */}
-            <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-600">
-              <strong>Selected rows will be INCLUDED</strong> in export (imported anyway).
-              <br />
-              <strong>Unselected rows will be SKIPPED</strong>.
             </div>
           </div>
 
           {/* Footer */}
           <div className="flex justify-between items-center px-6 py-4 border-t border-neutral-200 bg-neutral-50">
-            <span className="text-sm text-neutral-500">
-              {selectedRows.size} of {duplicates.length} selected to include
-            </span>
+            <div className="text-sm text-neutral-600">
+              <span className="font-medium">{duplicates.length - duplicatesToInclude}</span> originals kept,{' '}
+              <span className="font-medium">{duplicatesToInclude}</span> duplicates to include
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
@@ -159,7 +246,7 @@ const DuplicateReviewModal: React.FC<DuplicateReviewModalProps> = ({
                 onClick={handleApply}
                 className="px-4 py-2.5 bg-neutral-900 text-white font-medium rounded-lg hover:bg-neutral-800 transition-colors"
               >
-                Apply
+                Apply Selection
               </button>
             </div>
           </div>

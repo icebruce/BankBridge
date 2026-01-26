@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCheck,
   faTriangleExclamation,
-  faXmark,
   faMagicWandSparkles,
+  faCircleInfo,
+  faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { faFileLines } from '@fortawesome/free-regular-svg-icons';
 import type { FileEntry } from './ProcessFilesPage';
@@ -16,6 +17,65 @@ interface ConfigureStepProps {
   files: FileEntry[];
   onUpdateFile: (id: string, updates: Partial<FileEntry>) => void;
 }
+
+// Tooltip component for showing mismatch details
+const MismatchTooltip: React.FC<{ missingColumns: string[] }> = ({ missingColumns }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="relative inline-block" ref={tooltipRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5 hover:text-red-700 transition-colors"
+      >
+        <span>File does not match template</span>
+        <FontAwesomeIcon icon={faCircleInfo} className="text-red-400 hover:text-red-500" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-2 z-50 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-neutral-700">Missing Columns</span>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-neutral-400 hover:text-neutral-600 p-0.5"
+            >
+              <FontAwesomeIcon icon={faXmark} className="text-xs" />
+            </button>
+          </div>
+          <p className="text-xs text-neutral-500 mb-2">
+            The selected template expects these columns which are not in your file:
+          </p>
+          <ul className="space-y-1">
+            {missingColumns.map((col, idx) => (
+              <li key={idx} className="text-xs text-red-600 flex items-start gap-1.5">
+                <span className="text-red-400 mt-0.5">•</span>
+                <span className="font-mono bg-red-50 px-1.5 py-0.5 rounded">{col}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface TemplateWithAccount extends ImportTemplate {
   accountDisplayName?: string;
@@ -54,10 +114,13 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
           if (!file.selectedTemplateId && file.parseStatus === 'complete' && file.parseResult) {
             const suggestion = suggestTemplateForColumns(file.parseResult.columns, enrichedTemplates);
             if (suggestion) {
+              const suggestedTemplate = enrichedTemplates.find(t => t.id === suggestion.templateId);
+              const match = checkTemplateMatch(suggestedTemplate, file.parseResult?.columns);
               onUpdateFile(file.id, {
                 suggestedTemplateId: suggestion.templateId,
                 selectedTemplateId: suggestion.templateId,
                 isAutoMatched: true,
+                hasColumnMismatch: suggestedTemplate ? !match.isMatch : false,
               });
             }
           }
@@ -72,9 +135,14 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
   }, [files, onUpdateFile]);
 
   const handleTemplateChange = (fileId: string, templateId: string) => {
+    const file = files.find(f => f.id === fileId);
+    const template = templateId ? getTemplateById(templateId) : undefined;
+    const match = checkTemplateMatch(template, file?.parseResult?.columns);
+
     onUpdateFile(fileId, {
       selectedTemplateId: templateId || undefined,
       isAutoMatched: false,
+      hasColumnMismatch: template ? !match.isMatch : false,
     });
   };
 
@@ -82,11 +150,58 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
     return templates.find((t) => t.id === id);
   };
 
+  // Check if template's mapped source fields exist in file's columns
+  const checkTemplateMatch = (
+    template: TemplateWithAccount | undefined,
+    fileColumns: string[] | undefined
+  ): { isMatch: boolean; missingColumns: string[] } => {
+    if (!template || !fileColumns) {
+      return { isMatch: true, missingColumns: [] };
+    }
+
+    // Get source fields that are actually mapped to a target field
+    // Only these are "required" - unmapped columns are ignored
+    const mappedFields = template.fieldMappings
+      .filter(m => m.sourceField && m.targetField) // Must have both source AND target
+      .map(m => m.sourceField);
+
+    // Also check field combinations (combined fields)
+    const combinedFields = (template.fieldCombinations || [])
+      .flatMap(c => c.sourceFields?.map(sf => sf.fieldName) || []);
+
+    // All fields that the template expects from the file
+    const requiredFields = [...new Set([...mappedFields, ...combinedFields])];
+
+    // Find which template fields are missing from file columns
+    const missingColumns = requiredFields.filter(
+      field => !fileColumns.includes(field)
+    );
+
+    return {
+      isMatch: missingColumns.length === 0,
+      missingColumns
+    };
+  };
+
   // Check if any file needs attention
   const filesNeedingAttention = files.filter(
     (f) => !f.selectedTemplateId && f.parseStatus === 'complete'
   );
-  const filesReady = files.filter((f) => f.selectedTemplateId);
+
+  // Check for files with template mismatches
+  const filesWithMismatch = files.filter((f) => {
+    if (!f.selectedTemplateId) return false;
+    const template = getTemplateById(f.selectedTemplateId);
+    const match = checkTemplateMatch(template, f.parseResult?.columns);
+    return !match.isMatch;
+  });
+
+  const filesReady = files.filter((f) => {
+    if (!f.selectedTemplateId) return false;
+    const template = getTemplateById(f.selectedTemplateId);
+    const match = checkTemplateMatch(template, f.parseResult?.columns);
+    return match.isMatch;
+  });
 
   if (loading) {
     return (
@@ -148,10 +263,16 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
               {filesReady.length} ready
             </span>
           )}
+          {filesWithMismatch.length > 0 && (
+            <span className="text-red-600 flex items-center">
+              <FontAwesomeIcon icon={faXmark} className="mr-2" />
+              {filesWithMismatch.length} {filesWithMismatch.length === 1 ? 'error' : 'errors'}
+            </span>
+          )}
           {filesNeedingAttention.length > 0 && (
             <span className="text-yellow-700 flex items-center">
               <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
-              {filesNeedingAttention.length} need attention
+              {filesNeedingAttention.length} need template
             </span>
           )}
         </div>
@@ -184,12 +305,16 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
               const isLastRow = index === files.length - 1;
               const borderClass = isLastRow ? '' : 'border-b border-neutral-200';
 
+              // Check if selected template matches file columns
+              const templateMatch = checkTemplateMatch(selectedTemplate, file.parseResult?.columns);
+              const hasMismatch = selectedTemplate && !templateMatch.isMatch;
+
               return (
                 <tr
                   key={file.id}
                   className={`
                     transition-colors
-                    ${needsAttention ? 'bg-yellow-50/50' : 'hover:bg-neutral-50'}
+                    ${needsAttention || hasMismatch ? 'bg-yellow-50/50' : 'hover:bg-neutral-50'}
                   `}
                 >
                   {/* File Name */}
@@ -212,13 +337,19 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
                   {/* Status */}
                   <td className={`text-left px-4 py-4 ${borderClass}`}>
-                    {file.isAutoMatched && file.selectedTemplateId && (
+                    {hasMismatch && (
+                      <span className="text-xs px-2.5 py-1 bg-red-100 text-red-700 rounded-full font-medium inline-flex items-center">
+                        <FontAwesomeIcon icon={faXmark} className="mr-1.5" />
+                        Error
+                      </span>
+                    )}
+                    {!hasMismatch && file.isAutoMatched && file.selectedTemplateId && (
                       <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium inline-flex items-center">
                         <FontAwesomeIcon icon={faMagicWandSparkles} className="mr-1.5" />
                         Auto-matched
                       </span>
                     )}
-                    {selectedTemplate && !file.isAutoMatched && (
+                    {!hasMismatch && selectedTemplate && !file.isAutoMatched && (
                       <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium inline-flex items-center">
                         <FontAwesomeIcon icon={faCheck} className="mr-1.5" />
                         Ready
@@ -241,7 +372,7 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         w-full px-3 py-1.5 text-sm border rounded-lg electronInput
                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none
                         transition-colors
-                        ${needsAttention ? 'border-yellow-200' : 'border-neutral-200'}
+                        ${hasMismatch ? 'border-red-300' : needsAttention ? 'border-yellow-200' : 'border-neutral-200'}
                       `}
                     >
                       <option value="">Select...</option>
@@ -251,6 +382,9 @@ const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         </option>
                       ))}
                     </select>
+                    {hasMismatch && (
+                      <MismatchTooltip missingColumns={templateMatch.missingColumns} />
+                    )}
                   </td>
                 </tr>
               );
