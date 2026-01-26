@@ -84,8 +84,8 @@ const ReviewStep: React.FC<ReviewStepProps> = ({
           // Read the actual file content
           const fileContent = await file.file.text();
 
-          // Parse the CSV content
-          const parsed = fileParserService.parseCSVContent(fileContent);
+          // Parse the file content (handles both CSV and JSON)
+          const parsed = fileParserService.parseFileContent(fileContent, file.name);
           if (!parsed.data || parsed.data.length === 0) {
             // Handle empty or invalid file
             newResults.push({

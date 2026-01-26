@@ -924,6 +924,91 @@ class FileParserService {
 
     return { columns, data };
   }
+
+  /**
+   * Parse file content (CSV or JSON) into columns and data rows.
+   * Unified method that auto-detects file type from extension and returns
+   * consistent { columns, data } format for processing.
+   *
+   * For JSON files, automatically finds nested arrays (e.g., transactionList)
+   * and flattens object values to strings.
+   */
+  parseFileContent(content: string, fileName: string): {
+    columns: string[];
+    data: Record<string, string>[];
+  } {
+    const extension = this.getFileExtension(fileName);
+
+    switch (extension) {
+      case 'json':
+        return this.parseJSONContent(content);
+      case 'csv':
+      case 'txt':
+      default:
+        return this.parseCSVContent(content);
+    }
+  }
+
+  /**
+   * Parse JSON content string into columns and data rows.
+   * Finds nested arrays (like transactionList) and converts to tabular format.
+   */
+  private parseJSONContent(content: string): {
+    columns: string[];
+    data: Record<string, string>[];
+  } {
+    try {
+      const parsed = JSON.parse(content);
+
+      // Find the array of data (could be root array or nested like transactionList)
+      let dataArray: any[];
+
+      if (Array.isArray(parsed)) {
+        dataArray = parsed;
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        // Look for nested arrays
+        const nestedResult = this.findNestedArrays(parsed);
+        if (nestedResult.found && nestedResult.arrayData) {
+          dataArray = nestedResult.arrayData;
+        } else {
+          // Single object - treat as single row
+          dataArray = [parsed];
+        }
+      } else {
+        return { columns: [], data: [] };
+      }
+
+      if (dataArray.length === 0) {
+        return { columns: [], data: [] };
+      }
+
+      // Collect all unique keys from all objects
+      const allKeys = new Set<string>();
+      dataArray.forEach(obj => {
+        if (typeof obj === 'object' && obj !== null) {
+          Object.keys(obj).forEach(key => allKeys.add(key));
+        }
+      });
+
+      const columns = Array.from(allKeys);
+
+      // Convert each object to a Record<string, string>
+      const data = dataArray.map(obj => {
+        const row: Record<string, string> = {};
+        for (const col of columns) {
+          const value = obj[col];
+          row[col] = this.flattenValue(value);
+        }
+        return row;
+      });
+
+      return { columns, data };
+
+    } catch (error) {
+      // Invalid JSON - return empty
+      return { columns: [], data: [] };
+    }
+  }
 }
 
 // Export singleton instance

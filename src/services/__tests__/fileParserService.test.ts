@@ -535,4 +535,145 @@ describe('FileParserService', () => {
       expect(result.fields).toHaveLength(1); // Single column due to wrong delimiter
     });
   });
+
+  describe('parseFileContent (unified method)', () => {
+    it('should parse CSV content when fileName has .csv extension', () => {
+      const csvContent = 'Date,Amount,Description\n2025-04-24,55.63,PROVIGO\n2025-04-22,57.24,MAXI';
+
+      const result = fileParserService.parseFileContent(csvContent, 'transactions.csv');
+
+      expect(result.columns).toEqual(['Date', 'Amount', 'Description']);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].Date).toBe('2025-04-24');
+      expect(result.data[0].Amount).toBe('55.63');
+      expect(result.data[0].Description).toBe('PROVIGO');
+    });
+
+    it('should parse JSON array content when fileName has .json extension', () => {
+      const jsonContent = JSON.stringify([
+        { date: '2025-04-24', amount: 55.63, description: 'PROVIGO' },
+        { date: '2025-04-22', amount: 57.24, description: 'MAXI' }
+      ]);
+
+      const result = fileParserService.parseFileContent(jsonContent, 'transactions.json');
+
+      expect(result.columns).toContain('date');
+      expect(result.columns).toContain('amount');
+      expect(result.columns).toContain('description');
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].date).toBe('2025-04-24');
+      expect(result.data[0].amount).toBe('55.63');
+      expect(result.data[0].description).toBe('PROVIGO');
+    });
+
+    it('should parse JSON with nested transactionList array', () => {
+      const jsonContent = JSON.stringify({
+        transactionList: [
+          { bookingDate: '2025-04-24', amount: 55.63, merchantName: 'PROVIGO MONKLAND' },
+          { bookingDate: '2025-04-22', amount: 57.24, merchantName: 'STM LOGE' }
+        ],
+        totalMatches: 2,
+        hasError: false
+      });
+
+      const result = fileParserService.parseFileContent(jsonContent, 'rbc_credit_card.json');
+
+      expect(result.columns).toContain('bookingDate');
+      expect(result.columns).toContain('amount');
+      expect(result.columns).toContain('merchantName');
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].bookingDate).toBe('2025-04-24');
+      expect(result.data[0].merchantName).toBe('PROVIGO MONKLAND');
+    });
+
+    it('should flatten nested JSON values to strings', () => {
+      const jsonContent = JSON.stringify({
+        transactionList: [
+          {
+            date: '2025-04-24',
+            description: ['PROVIGO', 'MONKLAND'],  // Array value
+            additions: { key: 'value' }  // Object value
+          }
+        ]
+      });
+
+      const result = fileParserService.parseFileContent(jsonContent, 'test.json');
+
+      expect(result.data).toHaveLength(1);
+      // Array should be flattened to comma-separated string
+      expect(result.data[0].description).toBe('PROVIGO, MONKLAND');
+      // Object should be flattened to key-value string
+      expect(result.data[0].additions).toContain('key');
+    });
+
+    it('should handle empty JSON array', () => {
+      const jsonContent = JSON.stringify([]);
+
+      const result = fileParserService.parseFileContent(jsonContent, 'empty.json');
+
+      expect(result.columns).toEqual([]);
+      expect(result.data).toEqual([]);
+    });
+
+    it('should handle JSON with nested empty array', () => {
+      const jsonContent = JSON.stringify({
+        transactionList: [],
+        totalMatches: 0
+      });
+
+      const result = fileParserService.parseFileContent(jsonContent, 'empty.json');
+
+      // When transactionList is empty, findNestedArrays doesn't find valid data,
+      // so it falls back to treating the root object as a single row
+      expect(result.columns).toContain('transactionList');
+      expect(result.columns).toContain('totalMatches');
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should handle invalid JSON gracefully', () => {
+      const invalidJson = '{ invalid json }';
+
+      const result = fileParserService.parseFileContent(invalidJson, 'bad.json');
+
+      expect(result.columns).toEqual([]);
+      expect(result.data).toEqual([]);
+    });
+
+    it('should handle single JSON object (not array)', () => {
+      const jsonContent = JSON.stringify({
+        date: '2025-04-24',
+        amount: 55.63,
+        description: 'PROVIGO'
+      });
+
+      const result = fileParserService.parseFileContent(jsonContent, 'single.json');
+
+      expect(result.columns).toContain('date');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].date).toBe('2025-04-24');
+    });
+
+    it('should treat .txt files as CSV', () => {
+      const txtContent = 'Date,Amount\n2025-04-24,55.63';
+
+      const result = fileParserService.parseFileContent(txtContent, 'data.txt');
+
+      expect(result.columns).toEqual(['Date', 'Amount']);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('should handle null values in JSON', () => {
+      // Note: JSON.stringify omits undefined values, so we only test null
+      const jsonContent = JSON.stringify([
+        { date: '2025-04-24', amount: null, notes: '' }
+      ]);
+
+      const result = fileParserService.parseFileContent(jsonContent, 'test.json');
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].date).toBe('2025-04-24');
+      expect(result.data[0].amount).toBe('');  // null becomes empty string
+      expect(result.data[0].notes).toBe('');   // empty string stays empty
+    });
+  });
 });

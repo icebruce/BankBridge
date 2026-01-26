@@ -6,6 +6,7 @@ import UploadStep from './UploadStep';
 import ConfigureStep from './ConfigureStep';
 import ReviewStep from './ReviewStep';
 import ExportStep from './ExportStep';
+import ConfirmDialog from '../common/ConfirmDialog';
 import type { DuplicateMatch } from '../../services/fileProcessingService';
 
 // Types
@@ -79,6 +80,7 @@ const ProcessFilesPage: React.FC = () => {
     localStorage.getItem('bankbridge_export_path') || ''
   );
   const [exportSuccess, setExportSuccess] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Persist export path
   useEffect(() => {
@@ -163,6 +165,23 @@ const ProcessFilesPage: React.FC = () => {
     setFiles([]);
     setResults([]);
     setExportSuccess(false);
+  };
+
+  const handleCancel = () => {
+    if (files.length > 0) {
+      setShowCancelConfirm(true);
+    } else {
+      // No files uploaded, just reset (though this is essentially a no-op)
+      handleConfirmCancel();
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setStep(1);
+    setFiles([]);
+    setResults([]);
+    setExportSuccess(false);
+    setShowCancelConfirm(false);
   };
 
   // Check if can proceed to next step
@@ -291,11 +310,17 @@ const ProcessFilesPage: React.FC = () => {
             )}
           </div>
 
-          {/* Disabled message + Next button */}
+          {/* Disabled message + Cancel + Next button */}
           <div className="flex items-center gap-4">
             {disabledMessage && (
               <span className="text-sm text-neutral-500 italic">{disabledMessage}</span>
             )}
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2.5 border border-neutral-200 text-neutral-600 rounded-lg hover:bg-neutral-50 hover:border-neutral-300 transition-all duration-200 font-medium"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleNext}
               disabled={!canProceed()}
@@ -326,6 +351,17 @@ const ProcessFilesPage: React.FC = () => {
         </div>
       )}
 
+      {/* Cancel Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        title="Cancel Processing"
+        message={`You have ${files.length} file${files.length !== 1 ? 's' : ''} uploaded. Are you sure you want to cancel? All progress will be lost.`}
+        confirmLabel="Yes, Cancel"
+        cancelLabel="Continue Working"
+        variant="warning"
+        onConfirm={handleConfirmCancel}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
     </div>
   );
 };
